@@ -165,9 +165,11 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         const calculatePages = () => {
             if (!hiddenRenderRef.current) return;
     
+            // Millimeters to Pixels conversion factor (approximate)
+            const MM_TO_PX = 3.7795275591;
+    
             const PAGE_HEIGHT_MM = 297;
-            const contentHeightMM = PAGE_HEIGHT_MM - margins.top - margins.bottom;
-            const PAGE_HEIGHT_PX = contentHeightMM * 3.78; // Approx conversion from mm to px
+            const contentHeightPx = (PAGE_HEIGHT_MM - margins.top - margins.bottom) * MM_TO_PX;
             
             const questionContainer = hiddenRenderRef.current.querySelector('main');
             if (!questionContainer) return;
@@ -180,7 +182,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             }
 
             const headerEl = hiddenRenderRef.current.querySelector('.preview-header');
-            const headerHeight = headerEl ? (headerEl.clientHeight + 24) : 0;
+            const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
             
             let newPages: Question[][] = [];
             let currentPageQuestions: Question[] = [];
@@ -188,12 +190,13 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             let isFirstPage = true;
 
             questionElements.forEach((el, index) => {
-                const questionHeight = (el as HTMLElement).offsetHeight;
-                const questionMargin = 16;
-                const totalQuestionHeight = questionHeight + questionMargin;
+                const questionHeight = (el as HTMLElement).getBoundingClientRect().height;
+                // The 'mb-4' class on question-item adds margin-bottom: 1rem (16px)
+                const questionMarginBottom = 16;
+                const totalQuestionHeight = questionHeight + questionMarginBottom;
 
-                const pageBreakThreshold = isFirstPage ? PAGE_HEIGHT_PX - headerHeight : PAGE_HEIGHT_PX;
-
+                const pageBreakThreshold = isFirstPage ? contentHeightPx - headerHeight : contentHeightPx;
+                
                 if (currentHeight + totalQuestionHeight > pageBreakThreshold && currentPageQuestions.length > 0) {
                     newPages.push(currentPageQuestions);
                     currentPageQuestions = [];
@@ -298,6 +301,8 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
+
+    
 
     
 
