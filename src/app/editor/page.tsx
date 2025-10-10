@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import PaperPreview from './PaperPreview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import MathExpressions from './MathExpressions';
 
 type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
@@ -84,6 +85,38 @@ const initialPaperData: Paper = {
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(initialPaperData);
   const previewRef = useRef<HTMLDivElement>(null);
+  const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
+
+  const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
+    setFocusedInput({ element: e.currentTarget, id });
+  };
+
+  const handleInsertExpression = (expression: string) => {
+    if (!focusedInput) return;
+
+    const { element, id } = focusedInput;
+    const [qId, sqId] = id.split('-');
+    const { selectionStart, selectionEnd } = element;
+    const currentValue = element.value;
+    const newValue = currentValue.substring(0, selectionStart ?? 0) + expression + currentValue.substring(selectionEnd ?? 0);
+
+    element.value = newValue;
+    element.focus();
+    element.setSelectionRange((selectionStart ?? 0) + expression.length, (selectionStart ?? 0) + expression.length);
+
+    // Manually trigger change to update state
+    if (sqId) {
+        if (id.startsWith('option')) {
+            const [_, qId, sqId, optId] = id.split('-');
+            handleOptionChange(qId, sqId, optId, newValue);
+        } else {
+            handleSubQuestionChange(qId, sqId, 'content', newValue);
+        }
+    } else {
+        handleQuestionChange(qId, 'content', newValue);
+    }
+  };
+
 
   const handleDownloadPdf = async () => {
     const content = previewRef.current;
@@ -118,19 +151,19 @@ export default function EditorPage() {
     }));
   };
   
-    const handleSubQuestionChange = (parentId: string, subId: string, field: 'content', value: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q =>
-        q.id === parentId ? {
-          ...q,
-          subQuestions: q.subQuestions?.map(sq =>
-            sq.id === subId ? { ...sq, [field]: value } : sq
+    const handleSubQuestionChange = (parentId: string, subId: string, field: 'content' | 'marks', value: string | number) => {
+        setPaper(prev => ({
+          ...prev,
+          questions: prev.questions.map(q =>
+            q.id === parentId ? {
+              ...q,
+              subQuestions: q.subQuestions?.map(sq =>
+                sq.id === subId ? { ...sq, [field]: value } : sq
+              )
+            } : q
           )
-        } : q
-      )
-    }));
-  };
+        }));
+      };
   
   const addSubQuestion = (questionId: string, type: Question['type'] = 'short') => {
     setPaper(prev => ({
@@ -141,6 +174,7 @@ export default function EditorPage() {
             id: `sq${Date.now()}`,
             type: type,
             content: 'নতুন প্রশ্ন...',
+            marks: 2,
           };
           if (type === 'mcq') {
             newSubQuestion.options = [
@@ -352,7 +386,7 @@ export default function EditorPage() {
 
   const renderQuestion = (question: Question, index: number) => {
     const handleRemove = () => removeQuestion(question.id);
-    const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'essay', 'mcq'].includes(question.type);
+    const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'essay', 'mcq', 'table'].includes(question.type);
 
     const questionCard = (title: string, children: React.ReactNode, showNumberingAndMarks = false) => (
         <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
@@ -366,6 +400,7 @@ export default function EditorPage() {
                  <div className="flex items-center gap-2">
                     <Label htmlFor={`marks-${question.id}`} className="text-sm">Marks:</Label>
                     <Input 
+                      id={`marks-${question.id}`}
                       type="number" 
                       value={question.marks} 
                       onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
@@ -401,18 +436,54 @@ export default function EditorPage() {
             <Textarea 
                 value={question.content} 
                 onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                onFocus={(e) => handleFocus(e, question.id)}
                 className="bg-white" />
             <div className="pl-6 space-y-2">
             {question.subQuestions?.map((sq, sqIndex) => (
                 <div key={sq.id} className="flex items-start gap-2 pt-2">
                 <span className="font-semibold pt-2">{getNumbering(question.numberingFormat, sqIndex)})</span>
-                <Textarea 
-                    value={sq.content} 
-                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
-                    className="flex-grow bg-white" />
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
-                    <Trash2 className="size-4" />
-                </Button>
+                <div className="flex-grow space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Textarea 
+                        value={sq.content} 
+                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
+                        onFocus={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
+                        className="flex-grow bg-white" />
+                     <div className="flex items-center gap-2">
+                        <Input 
+                        type="number" 
+                        value={sq.marks} 
+                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
+                        className="w-20 h-8"
+                        placeholder="Marks"
+                        />
+                     </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
+                        <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                  {sq.type === 'mcq' && (
+                    <div className="pl-8 space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {sq.options?.map((opt, optIndex) => (
+                                <div key={opt.id} className="flex items-center gap-2">
+                                <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)})</span>
+                                <Input 
+                                    value={opt.text}
+                                    onChange={(e) => handleOptionChange(question.id, sq.id, opt.id, e.target.value)}
+                                    onFocus={(e) => handleFocus(e, `option-${question.id}-${sq.id}-${opt.id}`)}
+                                    className="bg-white"
+                                />
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeOption(question.id, sq.id, opt.id)}>
+                                    <Trash2 className="size-4" />
+                                </Button>
+                                </div>
+                            ))}
+                        </div>
+                         <Button variant="outline" size="sm" onClick={() => addOption(question.id, sq.id)}><Plus className="mr-2 size-4" /> অপশন যোগ করুন</Button>
+                    </div>
+                  )}
+                </div>
                 </div>
             ))}
             <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id, qType)}><Plus className="mr-2 size-4" /> প্রশ্ন যোগ করুন</Button>
@@ -430,57 +501,14 @@ export default function EditorPage() {
         case 'essay':
           return questionCard('রচনামূলক প্রশ্ন', subQuestionRenderer('essay'), true);
         case 'mcq':
-        return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', (
-            <>
-            <Textarea 
-                value={question.content} 
-                onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
-                className="bg-white" />
-            <div className="pl-6 space-y-4">
-                {question.subQuestions?.map((sq, sqIndex) => (
-                <div key={sq.id} className="p-3 rounded-md border bg-slate-100 space-y-2 relative group/sub">
-                    <div className="flex items-start gap-2">
-                    <span className="font-semibold pt-2">{getNumbering(question.numberingFormat, sqIndex)})</span>
-                    <Textarea 
-                        value={sq.content} 
-                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
-                        className="flex-grow bg-white" 
-                        placeholder="MCQ প্রশ্ন এখানে লিখুন..."
-                    />
-                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeSubQuestion(question.id, sq.id)}>
-                        <Trash2 className="size-4" />
-                    </Button>
-                    </div>
-                    <div className="pl-10 grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {sq.options?.map((opt, optIndex) => (
-                        <div key={opt.id} className="flex items-center gap-2">
-                        <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)})</span>
-                        <Input 
-                            value={opt.text}
-                            onChange={(e) => handleOptionChange(question.id, sq.id, opt.id, e.target.value)}
-                            className="bg-white"
-                        />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeOption(question.id, sq.id, opt.id)}>
-                            <Trash2 className="size-4" />
-                        </Button>
-                        </div>
-                    ))}
-                    </div>
-                    <div className="pl-10">
-                    <Button variant="outline" size="sm" onClick={() => addOption(question.id, sq.id)}><Plus className="mr-2 size-4" /> অপশন যোগ করুন</Button>
-                    </div>
-                </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id, 'mcq')}><Plus className="mr-2 size-4" /> MCQ প্রশ্ন যোগ করুন</Button>
-            </div>
-            </>
-        ), true);
+             return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', subQuestionRenderer('mcq'), true);
         case 'table':
             return questionCard('সারণী প্রশ্ন', (
                 <>
                   <Textarea
                     value={question.content}
                     onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    onFocus={(e) => handleFocus(e, question.id)}
                     className="bg-white mb-4"
                     placeholder="সারণী সম্পর্কিত নির্দেশাবলী এখানে লিখুন..."
                   />
@@ -533,22 +561,22 @@ export default function EditorPage() {
         case 'passage':
           newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...'});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'fill-in-the-blanks':
           newQuestion.content = 'খালি জায়গা পূরণ কর:';
           newQuestion.marks = 5;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...'});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
           break;
         case 'short':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...'});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'essay':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 20;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...'});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 5});
           break;
         case 'mcq':
             newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
@@ -558,6 +586,7 @@ export default function EditorPage() {
                 id: `sq${Date.now()}`,
                 type: 'mcq',
                 content: 'নতুন MCQ প্রশ্ন...',
+                marks: 1,
                 options: [
                     { id: `opt${Date.now()}-1`, text: 'অপশন ১' },
                     { id: `opt${Date.now()}-2`, text: 'অপশন ২' },
@@ -676,6 +705,8 @@ export default function EditorPage() {
                     </Link>
                   </CardContent>
                 </Card>
+
+                <MathExpressions onInsert={handleInsertExpression} />
 
                  {/* Paper Settings */}
                 <Card>
