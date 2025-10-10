@@ -449,17 +449,6 @@ export default function EditorPage() {
                         onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
                         onFocus={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
                         className="flex-grow bg-white" />
-                     <div className="flex items-center gap-2">
-                        <Label htmlFor={`marks-${sq.id}`} className="text-sm sr-only">Marks:</Label>
-                        <Input 
-                        id={`marks-${sq.id}`}
-                        type="number" 
-                        value={sq.marks} 
-                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
-                        className="w-20 h-8"
-                        placeholder="Marks"
-                        />
-                    </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
                         <Trash2 className="size-4" />
                     </Button>
@@ -769,5 +758,7 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
 
     
