@@ -17,7 +17,7 @@ const expressions = [
   '∝', '∀', '∃', '∴', '∵', '¬',
 
   // Exponents & Subscripts
-  'x²', 'x³', 'xⁿ', 'x⁻¹', 'aₓ', 'aₙ', 'eˣ',
+  'x²', 'x³', 'xⁿ', 'x⁻¹', 'aₓ', 'aₙ', 'eˣ', 'y₂ - y₁',
 
   // Fractions & Roots
   '½', '⅓', '¼', '¾', '⁄', '√', '∛', '∜',
@@ -29,10 +29,10 @@ const expressions = [
   '∠', '⊥', '∥', '△', '°', '≅', '∼',
 
   // Calculus
-  '∫', '∂', 'd/dx', 'lim',
+  '∫', '∂', 'd/dx', 'lim', '→',
 
   // Algebra & Matrices
-  'ƒ(x)', 'g(x)', '(ƒ ∘ g)(x)', 'x̄', 'Σ', 'Π', 'n!', '→',
+  'ƒ(x)', 'g(x)', '(ƒ ∘ g)(x)', 'x̄', 'Σ', 'Π', 'n!',
   
   // Trigonometry
   'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
