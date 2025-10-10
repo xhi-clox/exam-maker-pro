@@ -310,7 +310,7 @@ export default function EditorPage() {
       </Card>
     );
 
-    const subQuestionRenderer = (qType: 'short' | 'essay' | 'fill-in-the-blanks') => (
+    const subQuestionRenderer = (qType: Question['type']) => (
         <>
             <Textarea 
                 value={question.content} 
@@ -338,7 +338,6 @@ export default function EditorPage() {
             </div>
         </>
     );
-    
 
     switch (question.type) {
       case 'passage':
@@ -607,5 +606,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
