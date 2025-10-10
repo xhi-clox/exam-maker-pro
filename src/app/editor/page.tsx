@@ -84,7 +84,7 @@ const initialPaperData: Paper = {
 
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(initialPaperData);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
@@ -119,19 +119,33 @@ export default function EditorPage() {
 
 
   const handleDownloadPdf = async () => {
-    const content = previewRef.current;
-    if (!content) return;
+    const container = previewContainerRef.current;
+    if (!container) return;
 
-    const canvas = await html2canvas(content, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    
+    const pages = container.querySelectorAll<HTMLDivElement>('.paper-page');
+    if (pages.length === 0) return;
+
     const pdf = new jsPDF({
       orientation: 'p',
       unit: 'px',
-      format: [canvas.width, canvas.height]
     });
 
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    const canvas = await html2canvas(pages[0], { scale: 2 });
+    const pageWidth = canvas.width;
+    const pageHeight = canvas.height;
+    pdf.internal.pageSize.setWidth(pageWidth);
+    pdf.internal.pageSize.setHeight(pageHeight);
+
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+
+    for (let i = 1; i < pages.length; i++) {
+        const pageCanvas = await html2canvas(pages[i], { scale: 2 });
+        const pageImgData = pageCanvas.toDataURL('image/png');
+        pdf.addPage([pageWidth, pageHeight], 'p');
+        pdf.addImage(pageImgData, 'PNG', 0, 0, pageWidth, pageHeight);
+    }
+
     pdf.save('question-paper.pdf');
   };
 
@@ -630,10 +644,8 @@ export default function EditorPage() {
                 <DialogHeader>
                   <DialogTitle>Question Paper Preview</DialogTitle>
                 </DialogHeader>
-                <div className="flex-1 overflow-auto bg-gray-100 p-4">
-                  <div ref={previewRef}>
-                    <PaperPreview paper={paper} />
-                  </div>
+                <div className="flex-1 overflow-auto bg-gray-100 p-4" ref={previewContainerRef}>
+                  <PaperPreview paper={paper} />
                 </div>
                 <DialogFooter>
                     <Button onClick={handleDownloadPdf}><Download className="mr-2 size-4" /> Download PDF</Button>
@@ -758,7 +770,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
-
-    

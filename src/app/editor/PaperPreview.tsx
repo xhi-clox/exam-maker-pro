@@ -1,8 +1,10 @@
 
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import type { Paper, Question, NumberingFormat } from './page';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const subjectMap: { [key: string]: string } = {
   bangla: 'বাংলা',
@@ -41,11 +43,11 @@ const getNumbering = (format: NumberingFormat | undefined, index: number): strin
   }
 };
 
-const renderQuestionPreview = (question: Question, index: number) => {
+const renderQuestionContent = (question: Question, index: number) => {
     
     if (question.type === 'table') {
         return (
-            <div key={question.id} className="mb-4">
+            <div key={question.id} className="mb-4 question-item">
               <div className="flex justify-between font-semibold mb-2">
                 <p>{index + 1}. {question.content}</p>
                 <p>{question.marks || ''}</p>
@@ -66,13 +68,12 @@ const renderQuestionPreview = (question: Question, index: number) => {
             </div>
           );
     }
-
   
     return (
-      <div key={question.id} className="mb-4">
+      <div key={question.id} className="mb-4 question-item">
         <div className="flex justify-between font-semibold">
-          <p>{index + 1}. {question.content}</p>
-          <p>{question.marks || ''}</p>
+          <p className="flex-1">{index + 1}. {question.content}</p>
+          <p className="pl-4">{question.marks || ''}</p>
         </div>
   
         {question.subQuestions && question.subQuestions.length > 0 && (
@@ -103,30 +104,131 @@ const renderQuestionPreview = (question: Question, index: number) => {
         )}
       </div>
     );
-  };
+};
+
+const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; questions: Question[] }>(({ paper, questions }, ref) => {
+    const getSubjectName = (subjectKey: string) => subjectMap[subjectKey] || subjectKey;
+    const getGradeName = (gradeKey: string) => gradeMap[gradeKey] || gradeKey;
+    
+    return (
+        <div ref={ref} className="p-8 bg-white text-black font-serif max-w-3xl mx-auto border rounded-sm shadow-lg paper-page" style={{ width: '210mm', minHeight: '297mm'}}>
+            <header className="text-center mb-6">
+                <h1 className="text-xl font-bold">{paper.schoolName}</h1>
+                <h2 className="text-lg">{paper.examTitle}</h2>
+            </header>
+
+            <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
+                <p>বিষয়: {getSubjectName(paper.subject)}</p>
+                <p>পূর্ণমান: {paper.totalMarks}</p>
+            </div>
+            <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
+                <p>শ্রেণি: {getGradeName(paper.grade)}</p>        
+                <p>সময়: {paper.timeAllowed}</p>
+            </div>
+
+            <main>
+                {questions.map((q, index) => renderQuestionContent(q, paper.questions.indexOf(q)))}
+            </main>
+        </div>
+    );
+});
+PaperPage.displayName = "PaperPage";
+
 
 export default function PaperPreview({ paper }: { paper: Paper }) {
-  const getSubjectName = (subjectKey: string) => subjectMap[subjectKey] || subjectKey;
-  const getGradeName = (gradeKey: string) => gradeMap[gradeKey] || gradeKey;
+    const [pages, setPages] = useState<Question[][]>([]);
+    const [currentPage, setCurrentPage] = useState(0);
+    const hiddenRenderRef = useRef<HTMLDivElement>(null);
     
+    useEffect(() => {
+        const calculatePages = () => {
+            if (!hiddenRenderRef.current) return;
+    
+            const PAGE_HEIGHT_PX = 1050; // Approximate height for A4 at 96 DPI, with margins
+            
+            const questionElements = Array.from(hiddenRenderRef.current.querySelectorAll('.question-item'));
+            if (questionElements.length === 0) {
+                setPages([]);
+                return;
+            }
+
+            const headerHeight = (hiddenRenderRef.current.querySelector('header')?.clientHeight || 0) + 
+                                 (hiddenRenderRef.current.querySelector('.flex.justify-between')?.clientHeight || 0) * 2 + 
+                                 48; // Margins and padding
+            
+            let newPages: Question[][] = [];
+            let currentPageQuestions: Question[] = [];
+            let currentHeight = headerHeight;
+
+            questionElements.forEach((el, index) => {
+                const questionHeight = (el as HTMLElement).offsetHeight;
+                
+                if (currentHeight + questionHeight > PAGE_HEIGHT_PX && currentPageQuestions.length > 0) {
+                    newPages.push(currentPageQuestions);
+                    currentPageQuestions = [];
+                    currentHeight = headerHeight;
+                }
+                
+                currentHeight += questionHeight;
+                currentPageQuestions.push(paper.questions[index]);
+            });
+
+            if (currentPageQuestions.length > 0) {
+                newPages.push(currentPageQuestions);
+            }
+    
+            setPages(newPages);
+        };
+        
+        // Use a timeout to ensure styles are applied and elements have dimensions
+        const timer = setTimeout(calculatePages, 100);
+
+        return () => clearTimeout(timer);
+    }, [paper]);
+
   return (
-    <div className="p-8 bg-white text-black font-serif max-w-3xl mx-auto border rounded-sm shadow-lg">
-      <header className="text-center mb-6">
-        <h1 className="text-xl font-bold">{paper.schoolName}</h1>
-        <h2 className="text-lg">{paper.examTitle}</h2>
-      </header>
+    <>
+        {/* Hidden container for layout calculation */}
+        <div className="absolute top-0 left-0 -z-10 opacity-0 pointer-events-none" style={{ width: '210mm' }}>
+             <div ref={hiddenRenderRef}>
+                <header className="text-center mb-6 p-8">
+                    <h1 className="text-xl font-bold">{paper.schoolName}</h1>
+                    <h2 className="text-lg">{paper.examTitle}</h2>
+                </header>
+                <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted p-8 pt-0">
+                    <p>বিষয়: {subjectMap[paper.subject] || paper.subject}</p>
+                    <p>পূর্ণমান: {paper.totalMarks}</p>
+                </div>
+                <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted p-8 pt-0">
+                    <p>শ্রেণি: {gradeMap[paper.grade] || paper.grade}</p>
+                    <p>সময়: {paper.timeAllowed}</p>
+                </div>
+                <main className="p-8 pt-0">
+                 {paper.questions.map((q, index) => renderQuestionContent(q, index))}
+                </main>
+            </div>
+        </div>
 
-      <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
-        <p>বিষয়: {getSubjectName(paper.subject)}</p>
-        <p>পূর্ণমান: {paper.totalMarks}</p>
-      </div>
-      <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
-        <p>শ্রেণি: {getGradeName(paper.grade)}</p>        <p>সময়: {paper.timeAllowed}</p>
-      </div>
-
-      <main>
-        {paper.questions.map((q, index) => renderQuestionPreview(q, index))}
-      </main>
-    </div>
+        {/* Visible container for rendering pages */}
+        <div className="space-y-4">
+             {pages.length > 0 ? (
+                <PaperPage paper={paper} questions={pages[currentPage]} />
+            ) : (
+                <PaperPage paper={paper} questions={[]} />
+            )}
+        </div>
+        
+        {pages.length > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-4">
+                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(0, p - 1))} disabled={currentPage === 0}>
+                    <ChevronLeft className="size-4" />
+                </Button>
+                <span>Page {currentPage + 1} of {pages.length}</span>
+                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(pages.length - 1, p + 1))} disabled={currentPage === pages.length - 1}>
+                    <ChevronRight className="size-4" />
+                </Button>
+            </div>
+        )}
+    </>
   );
 }
