@@ -68,68 +68,145 @@ const initialPaperData: Paper = {
   ],
 };
 
-
-const QuestionActions = ({ onRemove }: { onRemove: () => void }) => (
-  <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-    <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab">
-      <GripVertical className="size-4" />
-    </Button>
-    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onRemove}>
-      <Trash2 className="size-4" />
-    </Button>
-  </div>
-);
-
-const renderQuestion = (question: Question, onRemove: (id: string) => void) => {
-  const handleRemove = () => onRemove(question.id);
-
-  switch (question.type) {
-    case 'passage':
-      return (
-        <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
-          <QuestionActions onRemove={handleRemove} />
-          <Label className="font-bold">অনুচ্ছেদ</Label>
-          <Textarea defaultValue={question.content} className="bg-white" />
-          <div className="pl-6 space-y-2">
-            {question.subQuestions?.map((sq, index) => (
-              <div key={sq.id} className="flex items-center gap-2">
-                <Textarea defaultValue={sq.content} className="flex-grow bg-white" />
-                <Input type="number" defaultValue={sq.marks} className="w-20" />
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0">
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" size="sm"><Plus className="mr-2 size-4" /> প্রশ্ন যোগ করুন</Button>
-          </div>
-        </Card>
-      );
-    case 'fill-in-the-blanks':
-       return (
-        <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
-           <QuestionActions onRemove={handleRemove} />
-           <Label className="font-bold">শূন্যস্থান পূরণ</Label>
-           <div className="pl-6 space-y-2">
-             {question.subQuestions?.map((sq, index) => (
-              <div key={sq.id} className="flex items-center gap-2">
-                <Textarea defaultValue={sq.content} className="flex-grow bg-white" />
-                <Input type="number" defaultValue={sq.marks} className="w-20" />
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0">
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-             ))}
-            <Button variant="outline" size="sm"><Plus className="mr-2 size-4" /> শূন্যস্থান যোগ করুন</Button>
-           </div>
-        </Card>
-      );
-    default:
-      return null;
-  }
-}
-
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(initialPaperData);
+
+  const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
+    setPaper(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleQuestionChange = (id: string, field: 'content' | 'marks', value: string | number) => {
+    setPaper(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => q.id === id ? { ...q, [field]: value } : q)
+    }));
+  };
+
+  const handleSubQuestionChange = (parentId: string, subId: string, field: 'content' | 'marks', value: string | number) => {
+    setPaper(prev => ({
+      ...prev,
+      questions: prev.questions.map(q =>
+        q.id === parentId ? {
+          ...q,
+          subQuestions: q.subQuestions?.map(sq =>
+            sq.id === subId ? { ...sq, [field]: value } : sq
+          )
+        } : q
+      )
+    }));
+  };
+  
+  const addSubQuestion = (questionId: string) => {
+    setPaper(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => {
+        if (q.id === questionId) {
+          const newSubQuestion: Question = {
+            id: `sq${Date.now()}`,
+            type: q.type === 'passage' ? 'short' : 'fill-in-the-blanks',
+            content: 'নতুন প্রশ্ন...',
+            marks: 1,
+          };
+          return {
+            ...q,
+            subQuestions: [...(q.subQuestions || []), newSubQuestion]
+          };
+        }
+        return q;
+      })
+    }));
+  };
+  
+  const removeSubQuestion = (questionId: string, subQuestionId: string) => {
+    setPaper(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => {
+        if (q.id === questionId) {
+          return {
+            ...q,
+            subQuestions: q.subQuestions?.filter(sq => sq.id !== subQuestionId)
+          };
+        }
+        return q;
+      })
+    }));
+  };
+
+  const QuestionActions = ({ onRemove }: { onRemove: () => void }) => (
+    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab">
+        <GripVertical className="size-4" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onRemove}>
+        <Trash2 className="size-4" />
+      </Button>
+    </div>
+  );
+
+  const renderQuestion = (question: Question) => {
+    const handleRemove = () => removeQuestion(question.id);
+
+    switch (question.type) {
+      case 'passage':
+        return (
+          <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
+            <QuestionActions onRemove={handleRemove} />
+            <Label className="font-bold">অনুচ্ছেদ</Label>
+            <Textarea 
+              value={question.content} 
+              onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+              className="bg-white" />
+            <div className="pl-6 space-y-2">
+              {question.subQuestions?.map((sq) => (
+                <div key={sq.id} className="flex items-center gap-2">
+                  <Textarea 
+                    value={sq.content} 
+                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
+                    className="flex-grow bg-white" />
+                  <Input 
+                    type="number" 
+                    value={sq.marks} 
+                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', parseInt(e.target.value))}
+                    className="w-20" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id)}><Plus className="mr-2 size-4" /> প্রশ্ন যোগ করুন</Button>
+            </div>
+          </Card>
+        );
+      case 'fill-in-the-blanks':
+         return (
+          <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
+             <QuestionActions onRemove={handleRemove} />
+             <Label className="font-bold">শূন্যস্থান পূরণ</Label>
+             <div className="pl-6 space-y-2">
+               {question.subQuestions?.map((sq) => (
+                <div key={sq.id} className="flex items-center gap-2">
+                  <Textarea 
+                    value={sq.content} 
+                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
+                    className="flex-grow bg-white" />
+                  <Input 
+                    type="number" 
+                    value={sq.marks} 
+                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', parseInt(e.target.value))}
+                    className="w-20" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+               ))}
+              <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id)}><Plus className="mr-2 size-4" /> শূন্যস্থান যোগ করুন</Button>
+             </div>
+          </Card>
+        );
+      default:
+        return null;
+    }
+  }
 
   const addQuestion = (type: Question['type']) => {
     const newQuestion: Question = {
@@ -194,16 +271,16 @@ export default function EditorPage() {
             {/* Question Area */}
             <div className="flex-1 rounded-lg bg-white p-6 border space-y-4">
               <div className="text-center space-y-2 mb-8">
-                 <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none" defaultValue={paper.schoolName} />
-                 <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none" defaultValue={paper.examTitle} />
+                 <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+                 <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
               </div>
               <div className="flex justify-between text-sm">
-                <p>বিষয়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" defaultValue="বাংলা"/></p>
-                <p>পূর্ণমান: <Input type="number" className="inline-block w-20 border-0 focus-visible:ring-0 shadow-none" defaultValue={paper.totalMarks}/></p>
+                 <p>বিষয়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} /></p>
+                 <p>পূর্ণমান: <Input type="number" className="inline-block w-20 border-0 focus-visible:ring-0 shadow-none" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/></p>
               </div>
                <div className="flex justify-between text-sm">
-                <p>শ্রেণি: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" defaultValue="নবম"/></p>
-                <p>সময়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" defaultValue={paper.timeAllowed}/></p>
+                <p>শ্রেণি: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} /></p>
+                <p>সময়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/></p>
               </div>
               <hr className="my-6" />
 
@@ -214,7 +291,7 @@ export default function EditorPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {paper.questions.map(q => renderQuestion(q, removeQuestion))}
+                  {paper.questions.map(q => renderQuestion(q))}
                 </div>
               )}
             </div>
@@ -248,15 +325,15 @@ export default function EditorPage() {
                   <CardContent className="space-y-4">
                       <div>
                         <Label htmlFor="school-name">School Name</Label>
-                        <Input id="school-name" defaultValue={paper.schoolName} />
+                        <Input id="school-name" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
                       </div>
                       <div>
                         <Label htmlFor="exam-title">Exam Title</Label>
-                        <Input id="exam-title" defaultValue={paper.examTitle} />
+                        <Input id="exam-title" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
                       </div>
                       <div>
                         <Label htmlFor="subject">Subject</Label>
-                        <Select defaultValue={paper.subject}>
+                        <Select value={paper.subject} onValueChange={value => handlePaperDetailChange('subject', value)}>
                           <SelectTrigger id="subject">
                             <SelectValue placeholder="Select subject" />
                           </SelectTrigger>
@@ -270,7 +347,7 @@ export default function EditorPage() {
                       </div>
                       <div>
                         <Label htmlFor="class">Class</Label>
-                         <Select defaultValue={paper.grade}>
+                         <Select value={paper.grade} onValueChange={value => handlePaperDetailChange('grade', value)}>
                           <SelectTrigger id="class">
                             <SelectValue placeholder="Select class" />
                           </SelectTrigger>
@@ -282,11 +359,11 @@ export default function EditorPage() {
                       </div>
                        <div>
                         <Label htmlFor="time-allowed">Time Allowed</Label>
-                        <Input id="time-allowed" defaultValue={paper.timeAllowed} />
+                        <Input id="time-allowed" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)} />
                       </div>
                       <div>
                         <Label htmlFor="total-marks">Total Marks</Label>
-                        <Input id="total-marks" type="number" defaultValue={paper.totalMarks} />
+                        <Input id="total-marks" type="number" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))} />
                       </div>
                   </CardContent>
                 </Card>
