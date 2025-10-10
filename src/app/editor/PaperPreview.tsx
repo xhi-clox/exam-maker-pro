@@ -318,7 +318,6 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         )}
     </>
   );
-
-    
+}
 
     
