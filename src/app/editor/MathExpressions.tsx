@@ -29,10 +29,10 @@ const expressions = [
   '∠', '⊥', '∥', '△', '°', '≅', '∼',
 
   // Calculus
-  '∫', '∂', 'd/dx', 'lim', '→', 'ƒ(x)',
+  '∫', '∂', 'd/dx', 'lim', '→',
 
   // Algebra & Matrices
-  'g(x)', '(ƒ ∘ g)(x)', 'x̄', 'Σ', 'Π', 'n!',
+  'ƒ(x)', 'g(x)', '(ƒ ∘ g)(x)', 'x̄', 'Σ', 'Π', 'n!',
   
   // Trigonometry
   'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
@@ -69,5 +69,3 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
     </Card>
   );
 }
-
-    
