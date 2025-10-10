@@ -106,27 +106,31 @@ const renderQuestionContent = (question: Question, index: number) => {
     );
 };
 
-const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; questions: Question[] }>(({ paper, questions }, ref) => {
+const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; questions: Question[]; isFirstPage: boolean }>(({ paper, questions, isFirstPage }, ref) => {
     const getSubjectName = (subjectKey: string) => subjectMap[subjectKey] || subjectKey;
     const getGradeName = (gradeKey: string) => gradeMap[gradeKey] || gradeKey;
     
     return (
         <div ref={ref} className="p-8 bg-white text-black font-serif max-w-3xl mx-auto border rounded-sm shadow-lg paper-page" style={{ width: '210mm', minHeight: '297mm'}}>
-            <header className="text-center mb-6">
-                <h1 className="text-xl font-bold">{paper.schoolName}</h1>
-                <h2 className="text-lg">{paper.examTitle}</h2>
-            </header>
+            {isFirstPage && (
+                <>
+                    <header className="text-center mb-6">
+                        <h1 className="text-xl font-bold">{paper.schoolName}</h1>
+                        <h2 className="text-lg">{paper.examTitle}</h2>
+                    </header>
 
-            <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
-                <p>বিষয়: {getSubjectName(paper.subject)}</p>
-                <p>পূর্ণমান: {paper.totalMarks}</p>
-            </div>
-            <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
-                <p>শ্রেণি: {getGradeName(paper.grade)}</p>        
-                <p>সময়: {paper.timeAllowed}</p>
-            </div>
+                    <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
+                        <p>বিষয়: {getSubjectName(paper.subject)}</p>
+                        <p>পূর্ণমান: {paper.totalMarks}</p>
+                    </div>
+                    <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
+                        <p>শ্রেণি: {getGradeName(paper.grade)}</p>        
+                        <p>সময়: {paper.timeAllowed}</p>
+                    </div>
+                </>
+            )}
 
-            <main>
+            <main className={isFirstPage ? '' : 'pt-16'}>
                 {questions.map((q, index) => renderQuestionContent(q, paper.questions.indexOf(q)))}
             </main>
         </div>
@@ -148,29 +152,34 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             
             const questionElements = Array.from(hiddenRenderRef.current.querySelectorAll('.question-item'));
             if (questionElements.length === 0) {
-                setPages([]);
+                setPages([[]]);
                 return;
             }
 
             const headerHeight = (hiddenRenderRef.current.querySelector('header')?.clientHeight || 0) + 
                                  (hiddenRenderRef.current.querySelector('.flex.justify-between')?.clientHeight || 0) * 2 + 
-                                 48; // Margins and padding
+                                 (hiddenRenderRef.current.querySelector('main')?.getBoundingClientRect().top || 0) - (hiddenRenderRef.current.getBoundingClientRect().top || 0);
             
             let newPages: Question[][] = [];
             let currentPageQuestions: Question[] = [];
             let currentHeight = headerHeight;
+            let isFirstPage = true;
 
             questionElements.forEach((el, index) => {
-                const questionHeight = (el as HTMLElement).offsetHeight;
+                const questionHeight = (el as HTMLElement).offsetHeight + 16; // 16px for mb-4
                 
                 if (currentHeight + questionHeight > PAGE_HEIGHT_PX && currentPageQuestions.length > 0) {
                     newPages.push(currentPageQuestions);
                     currentPageQuestions = [];
-                    currentHeight = headerHeight;
+                    currentHeight = 64; // Approx padding top for subsequent pages
+                    isFirstPage = false;
                 }
                 
                 currentHeight += questionHeight;
-                currentPageQuestions.push(paper.questions[index]);
+                const originalQuestionIndex = paper.questions.findIndex(q => q.id === (el as HTMLElement).dataset.questionId);
+                if (originalQuestionIndex > -1) {
+                  currentPageQuestions.push(paper.questions[originalQuestionIndex]);
+                }
             });
 
             if (currentPageQuestions.length > 0) {
@@ -178,43 +187,52 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             }
     
             setPages(newPages);
+            if (currentPage >= newPages.length) {
+                setCurrentPage(Math.max(0, newPages.length - 1));
+            }
         };
         
-        // Use a timeout to ensure styles are applied and elements have dimensions
-        const timer = setTimeout(calculatePages, 100);
+        const timer = setTimeout(calculatePages, 200);
 
         return () => clearTimeout(timer);
-    }, [paper]);
+    }, [paper, currentPage]);
+
+  const renderHiddenQuestion = (question: Question, index: number) => {
+    const rendered = renderQuestionContent(question, index);
+    return React.cloneElement(rendered, { 'data-question-id': question.id });
+  }
 
   return (
     <>
         {/* Hidden container for layout calculation */}
         <div className="absolute top-0 left-0 -z-10 opacity-0 pointer-events-none" style={{ width: '210mm' }}>
              <div ref={hiddenRenderRef}>
-                <header className="text-center mb-6 p-8">
-                    <h1 className="text-xl font-bold">{paper.schoolName}</h1>
-                    <h2 className="text-lg">{paper.examTitle}</h2>
-                </header>
-                <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted p-8 pt-0">
-                    <p>বিষয়: {subjectMap[paper.subject] || paper.subject}</p>
-                    <p>পূর্ণমান: {paper.totalMarks}</p>
+                <div className='p-8'>
+                  <header className="text-center mb-6">
+                      <h1 className="text-xl font-bold">{paper.schoolName}</h1>
+                      <h2 className="text-lg">{paper.examTitle}</h2>
+                  </header>
+                  <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
+                      <p>বিষয়: {subjectMap[paper.subject] || paper.subject}</p>
+                      <p>পূর্ণমান: {paper.totalMarks}</p>
+                  </div>
+                  <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
+                      <p>শ্রেণি: {gradeMap[paper.grade] || paper.grade}</p>
+                      <p>সময়: {paper.timeAllowed}</p>
+                  </div>
+                  <main>
+                   {paper.questions.map((q, index) => renderHiddenQuestion(q, index))}
+                  </main>
                 </div>
-                <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted p-8 pt-0">
-                    <p>শ্রেণি: {gradeMap[paper.grade] || paper.grade}</p>
-                    <p>সময়: {paper.timeAllowed}</p>
-                </div>
-                <main className="p-8 pt-0">
-                 {paper.questions.map((q, index) => renderQuestionContent(q, index))}
-                </main>
             </div>
         </div>
 
         {/* Visible container for rendering pages */}
         <div className="space-y-4">
              {pages.length > 0 ? (
-                <PaperPage paper={paper} questions={pages[currentPage]} />
+                <PaperPage paper={paper} questions={pages[currentPage]} isFirstPage={currentPage === 0} />
             ) : (
-                <PaperPage paper={paper} questions={[]} />
+                <PaperPage paper={paper} questions={[]} isFirstPage={true} />
             )}
         </div>
         
