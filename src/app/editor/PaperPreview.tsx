@@ -163,48 +163,46 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     
     useEffect(() => {
         const calculatePages = () => {
-            if (!hiddenRenderRef.current) return;
+            if (!hiddenRenderRef.current || paper.questions.length === 0) {
+              if (paper.questions.length === 0) setPages([]);
+              else setPages([paper.questions]);
+              return;
+            }
     
-            // Millimeters to Pixels conversion factor (approximate)
+            // Millimeters to Pixels conversion factor (approximate for 96 DPI)
             const MM_TO_PX = 3.7795275591;
     
             const PAGE_HEIGHT_MM = 297;
             const contentHeightPx = (PAGE_HEIGHT_MM - margins.top - margins.bottom) * MM_TO_PX;
             
-            const questionContainer = hiddenRenderRef.current.querySelector('main');
-            if (!questionContainer) return;
-
-            const questionElements = Array.from(questionContainer.querySelectorAll('.question-item'));
-
-            if (questionElements.length === 0) {
+            const hiddenPage = hiddenRenderRef.current;
+            const headerEl = hiddenPage.querySelector('.preview-header');
+            const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+            
+            const questionElements = Array.from(hiddenPage.querySelectorAll('.question-item'));
+            if(questionElements.length === 0) {
                 setPages([paper.questions]);
                 return;
             }
 
-            const headerEl = hiddenRenderRef.current.querySelector('.preview-header');
-            const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
-            
             let newPages: Question[][] = [];
             let currentPageQuestions: Question[] = [];
             let currentHeight = 0;
             let isFirstPage = true;
 
             questionElements.forEach((el, index) => {
-                const questionHeight = (el as HTMLElement).getBoundingClientRect().height;
-                // The 'mb-4' class on question-item adds margin-bottom: 1rem (16px)
-                const questionMarginBottom = 16;
-                const totalQuestionHeight = questionHeight + questionMarginBottom;
-
+                const questionHeight = (el as HTMLElement).offsetHeight;
+                
                 const pageBreakThreshold = isFirstPage ? contentHeightPx - headerHeight : contentHeightPx;
                 
-                if (currentHeight + totalQuestionHeight > pageBreakThreshold && currentPageQuestions.length > 0) {
+                if (currentHeight + questionHeight > pageBreakThreshold && currentPageQuestions.length > 0) {
                     newPages.push(currentPageQuestions);
                     currentPageQuestions = [];
                     currentHeight = 0;
                     isFirstPage = false;
                 }
                 
-                currentHeight += totalQuestionHeight;
+                currentHeight += questionHeight;
                 currentPageQuestions.push(paper.questions[index]);
             });
 
@@ -222,7 +220,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         const timer = setTimeout(calculatePages, 100);
 
         return () => clearTimeout(timer);
-    }, [paper, margins, currentPage]);
+    }, [paper.questions, margins]);
 
   return (
     <>
@@ -235,23 +233,22 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                     paddingLeft: `${margins.left}mm`,
                     paddingRight: `${margins.right}mm`,
                 }}>
-                  <div className="preview-header">
-                    <header className="text-center mb-6">
-                        <h1 className="text-xl font-bold">{paper.schoolName}</h1>
-                        <h2 className="text-lg">{paper.examTitle}</h2>
-                    </header>
-                    <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
-                        <p>বিষয়: {subjectMap[paper.subject] || paper.subject}</p>
-                        <p>পূর্ণমান: {paper.totalMarks}</p>
-                    </div>
-                    <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
-                        <p>শ্রেণি: {gradeMap[paper.grade] || paper.grade}</p>
-                        <p>সময়: {paper.timeAllowed}</p>
-                    </div>
-                  </div>
+                  <header className="text-center mb-6 preview-header">
+                      <h1 className="text-xl font-bold">{paper.schoolName}</h1>
+                      <h2 className="text-lg">{paper.examTitle}</h2>
+                      <div className="flex justify-between text-sm mt-4 mb-4 pb-2 border-b-2 border-dotted">
+                          <p>বিষয়: {subjectMap[paper.subject] || paper.subject}</p>
+                          <p>পূর্ণমান: {paper.totalMarks}</p>
+                      </div>
+                      <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
+                          <p>শ্রেণি: {gradeMap[paper.grade] || paper.grade}</p>
+                          <p>সময়: {paper.timeAllowed}</p>
+                      </div>
+                  </header>
                   <main>
                    {paper.questions.map((q, index) => {
                        const rendered = renderQuestionContent(q, index);
+                       // We must clone and provide a key for React to handle the array correctly.
                        return React.cloneElement(rendered, { key: q.id });
                    })}
                   </main>
@@ -301,9 +298,5 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
-
-    
-
-    
 
     
