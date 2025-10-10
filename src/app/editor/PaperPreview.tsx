@@ -66,6 +66,21 @@ const renderQuestionPreview = (question: Question, index: number) => {
             </div>
           );
     }
+
+    if (question.type === 'fraction') {
+        return (
+            <div key={question.id} className="mb-4">
+                <div className="flex items-center gap-4">
+                    <p className="font-semibold">{index + 1}. {question.content}</p>
+                    <div className="inline-flex flex-col items-center text-lg">
+                        <span className="border-b border-black px-2">{question.numerator}</span>
+                        <span>{question.denominator}</span>
+                    </div>
+                    <p className="font-semibold">{question.marks || ''}</p>
+                </div>
+            </div>
+        )
+    }
   
     return (
       <div key={question.id} className="mb-4">
@@ -121,8 +136,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         <p>পূর্ণমান: {paper.totalMarks}</p>
       </div>
       <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
-        <p>শ্রেণি: {getGradeName(paper.grade)}</p>
-        <p>সময়: {paper.timeAllowed}</p>
+        <p>শ্রেণি: {getGradeName(paper.grade)}</p>        <p>সময়: {paper.timeAllowed}</p>
       </div>
 
       <main>
@@ -131,3 +145,5 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </div>
   );
 }
+
+    

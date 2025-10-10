@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle, Divide } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -25,7 +25,7 @@ type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
 export interface Question {
   id: string;
-  type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay' | 'table';
+  type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay' | 'table' | 'fraction';
   content: string;
   marks?: number;
   options?: { id: string; text: string }[];
@@ -34,6 +34,8 @@ export interface Question {
   tableData?: string[][];
   rows?: number;
   cols?: number;
+  numerator?: string;
+  denominator?: string;
 }
 
 export interface Paper {
@@ -113,7 +115,15 @@ export default function EditorPage() {
             handleSubQuestionChange(qId, sqId, 'content', newValue);
         }
     } else {
-        handleQuestionChange(qId, 'content', newValue);
+        if (id.includes('numerator')) {
+            const [_, qId] = id.split('-');
+            handleQuestionChange(qId, 'numerator', newValue);
+        } else if (id.includes('denominator')) {
+            const [_, qId] = id.split('-');
+            handleQuestionChange(qId, 'denominator', newValue);
+        } else {
+            handleQuestionChange(qId, 'content', newValue);
+        }
     }
   };
 
@@ -139,7 +149,7 @@ export default function EditorPage() {
     setPaper(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleQuestionChange = (id: string, field: 'content' | 'marks' | 'numberingFormat', value: string | number) => {
+  const handleQuestionChange = (id: string, field: keyof Question, value: string | number) => {
     setPaper(prev => ({
       ...prev,
       questions: prev.questions.map(q => {
@@ -386,7 +396,7 @@ export default function EditorPage() {
 
   const renderQuestion = (question: Question, index: number) => {
     const handleRemove = () => removeQuestion(question.id);
-    const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'essay', 'mcq', 'table'].includes(question.type);
+    const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'essay', 'mcq', 'table', 'fraction'].includes(question.type);
 
     const questionCard = (title: string, children: React.ReactNode, showNumberingAndMarks = false) => (
         <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
@@ -540,6 +550,38 @@ export default function EditorPage() {
                   </div>
                 </>
               ), true);
+        case 'fraction':
+            return questionCard('Fraction Question', (
+                <div className="flex items-center gap-4">
+                  <Textarea
+                    value={question.content}
+                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    onFocus={(e) => handleFocus(e, question.id)}
+                    className="bg-white"
+                    placeholder="Question text..."
+                    rows={1}
+                  />
+                  <div className="flex flex-col items-center">
+                    <Input
+                      type="text"
+                      value={question.numerator}
+                      onChange={(e) => handleQuestionChange(question.id, 'numerator', e.target.value)}
+                      onFocus={(e) => handleFocus(e, `numerator-${question.id}`)}
+                      className="w-20 text-center border-b-0 rounded-b-none"
+                      placeholder="Numerator"
+                    />
+                    <div className="w-20 h-px bg-black"></div>
+                    <Input
+                      type="text"
+                      value={question.denominator}
+                      onChange={(e) => handleQuestionChange(question.id, 'denominator', e.target.value)}
+                      onFocus={(e) => handleFocus(e, `denominator-${question.id}`)}
+                      className="w-20 text-center border-t-0 rounded-t-none"
+                      placeholder="Denominator"
+                    />
+                  </div>
+                </div>
+            ), true);
         default:
             return null;
     }
@@ -610,6 +652,13 @@ export default function EditorPage() {
         ];
     }
 
+    if (type === 'fraction') {
+        newQuestion.content = 'Simplify the fraction:';
+        newQuestion.marks = 2;
+        newQuestion.numerator = '8';
+        newQuestion.denominator = '12';
+    }
+
     setPaper(prev => ({
       ...prev,
       questions: [...prev.questions, newQuestion]
@@ -628,7 +677,7 @@ export default function EditorPage() {
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादক</h1>
+          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
         </div>
         <div className="flex items-center gap-2">
             <Dialog>
@@ -700,6 +749,7 @@ export default function EditorPage() {
                     <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')}><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
                     <Button variant="outline" onClick={() => addQuestion('essay')}><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
+                    <Button variant="outline" onClick={() => addQuestion('fraction')}><Divide className="mr-2 size-4" /> Fraction</Button>
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
@@ -765,3 +815,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
