@@ -144,59 +144,59 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 setPages(paper.questions.length > 0 ? [paper.questions] : []);
                 return;
             }
-        
+
             const MM_TO_PX = 3.7795275591;
             const PAGE_HEIGHT_MM = 297;
             const pageContentHeightPx = (PAGE_HEIGHT_MM - margins.top - margins.bottom) * MM_TO_PX;
-        
+
             const hiddenPage = hiddenRenderRef.current;
             const headerEl = hiddenPage.querySelector('.preview-header');
             const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
             
             const questionElements = Array.from(hiddenPage.querySelectorAll('.question-item'));
-            if(questionElements.length === 0) {
+            if (questionElements.length === 0) {
                 setPages([]);
                 return;
             }
             
-            const simplifiedPages: Question[][] = [];
-            let currentSimplePage: Question[] = [];
-            let currentSimpleHeight = 0;
+            const newPages: Question[][] = [];
+            let currentPageQuestions: Question[] = [];
+            let currentPageHeight = 0;
             let isFirstPage = true;
-            
-            paper.questions.forEach((q, index) => {
+
+            paper.questions.forEach((question, index) => {
                 const questionElement = questionElements[index];
                 if (!questionElement) return;
 
                 const questionHeight = questionElement.getBoundingClientRect().height;
-                const pageBreakThreshold = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
+                const availableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
 
-                if (currentSimpleHeight > 0 && currentSimpleHeight + questionHeight > pageBreakThreshold) {
-                    simplifiedPages.push(currentSimplePage);
-                    currentSimplePage = [];
-                    currentSimpleHeight = 0;
+                if (currentPageHeight > 0 && currentPageHeight + questionHeight > availableHeight) {
+                    newPages.push(currentPageQuestions);
+                    currentPageQuestions = [];
+                    currentPageHeight = 0;
                     isFirstPage = false;
                 }
-                currentSimpleHeight += questionHeight;
-                currentSimplePage.push(q);
+
+                currentPageHeight += questionHeight;
+                currentPageQuestions.push(question);
             });
 
-            if (currentSimplePage.length > 0) {
-                simplifiedPages.push(currentSimplePage);
+            if (currentPageQuestions.length > 0) {
+                newPages.push(currentPageQuestions);
             }
 
-
-            setPages(simplifiedPages);
-            if (currentPage >= simplifiedPages.length) {
-                setCurrentPage(Math.max(0, simplifiedPages.length - 1));
+            setPages(newPages);
+            if (currentPage >= newPages.length) {
+                setCurrentPage(Math.max(0, newPages.length - 1));
             }
         };
-        
-        // Use a timeout to ensure the DOM is updated before calculating.
+
+        // Use a timeout to ensure the DOM is fully rendered before calculating.
         const timer = setTimeout(calculatePages, 100);
         return () => clearTimeout(timer);
 
-    }, [paper.questions, margins, currentPage]);
+    }, [paper.questions, margins]); // Rerun when questions or margins change
 
   return (
     <>
