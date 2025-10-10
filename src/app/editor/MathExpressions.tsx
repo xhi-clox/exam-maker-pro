@@ -35,13 +35,13 @@ const expressions = [
   '∫', '∂', 'd/dx', 'lim', '→',
 
   // Algebra & Matrices
-  'ƒ(x)', 'g(x)', '(ƒ ∘ g)(x)', 'x̄',
+  'g(x)', '(ƒ ∘ g)(x)', 'x̄',
   'Σ', 'Π', 'n!',
   'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
   'log', 'ln', 'logₐ(b)', 'eˣ',
 
   // Vectors
-  '→', '⇀',
+  '⇀',
 ];
 
 export default function MathExpressions({ onInsert }: MathExpressionsProps) {
