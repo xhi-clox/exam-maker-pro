@@ -32,7 +32,7 @@ const expressions = [
   '∠', '⊥', '∥', '△', '°', '≅', '∼',
 
   // Calculus
-  '∫', '∂', 'ƒ(x)', 'd/dx', 'lim', '→',
+  '∫', '∂', 'd/dx', 'lim', '→',
 
   // Algebra & Matrices
   'ƒ(x)', 'g(x)', '(ƒ ∘ g)(x)', 'x̄',
