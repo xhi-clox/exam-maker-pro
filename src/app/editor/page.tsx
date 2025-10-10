@@ -1,5 +1,6 @@
+
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,15 +17,19 @@ import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import PaperPreview from './PaperPreview';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
-// Define types for our question structure
+type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
+
 export interface Question {
   id: string;
   type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay';
   content: string;
   marks?: number;
-  options?: string[];
+  options?: { id: string; text: string }[];
   subQuestions?: Question[];
+  numberingFormat?: NumberingFormat;
 }
 
 export interface Paper {
@@ -51,19 +56,21 @@ const initialPaperData: Paper = {
       id: 'q1',
       type: 'passage',
       content: 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:',
+      numberingFormat: 'bangla-alpha',
       subQuestions: [
-        { id: 'q1a', type: 'short', content: 'ক) রউফ কেন নিজে দায়িত্ব নিলেন?', marks: 2 },
-        { id: 'q1b', type: 'short', content: 'খ) কীভাবে তিনি শহিদ হলেন?', marks: 3 },
-        { id: 'q1c', type: 'essay', content: 'গ) দেশের জন্য তার আত্মত্যাগের মহিমা বর্ণনা কর।', marks: 5 },
+        { id: 'q1a', type: 'short', content: 'রউফ কেন নিজে দায়িত্ব নিলেন?', marks: 2 },
+        { id: 'q1b', type: 'short', content: 'কীভাবে তিনি শহিদ হলেন?', marks: 3 },
+        { id: 'q1c', type: 'essay', content: 'দেশের জন্য তার আত্মত্যাগের মহিমা বর্ণনা কর।', marks: 5 },
       ]
     },
     {
       id: 'q2',
       type: 'fill-in-the-blanks',
-      content: 'খালি ځای পূরণ কর:',
+      content: 'খালি জায়গা পূরণ কর:',
+      numberingFormat: 'bangla-alpha',
       subQuestions: [
-        { id: 'q2a', type: 'fill-in-the-blanks', content: 'ক) _____ দেশের গৌরব।', marks: 1 },
-        { id: 'q2b', type: 'fill-in-the-blanks', content: 'খ) তিনি ____ রক্ষা করার জন্য জীবন দিলেন।', marks: 1 },
+        { id: 'q2a', type: 'fill-in-the-blanks', content: '_____ দেশের গৌরব।', marks: 1 },
+        { id: 'q2b', type: 'fill-in-the-blanks', content: 'তিনি ____ রক্ষা করার জন্য জীবন দিলেন।', marks: 1 },
       ]
     }
   ],
@@ -71,24 +78,35 @@ const initialPaperData: Paper = {
 
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(initialPaperData);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPdf = async () => {
+    const content = previewRef.current;
+    if (!content) return;
+
+    const canvas = await html2canvas(content, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    const pdf = new jsPDF({
+      orientation: 'p',
+      unit: 'px',
+      format: [canvas.width, canvas.height]
+    });
+
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    pdf.save('question-paper.pdf');
+  };
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
     setPaper(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleQuestionChange = (id: string, field: 'content' | 'marks', value: string | number) => {
+  const handleQuestionChange = (id: string, field: 'content' | 'marks' | 'numberingFormat', value: string | number) => {
     setPaper(prev => ({
       ...prev,
       questions: prev.questions.map(q => {
         if (q.id === id) {
           return { ...q, [field]: value };
-        }
-        // Handle sub-question changes if they are not in a group
-        if (q.subQuestions) {
-          const newSubQuestions = q.subQuestions.map(sq => 
-            sq.id === id ? { ...sq, [field]: value } : sq
-          );
-          return { ...q, subQuestions: newSubQuestions };
         }
         return q;
       })
@@ -145,6 +163,79 @@ export default function EditorPage() {
     }));
   };
 
+  const addOption = (questionId: string) => {
+    setPaper(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => {
+        if (q.id === questionId) {
+          const newOption = { id: `opt${Date.now()}`, text: 'নতুন অপশন' };
+          return {
+            ...q,
+            options: [...(q.options || []), newOption]
+          };
+        }
+        return q;
+      })
+    }));
+  };
+
+  const removeOption = (questionId: string, optionId: string) => {
+    setPaper(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => {
+        if (q.id === questionId) {
+          return {
+            ...q,
+            options: q.options?.filter(opt => opt.id !== optionId)
+          };
+        }
+        return q;
+      })
+    }));
+  };
+
+  const handleOptionChange = (questionId: string, optionId: string, text: string) => {
+    setPaper(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => {
+        if (q.id === questionId) {
+          return {
+            ...q,
+            options: q.options?.map(opt =>
+              opt.id === optionId ? { ...opt, text } : opt
+            )
+          };
+        }
+        return q;
+      })
+    }));
+  };
+
+  const getNumbering = (format: NumberingFormat | undefined, index: number): string => {
+    const banglaNumerals = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    const banglaAlphabet = ['ক', 'খ', 'গ', 'ঘ', 'ঙ', 'চ', 'ছ', 'জ', 'ঝ', 'ঞ', 'ট', 'ঠ', 'ড', 'ঢ', 'ণ', 'ত', 'থ', 'দ', 'ধ', 'ন'];
+    const toRoman = (num: number): string => {
+      const roman = {M: 1000, CM: 900, D: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1};
+      let str = '';
+      for (let i of Object.keys(roman)) {
+        let q = Math.floor(num / (roman as any)[i]);
+        num -= q * (roman as any)[i];
+        str += i.repeat(q);
+      }
+      return str.toLowerCase();
+    };
+
+    switch (format) {
+      case 'bangla-numeric':
+        return (index + 1).toString().split('').map(d => banglaNumerals[parseInt(d)]).join('');
+      case 'roman':
+        return toRoman(index + 1);
+      case 'bangla-alpha':
+      default:
+        return banglaAlphabet[index % banglaAlphabet.length];
+    }
+  };
+
   const QuestionActions = ({ onRemove }: { onRemove: () => void }) => (
     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
       <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab">
@@ -156,13 +247,33 @@ export default function EditorPage() {
     </div>
   );
 
-  const renderQuestion = (question: Question) => {
+  const renderQuestion = (question: Question, index: number) => {
     const handleRemove = () => removeQuestion(question.id);
 
-    const questionCard = (title: string, children: React.ReactNode) => (
+    const questionCard = (title: string, children: React.ReactNode, showNumberingFormat = false) => (
       <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
         <QuestionActions onRemove={handleRemove} />
-        <Label className="font-bold">{title}</Label>
+        <div className="flex items-center justify-between">
+          <Label className="font-bold">{`${index + 1}. ${title}`}</Label>
+          {showNumberingFormat && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor={`numbering-${question.id}`} className="text-sm">নাম্বারিং:</Label>
+              <Select 
+                value={question.numberingFormat} 
+                onValueChange={(value: NumberingFormat) => handleQuestionChange(question.id, 'numberingFormat', value)}
+              >
+                <SelectTrigger id={`numbering-${question.id}`} className="w-32 h-8 text-xs">
+                  <SelectValue placeholder="Format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bangla-alpha">ক, খ, গ</SelectItem>
+                  <SelectItem value="bangla-numeric">১, ২, ৩</SelectItem>
+                  <SelectItem value="roman">i, ii, iii</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
         {children}
       </Card>
     );
@@ -176,8 +287,9 @@ export default function EditorPage() {
               onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
               className="bg-white" />
             <div className="pl-6 space-y-2">
-              {question.subQuestions?.map((sq) => (
+              {question.subQuestions?.map((sq, sqIndex) => (
                 <div key={sq.id} className="flex items-center gap-2">
+                  <span className="font-semibold">{getNumbering(question.numberingFormat, sqIndex)})</span>
                   <Textarea 
                     value={sq.content} 
                     onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
@@ -195,12 +307,13 @@ export default function EditorPage() {
               <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id)}><Plus className="mr-2 size-4" /> প্রশ্ন যোগ করুন</Button>
             </div>
           </>
-        ));
+        ), true);
       case 'fill-in-the-blanks':
          return questionCard('শূন্যস্থান পূরণ', (
            <div className="pl-6 space-y-2">
-             {question.subQuestions?.map((sq) => (
+             {question.subQuestions?.map((sq, sqIndex) => (
               <div key={sq.id} className="flex items-center gap-2">
+                <span className="font-semibold">{getNumbering(question.numberingFormat, sqIndex)})</span>
                 <Textarea 
                   value={sq.content} 
                   onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
@@ -217,14 +330,47 @@ export default function EditorPage() {
              ))}
             <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id)}><Plus className="mr-2 size-4" /> শূন্যস্থান যোগ করুন</Button>
            </div>
-         ));
+         ), true);
+      case 'mcq':
+        return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', (
+            <>
+              <div className="flex items-center gap-2">
+                  <Textarea 
+                    value={question.content} 
+                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    className="flex-grow bg-white" 
+                    placeholder="MCQ প্রশ্ন এখানে লিখুন..."
+                  />
+                  <Input 
+                    type="number" 
+                    value={question.marks} 
+                    onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
+                    className="w-20" 
+                  />
+              </div>
+              <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-2">
+                {question.options?.map((opt, optIndex) => (
+                  <div key={opt.id} className="flex items-center gap-2">
+                    <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)})</span>
+                    <Input 
+                      value={opt.text}
+                      onChange={(e) => handleOptionChange(question.id, opt.id, e.target.value)}
+                      className="bg-white"
+                    />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeOption(question.id, opt.id)}>
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+               <Button variant="outline" size="sm" onClick={() => addOption(question.id)}><Plus className="mr-2 size-4" /> অপশন যোগ করুন</Button>
+            </>
+        ));
       case 'short':
       case 'essay':
-      case 'mcq':
         const titleMap = {
             short: 'সংক্ষিপ্ত প্রশ্ন',
             essay: 'রচনামূলক প্রশ্ন',
-            mcq: 'বহুনির্বাচনি প্রশ্ন (MCQ)'
         }
         return questionCard(titleMap[question.type], (
             <div className="flex items-center gap-2">
@@ -232,7 +378,7 @@ export default function EditorPage() {
                   value={question.content} 
                   onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
                   className="flex-grow bg-white" 
-                  placeholder={question.type === 'mcq' ? "MCQ প্রশ্ন এখানে লিখুন..." : "প্রশ্ন এখানে লিখুন..."}
+                  placeholder={"প্রশ্ন এখানে লিখুন..."}
                 />
                 <Input 
                   type="number" 
@@ -252,29 +398,35 @@ export default function EditorPage() {
       id: `q${Date.now()}`,
       type: type,
       content: '',
-      subQuestions: [],
       marks: 5,
     };
 
     if (type === 'passage') {
       newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
-      newQuestion.subQuestions = [{ id: `sq${Date.now()}`, type: 'short', content: 'ক) ', marks: 2 }];
+      newQuestion.subQuestions = [{ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2 }];
+      newQuestion.numberingFormat = 'bangla-alpha';
       delete newQuestion.marks;
     } else if (type === 'fill-in-the-blanks') {
-       newQuestion.content = 'খালি ځای পূরণ কর:';
-       newQuestion.subQuestions = [{ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'ক) ', marks: 1 }];
+       newQuestion.content = 'খালি জায়গা পূরণ কর:';
+       newQuestion.subQuestions = [{ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1 }];
+       newQuestion.numberingFormat = 'bangla-alpha';
        delete newQuestion.marks;
     } else if (type === 'short') {
-        newQuestion.content = 'প্রশ্ন...';
+        newQuestion.content = 'নতুন প্রশ্ন...';
         newQuestion.marks = 2;
     } else if (type === 'mcq') {
-        newQuestion.content = 'MCQ প্রশ্ন...';
+        newQuestion.content = 'নতুন MCQ প্রশ্ন...';
         newQuestion.marks = 1;
+        newQuestion.options = [
+          { id: `opt${Date.now()}-1`, text: 'অপশন ১' },
+          { id: `opt${Date.now()}-2`, text: 'অপশন ২' },
+          { id: `opt${Date.now()}-3`, text: 'অপশন ৩' },
+          { id: `opt${Date.now()}-4`, text: 'অপশন ৪' },
+        ]
     } else if (type === 'essay') {
-        newQuestion.content = 'রচনামূলক প্রশ্ন...';
+        newQuestion.content = 'নতুন রচনামূলক প্রশ্ন...';
         newQuestion.marks = 10;
     }
-
 
     setPaper(prev => ({
       ...prev,
@@ -306,11 +458,13 @@ export default function EditorPage() {
                   <DialogTitle>Question Paper Preview</DialogTitle>
                 </DialogHeader>
                 <div className="flex-1 overflow-auto bg-gray-100 p-4">
-                  <PaperPreview paper={paper} />
+                  <div ref={previewRef}>
+                    <PaperPreview paper={paper} />
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
-            <Button><Download className="mr-2 size-4" /> Download PDF</Button>
+            <Button onClick={handleDownloadPdf}><Download className="mr-2 size-4" /> Download PDF</Button>
         </div>
       </header>
 
@@ -343,7 +497,7 @@ export default function EditorPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {paper.questions.map(q => renderQuestion(q))}
+                  {paper.questions.map((q, index) => renderQuestion(q, index))}
                 </div>
               )}
             </div>
