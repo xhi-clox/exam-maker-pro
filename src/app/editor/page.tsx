@@ -3,10 +3,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Trash2, GripVertical, FileText, BrainCircuit, Download } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -14,221 +10,150 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { suggestQuestionPaper, SuggestQuestionPaperInput, SuggestQuestionPaperOutput } from '@/ai/flows/ai-suggest-question-paper';
-
-type Question = {
-  id: string;
-  type: 'mcq' | 'short' | 'essay';
-  content: string;
-  marks: number;
-};
-
-type Section = {
-  id: string;
-  title: string;
-  questions: Question[];
-};
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye } from 'lucide-react';
 
 export default function EditorPage() {
-  const [title, setTitle] = useState('Untitled Exam Paper');
-  const [subject, setSubject] = useState('');
-  const [grade, setGrade] = useState('');
-  const [sections, setSections] = useState<Section[]>([
-    {
-      id: `section-${Date.now()}`,
-      title: 'Section A',
-      questions: [],
-    },
-  ]);
-
-  const addSection = () => {
-    setSections([
-      ...sections,
-      {
-        id: `section-${Date.now()}`,
-        title: `Section ${String.fromCharCode(65 + sections.length)}`,
-        questions: [],
-      },
-    ]);
-  };
-
-  const removeSection = (sectionId: string) => {
-    setSections(sections.filter((s) => s.id !== sectionId));
-  };
-
-  const addQuestion = (sectionId: string) => {
-    const newQuestion: Question = {
-      id: `question-${Date.now()}`,
-      type: 'short',
-      content: '',
-      marks: 5,
-    };
-    setSections(
-      sections.map((s) =>
-        s.id === sectionId ? { ...s, questions: [...s.questions, newQuestion] } : s
-      )
-    );
-  };
-
-  const removeQuestion = (sectionId: string, questionId: string) => {
-    setSections(
-      sections.map((s) =>
-        s.id === sectionId
-          ? { ...s, questions: s.questions.filter((q) => q.id !== questionId) }
-          : s
-      )
-    );
-  };
-
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleAiGenerate = async () => {
-    if (!subject || !grade) {
-      // Maybe show a toast message
-      return;
-    }
-    setIsGenerating(true);
-    try {
-      const input: SuggestQuestionPaperInput = { topic: subject, gradeLevel: grade };
-      const result = await suggestQuestionPaper(input);
-      setTitle(result.title);
-      setSubject(result.subject);
-      setGrade(result.grade);
-      setSections(result.sections.map((s, si) => ({
-        id: `section-${si}`,
-        title: s.title,
-        questions: s.questions.map((q, qi) => ({
-          id: `question-${si}-${qi}`,
-          type: q.type as any,
-          content: q.content,
-          marks: q.marks,
-        }))
-      })));
-    } catch (error) {
-      console.error("Failed to generate question paper:", error);
-    }
-    setIsGenerating(false);
-  };
-
+  const [questions, setQuestions] = useState<any[]>([]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-        <header className="mb-8">
-          <Input
-            className="border-none text-3xl font-bold font-headline !ring-0 !outline-none p-0 h-auto"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Untitled Exam Paper"
-          />
-          <p className="mt-1 text-muted-foreground">
-            আপনার প্রশ্নপত্র এখানে সম্পাদনা করুন। প্রশ্ন যোগ করুন, নম্বর নির্ধারণ করুন এবং প্রয়োজনমত সাজিয়ে নিন।
-          </p>
-        </header>
+    <div className="flex h-screen flex-col bg-slate-50 text-foreground">
+      {/* Header */}
+      <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold">Bangla Exam Pro</h1>
+          <nav className="hidden items-center gap-4 text-sm font-medium text-muted-foreground md:flex">
+            <a href="#" className="hover:text-primary">Dashboard</a>
+            <a href="#" className="hover:text-primary">নতুন প্রশ্নপত্র</a>
+            <a href="#" className="hover:text-primary">Templates</a>
+            <a href="#" className="hover:text-primary">Settings</a>
+          </nav>
+        </div>
+        <Button>Get Started</Button>
+      </header>
 
-        {sections.map((section, sectionIndex) => (
-          <Card key={section.id} className="mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <Input
-                  className="text-xl font-semibold font-headline border-none p-0 h-auto !ring-0 !outline-none"
-                  value={section.title}
-                  onChange={(e) => {
-                    const newSections = [...sections];
-                    newSections[sectionIndex].title = e.target.value;
-                    setSections(newSections);
-                  }}
-                />
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => removeSection(section.id)}>
-                    <Trash2 className="size-4" />
-                  </Button>
-                  <GripVertical className="size-5 text-muted-foreground cursor-grab" />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {section.questions.map((question, questionIndex) => (
-                  <div key={question.id} className="flex gap-4 items-start p-4 border rounded-lg bg-background">
-                    <div className="flex-1 space-y-2">
-                      <Textarea
-                        placeholder="প্রশ্নটি এখানে লিখুন..."
-                        className="!ring-0 !outline-none border-none p-0"
-                        value={question.content}
-                        onChange={(e) => {
-                          const newSections = [...sections];
-                          newSections[sectionIndex].questions[questionIndex].content = e.target.value;
-                          setSections(newSections);
-                        }}
-                      />
-                      <div className="flex items-center gap-4">
-                         <Input
-                            type="number"
-                            className="w-20 h-8"
-                            placeholder="Marks"
-                            value={question.marks}
-                            onChange={(e) => {
-                              const newSections = [...sections];
-                              newSections[sectionIndex].questions[questionIndex].marks = parseInt(e.target.value, 10) || 0;
-                              setSections(newSections);
-                            }}
-                          />
-                      </div>
-                    </div>
-                     <Button variant="ghost" size="icon" onClick={() => removeQuestion(section.id, question.id)}>
-                        <Trash2 className="size-4" />
-                      </Button>
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden p-6">
+        <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Left Column */}
+          <div className="flex flex-col gap-6 overflow-y-auto">
+            {/* Paper Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Paper Settings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="md:col-span-1">
+                    <Label htmlFor="school-name">School Name</Label>
+                    <Input id="school-name" defaultValue="ABC School, Dhaka" />
                   </div>
-                ))}
-              </div>
+                  <div className="md:col-span-1">
+                    <Label htmlFor="exam-title">Exam Title</Label>
+                    <Input id="exam-title" defaultValue="Annual Examination 2026" />
+                  </div>
+                  <div className="md:col-span-1">
+                    <Label htmlFor="subject">Subject</Label>
+                    <Select defaultValue="science">
+                      <SelectTrigger id="subject">
+                        <SelectValue placeholder="Select subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="science">বিজ্ঞান</SelectItem>
+                        <SelectItem value="math">গণিত</SelectItem>
+                        <SelectItem value="bangla">বাংলা</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="class">Class</Label>
+                    <Select defaultValue="9">
+                      <SelectTrigger id="class">
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="9">নবম শ্রেণি</SelectItem>
+                        <SelectItem value="10">দশম শ্রেণি</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="board">Board</Label>
+                    <Select defaultValue="dhaka">
+                      <SelectTrigger id="board">
+                        <SelectValue placeholder="Select board" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dhaka">ঢাকা বোর্ড</SelectItem>
+                        <SelectItem value="chittagong">চট্টগ্রাম বোর্ড</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="time-allowed">Time Allowed</Label>
+                    <Input id="time-allowed" defaultValue="3 Hours" />
+                  </div>
+                  <div>
+                    <Label htmlFor="total-marks">Total Marks</Label>
+                    <Input id="total-marks" type="number" defaultValue="100" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              <Button
-                variant="outline"
-                className="mt-4 w-full border-dashed"
-                onClick={() => addQuestion(section.id)}
-              >
-                <PlusCircle className="mr-2 size-4" />
-                নতুন প্রশ্ন যোগ করুন
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+            {/* Add Questions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Questions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline"><Plus className="mr-2 size-4" /> MCQ</Button>
+                  <Button variant="outline"><Type className="mr-2 size-4" /> Short</Button>
+                  <Button variant="outline"><Pilcrow className="mr-2 size-4" /> Essay</Button>
+                  <Button variant="outline" className="border-primary text-primary"><ImageIcon className="mr-2 size-4" /> Import from Image</Button>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Button variant="secondary" className="w-full" onClick={addSection}>
-          <FileText className="mr-2 size-4" />
-          নতুন সেকশন যোগ করুন
-        </Button>
+            {/* Question Area */}
+            <div className="flex-1 rounded-lg border bg-white p-6">
+              {questions.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+                  <p className="font-semibold">Your paper is empty</p>
+                  <p className="text-sm">Add questions using the toolbar above.</p>
+                </div>
+              ) : (
+                <div>{/* Render questions here */}</div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="flex flex-col">
+            <Card className="flex-1">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Eye className="size-5" />
+                  <CardTitle className="text-xl">Live Preview</CardTitle>
+                </div>
+                <Button variant="default"><Download className="mr-2 size-4" /> Download PDF</Button>
+              </CardHeader>
+              <CardContent className="h-full pb-6">
+                <div className="h-full rounded-lg bg-slate-100 p-4">
+                  {/* Preview content will go here */}
+                  <div className="h-full w-full bg-white shadow-md">
+
+                  </div>
+                </div>
+                <div className='flex justify-center items-center pt-2'>
+                  <p className='text-sm text-muted-foreground'>Page 1 of 1</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </main>
-
-      <aside className="w-80 border-l bg-card p-6 space-y-6 hidden md:block">
-        <h2 className="text-xl font-semibold font-headline">Editor Controls</h2>
-        <div className="space-y-4">
-            <div>
-                <Label htmlFor="subject">Subject</Label>
-                <Input id="subject" placeholder="e.g., বাংলা" value={subject} onChange={(e) => setSubject(e.target.value)} />
-            </div>
-            <div>
-                <Label htmlFor="grade">Grade</Label>
-                <Input id="grade" placeholder="e.g., 10" value={grade} onChange={(e) => setGrade(e.target.value)} />
-            </div>
-        </div>
-        <Separator />
-        <div>
-          <h3 className="text-lg font-semibold mb-2 font-headline">AI Assistant</h3>
-           <Button className="w-full" onClick={handleAiGenerate} disabled={isGenerating}>
-            <BrainCircuit className="mr-2 size-4" />
-            {isGenerating ? 'Generating...' : 'Suggest a Paper'}
-          </Button>
-        </div>
-        <Separator />
-         <div>
-          <h3 className="text-lg font-semibold mb-2 font-headline">Export</h3>
-           <Button className="w-full" variant="outline">
-            <Download className="mr-2 size-4" />
-            Download as PDF
-          </Button>
-        </div>
-      </aside>
     </div>
   );
 }
