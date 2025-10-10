@@ -34,7 +34,7 @@ export function AiActionCard({ Icon, title, description, href }: AiActionCardPro
   );
 }
 
-conststyles = `
+const styles = `
 .bg-grid-white\\/\\[0\\.05\\] {
     background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
     background-size: 20px 20px;
