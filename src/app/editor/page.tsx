@@ -310,66 +310,45 @@ export default function EditorPage() {
       </Card>
     );
 
-    switch (question.type) {
-      case 'passage':
-        return questionCard('অনুচ্ছেদ', (
-          <>
-            <Textarea 
-              value={question.content} 
-              onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
-              className="bg-white" />
-            <div className="pl-6 space-y-2">
-              {question.subQuestions?.map((sq, sqIndex) => (
-                <div key={sq.id} className="flex items-center gap-2">
-                  <span className="font-semibold">{getNumbering(question.numberingFormat, sqIndex)})</span>
-                  <Textarea 
-                    value={sq.content} 
-                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
-                    className="flex-grow bg-white" />
-                  <Input 
-                    type="number" 
-                    value={sq.marks} 
-                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
-                    className="w-20" />
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id)}><Plus className="mr-2 size-4" /> প্রশ্ন যোগ করুন</Button>
-            </div>
-          </>
-        ), true);
-      case 'fill-in-the-blanks':
-         return questionCard('শূন্যস্থান পূরণ', (
-           <>
+    const subQuestionRenderer = (qType: 'short' | 'essay' | 'fill-in-the-blanks') => (
+        <>
             <Textarea 
                 value={question.content} 
                 onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
-                className="bg-white" 
-            />
+                className="bg-white" />
             <div className="pl-6 space-y-2">
-                {question.subQuestions?.map((sq, sqIndex) => (
+            {question.subQuestions?.map((sq, sqIndex) => (
                 <div key={sq.id} className="flex items-center gap-2">
-                    <span className="font-semibold">{getNumbering(question.numberingFormat, sqIndex)})</span>
-                    <Textarea 
+                <span className="font-semibold">{getNumbering(question.numberingFormat, sqIndex)})</span>
+                <Textarea 
                     value={sq.content} 
                     onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
                     className="flex-grow bg-white" />
-                    <Input 
+                <Input 
                     type="number" 
                     value={sq.marks} 
                     onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
                     className="w-20" />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
                     <Trash2 className="size-4" />
-                    </Button>
+                </Button>
                 </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id, 'fill-in-the-blanks')}><Plus className="mr-2 size-4" /> শূন্যস্থান যোগ করুন</Button>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id, qType)}><Plus className="mr-2 size-4" /> প্রশ্ন যোগ করুন</Button>
             </div>
-           </>
-         ), true);
+        </>
+    );
+    
+
+    switch (question.type) {
+      case 'passage':
+        return questionCard('অনুচ্ছেদ', subQuestionRenderer('short'), true);
+      case 'fill-in-the-blanks':
+         return questionCard('শূন্যস্থান পূরণ', subQuestionRenderer('fill-in-the-blanks'), true);
+      case 'short':
+        return questionCard('সংক্ষিপ্ত প্রশ্ন', subQuestionRenderer('short'), true);
+      case 'essay':
+        return questionCard('রচনামূলক প্রশ্ন', subQuestionRenderer('essay'), true);
          case 'mcq':
             return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', (
               <>
@@ -422,28 +401,6 @@ export default function EditorPage() {
                 </div>
               </>
             ), true);
-      case 'short':
-      case 'essay':
-        const titleMap = {
-            short: 'সংক্ষিপ্ত প্রশ্ন',
-            essay: 'রচনামূলক প্রশ্ন',
-        }
-        return questionCard(titleMap[question.type], (
-            <div className="flex items-center gap-2">
-                <Textarea 
-                  value={question.content} 
-                  onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
-                  className="flex-grow bg-white" 
-                  placeholder={"প্রশ্ন এখানে লিখুন..."}
-                />
-                <Input 
-                  type="number" 
-                  value={question.marks} 
-                  onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
-                  className="w-20" 
-                />
-            </div>
-        ));
       default:
         return null;
     }
@@ -457,39 +414,45 @@ export default function EditorPage() {
       marks: 5,
     };
 
-    if (type === 'passage') {
-      newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
-      newQuestion.subQuestions = [{ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2 }];
+    if (type === 'passage' || type === 'short' || type === 'essay' || type === 'fill-in-the-blanks' || type === 'mcq') {
+      newQuestion.subQuestions = [];
       newQuestion.numberingFormat = 'bangla-alpha';
       delete newQuestion.marks;
-    } else if (type === 'fill-in-the-blanks') {
-       newQuestion.content = 'খালি জায়গা পূরণ কর:';
-       newQuestion.subQuestions = [{ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1 }];
-       newQuestion.numberingFormat = 'bangla-alpha';
-       delete newQuestion.marks;
-    } else if (type === 'short') {
-        newQuestion.content = 'নতুন প্রশ্ন...';
-        newQuestion.marks = 2;
-    } else if (type === 'mcq') {
-        newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
-        newQuestion.marks = 1;
-        newQuestion.numberingFormat = 'bangla-numeric';
-        newQuestion.subQuestions = [{
-            id: `sq${Date.now()}`,
-            type: 'mcq',
-            content: 'নতুন MCQ প্রশ্ন...',
-            marks: 1,
-            options: [
-                { id: `opt${Date.now()}-1`, text: 'অপশন ১' },
-                { id: `opt${Date.now()}-2`, text: 'অপশন ২' },
-                { id: `opt${Date.now()}-3`, text: 'অপশন ৩' },
-                { id: `opt${Date.now()}-4`, text: 'অপশন ৪' },
-            ]
-        }];
-        delete newQuestion.marks;
-    } else if (type === 'essay') {
-        newQuestion.content = 'নতুন রচনামূলক প্রশ্ন...';
-        newQuestion.marks = 10;
+  
+      switch (type) {
+        case 'passage':
+          newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2 });
+          break;
+        case 'fill-in-the-blanks':
+          newQuestion.content = 'খালি জায়গা পূরণ কর:';
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1 });
+          break;
+        case 'short':
+          newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2 });
+          break;
+        case 'essay':
+          newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10 });
+          break;
+        case 'mcq':
+            newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
+            newQuestion.numberingFormat = 'bangla-numeric';
+            newQuestion.subQuestions.push({
+                id: `sq${Date.now()}`,
+                type: 'mcq',
+                content: 'নতুন MCQ প্রশ্ন...',
+                marks: 1,
+                options: [
+                    { id: `opt${Date.now()}-1`, text: 'অপশন ১' },
+                    { id: `opt${Date.now()}-2`, text: 'অপশন ২' },
+                    { id: `opt${Date.now()}-3`, text: 'অপশন ৩' },
+                    { id: `opt${Date.now()}-4`, text: 'অপশন ৪' },
+                ]
+            });
+            break;
+      }
     }
 
     setPaper(prev => ({
