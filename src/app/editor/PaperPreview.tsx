@@ -178,6 +178,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
 
                 let availableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
 
+                // Check if main question content itself overflows
                 if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
                     newPages.push(currentPageContent);
                     currentPageContent = [];
@@ -187,17 +188,11 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 }
                 
                 currentPageHeight += mainContentHeight;
-                let currentQuestionOnPage: PageContent = {
-                    mainQuestion: { ...question, subQuestions: [] },
-                    subQuestions: [],
-                };
-                
-                const existingMainInPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
-                if (!existingMainInPage) {
-                    currentPageContent.push(currentQuestionOnPage);
+                let mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
+                if (!mainOnPage) {
+                    mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
+                    currentPageContent.push(mainOnPage);
                 }
-                
-                let mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id)!;
 
                 question.subQuestions?.forEach((sq) => {
                     const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
@@ -212,16 +207,13 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                         currentPageHeight = 0;
                         isFirstPage = false;
                         
-                        const existingMain = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
-                        if (!existingMain) {
-                            currentQuestionOnPage = {
-                                mainQuestion: { ...question, subQuestions: [] },
-                                subQuestions: [],
-                            };
-                            currentPageContent.push(currentQuestionOnPage);
-                            currentPageHeight += mainContentHeight;
+                        // Check if we need to add the main question header to the new page
+                        mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
+                        if (!mainOnPage) {
+                           mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
+                           currentPageContent.push(mainOnPage);
+                           currentPageHeight += mainContentHeight;
                         }
-                        mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id)!;
                     }
 
                     currentPageHeight += subQuestionHeight;
