@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { Paper, Question } from './page';
+import type { Paper, Question, NumberingFormat } from './page';
 
 const subjectMap: { [key: string]: string } = {
   bangla: 'বাংলা',
@@ -15,6 +15,32 @@ const gradeMap: { [key: string]: string } = {
     '10': 'দশম',
 };
 
+const getNumbering = (format: NumberingFormat | undefined, index: number): string => {
+  const banglaNumerals = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  const banglaAlphabet = ['ক', 'খ', 'গ', 'ঘ', 'ঙ', 'চ', 'ছ', 'জ', 'ঝ', 'ঞ', 'ট', 'ঠ', 'ড', 'ঢ', 'ণ', 'ত', 'থ', 'দ', 'ধ', 'ন'];
+  const toRoman = (num: number): string => {
+    const roman = {M: 1000, CM: 900, D: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1};
+    let str = '';
+    for (let i of Object.keys(roman)) {
+      let q = Math.floor(num / (roman as any)[i]);
+      num -= q * (roman as any)[i];
+      str += i.repeat(q);
+    }
+    return str.toLowerCase();
+  };
+
+  switch (format) {
+    case 'bangla-numeric':
+      return (index + 1).toString().split('').map(d => banglaNumerals[parseInt(d)]).join('');
+    case 'roman':
+      return toRoman(index + 1);
+    case 'bangla-alpha':
+    default:
+      return banglaAlphabet[index % banglaAlphabet.length];
+  }
+};
+
+
 const renderQuestionPreview = (question: Question, index: number) => {
   return (
     <div key={question.id} className="mb-4">
@@ -24,13 +50,20 @@ const renderQuestionPreview = (question: Question, index: number) => {
       </div>
       {question.subQuestions && question.subQuestions.length > 0 && (
         <div className="pl-6 mt-2 space-y-2">
-          {question.subQuestions.map((sq) => (
+          {question.subQuestions.map((sq, sqIndex) => (
             <div key={sq.id} className="flex justify-between">
-              <p>{sq.content}</p>
+              <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
               <p>{sq.marks}</p>
             </div>
           ))}
         </div>
+      )}
+      {question.options && question.options.length > 0 && (
+          <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
+              {question.options.map((option, optIndex) => (
+                  <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
+              ))}
+          </div>
       )}
     </div>
   );
