@@ -141,8 +141,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     useEffect(() => {
         const calculatePages = () => {
             if (!hiddenRenderRef.current || paper.questions.length === 0) {
-              if (paper.questions.length === 0) setPages([]);
-              else setPages([paper.questions]);
+              setPages(paper.questions.length > 0 ? [paper.questions] : []);
               return;
             }
     
@@ -156,7 +155,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             
             const questionElements = Array.from(hiddenPage.querySelectorAll('.question-item'));
             if(questionElements.length === 0) {
-                setPages([]); // No questions, so no pages
+                setPages([]);
                 return;
             }
 
@@ -167,7 +166,11 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
 
             questionElements.forEach((el, index) => {
                 const questionHeight = (el as HTMLElement).offsetHeight;
-                const pageBreakThreshold = isFirstPage ? contentHeightPx - headerHeight : contentHeightPx;
+                
+                let pageBreakThreshold = contentHeightPx;
+                if (isFirstPage) {
+                    pageBreakThreshold -= headerHeight;
+                }
                 
                 if (currentHeight > 0 && currentHeight + questionHeight > pageBreakThreshold) {
                     newPages.push(currentPageQuestions);
@@ -190,9 +193,11 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             }
         };
         
+        // Using a timeout allows the DOM to update before we measure it.
         const timer = setTimeout(calculatePages, 100);
         return () => clearTimeout(timer);
-    }, [paper.questions, margins, currentPage]);
+
+    }, [paper.questions, margins]);
 
   return (
     <>
@@ -270,7 +275,3 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
-
-    
-
-    
