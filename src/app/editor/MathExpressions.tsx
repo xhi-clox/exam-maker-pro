@@ -29,10 +29,10 @@ const expressions = [
   '∠', '⊥', '∥', '△', '°', '≅', '∼',
 
   // Calculus
-  '∫', '∂', 'd/dx', 'lim', '→',
+  '∫', '∂', 'd/dx', 'lim',
 
   // Algebra & Matrices
-  'ƒ(x)', 'g(x)', '(ƒ ∘ g)(x)', 'x̄', 'Σ', 'Π', 'n!',
+  'ƒ(x)', 'g(x)', '(ƒ ∘ g)(x)', 'x̄', 'Σ', 'Π', 'n!', '→',
   
   // Trigonometry
   'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
@@ -42,7 +42,7 @@ const expressions = [
   'log', 'ln', 'logₐ(b)',
 
   // Vectors
-  '⇀', '⋅', '×',
+  '⇀', '⋅',
 ];
 
 export default function MathExpressions({ onInsert }: MathExpressionsProps) {
