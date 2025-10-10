@@ -45,18 +45,17 @@ const getNumbering = (format: NumberingFormat | undefined, index: number): strin
   }
 };
 
-const renderQuestionContent = (question: Question, index: number) => {
-    
+const renderQuestionContent = (question: Question, questionIndex: number) => {
     return (
-      <div key={question.id} className="mb-4 question-item">
+      <div key={question.id} className="mb-4 question-item" data-question-id={question.id}>
         <div className="flex justify-between font-semibold question-content">
-          <p className="flex-1">{index + 1}. {question.content}</p>
+          <p className="flex-1">{questionIndex + 1}. {question.content}</p>
         </div>
   
         {question.subQuestions && question.subQuestions.length > 0 && (
           <div className="pl-6 mt-2 space-y-2">
             {question.subQuestions.map((sq, sqIndex) => (
-              <div key={sq.id} className="subquestion-item">
+              <div key={sq.id} className="subquestion-item" data-subquestion-id={sq.id}>
                 <div className="flex justify-between">
                   <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
                 </div>
@@ -83,7 +82,12 @@ const renderQuestionContent = (question: Question, index: number) => {
     );
 };
 
-const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; questions: Question[]; isFirstPage: boolean; margins: any }>(({ paper, questions, isFirstPage, margins }, ref) => {
+type PageContent = {
+  mainQuestion: Question;
+  subQuestions: Question[];
+}
+
+const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: PageContent[]; isFirstPage: boolean; margins: any; allQuestions: Question[] }>(({ paper, pageContent, isFirstPage, margins, allQuestions }, ref) => {
     const getSubjectName = (subjectKey: string) => subjectMap[subjectKey] || subjectKey;
     const getGradeName = (gradeKey: string) => gradeMap[gradeKey] || gradeKey;
     
@@ -117,7 +121,14 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; questions: Qu
             )}
 
             <main className={!isFirstPage ? 'pt-8' : ''}>
-                {questions.map((q, index) => renderQuestionContent(q, paper.questions.indexOf(q)))}
+                {pageContent.map(content => {
+                    const originalQuestionIndex = allQuestions.findIndex(q => q.id === content.mainQuestion.id);
+                    const questionToRender: Question = {
+                        ...content.mainQuestion,
+                        subQuestions: content.subQuestions
+                    };
+                    return renderQuestionContent(questionToRender, originalQuestionIndex);
+                })}
             </main>
         </div>
     );
@@ -126,7 +137,7 @@ PaperPage.displayName = "PaperPage";
 
 
 export default function PaperPreview({ paper }: { paper: Paper }) {
-    const [pages, setPages] = useState<Question[][]>([]);
+    const [pages, setPages] = useState<PageContent[][]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const hiddenRenderRef = useRef<HTMLDivElement>(null);
     const [margins, setMargins] = useState({ top: 20, bottom: 20, left: 20, right: 20 });
@@ -141,7 +152,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     useEffect(() => {
         const calculatePages = () => {
             if (!hiddenRenderRef.current || paper.questions.length === 0) {
-                setPages(paper.questions.length > 0 ? [paper.questions] : []);
+                setPages([]);
                 return;
             }
 
@@ -153,50 +164,83 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             const headerEl = hiddenPage.querySelector('.preview-header');
             const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
             
-            const questionElements = Array.from(hiddenPage.querySelectorAll('.question-item'));
-            if (questionElements.length === 0) {
-                setPages([]);
-                return;
-            }
-            
-            const newPages: Question[][] = [];
-            let currentPageQuestions: Question[] = [];
+            const newPages: PageContent[][] = [];
+            let currentPageContent: PageContent[] = [];
             let currentPageHeight = 0;
             let isFirstPage = true;
 
-            paper.questions.forEach((question, index) => {
-                const questionElement = questionElements[index];
+            paper.questions.forEach((question) => {
+                const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
                 if (!questionElement) return;
 
-                const questionHeight = questionElement.getBoundingClientRect().height;
+                const mainContentEl = questionElement.querySelector('.question-content');
+                const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
+
                 const availableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
 
-                if (currentPageHeight > 0 && currentPageHeight + questionHeight > availableHeight) {
-                    newPages.push(currentPageQuestions);
-                    currentPageQuestions = [];
+                // Check if main question content itself is too large for a new page
+                if (currentPageHeight + mainContentHeight > availableHeight && currentPageHeight > 0) {
+                    newPages.push(currentPageContent);
+                    currentPageContent = [];
                     currentPageHeight = 0;
                     isFirstPage = false;
                 }
+                
+                currentPageHeight += mainContentHeight;
+                let currentQuestionOnPage: PageContent = {
+                    mainQuestion: { ...question, subQuestions: [] },
+                    subQuestions: [],
+                };
+                currentPageContent.push(currentQuestionOnPage);
+                
+                question.subQuestions?.forEach((sq) => {
+                    const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
+                    if (!subQuestionEl) return;
 
-                currentPageHeight += questionHeight;
-                currentPageQuestions.push(question);
+                    const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
+                    const recheckAvailableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
+
+                    if (currentPageHeight + subQuestionHeight > recheckAvailableHeight) {
+                        newPages.push(currentPageContent);
+                        currentPageContent = [];
+                        currentPageHeight = 0;
+                        isFirstPage = false;
+
+                        // Check if this sub-question needs to start on a new page under the same main question
+                        const existingMain = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
+                        if (!existingMain) {
+                            currentQuestionOnPage = {
+                                mainQuestion: { ...question, subQuestions: [] },
+                                subQuestions: [],
+                            };
+                            currentPageContent.push(currentQuestionOnPage);
+                            // Add main question content height if it's a new page for this main question
+                            currentPageHeight += mainContentHeight;
+                        }
+                    }
+
+                    currentPageHeight += subQuestionHeight;
+                    const mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
+                    if (mainOnPage) {
+                       mainOnPage.subQuestions.push(sq);
+                    }
+                });
             });
 
-            if (currentPageQuestions.length > 0) {
-                newPages.push(currentPageQuestions);
+            if (currentPageContent.length > 0) {
+                newPages.push(currentPageContent);
             }
-
+            
             setPages(newPages);
             if (currentPage >= newPages.length) {
                 setCurrentPage(Math.max(0, newPages.length - 1));
             }
         };
 
-        // Use a timeout to ensure the DOM is fully rendered before calculating.
         const timer = setTimeout(calculatePages, 100);
         return () => clearTimeout(timer);
 
-    }, [paper.questions, margins]); // Rerun when questions or margins change
+    }, [paper, margins]);
 
   return (
     <>
@@ -224,7 +268,6 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                   <main>
                    {paper.questions.map((q, index) => {
                        const rendered = renderQuestionContent(q, index);
-                       // We must clone and provide a key for React to handle the array correctly.
                        return React.cloneElement(rendered, { key: q.id });
                    })}
                   </main>
@@ -254,9 +297,9 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         {/* Visible container for rendering pages */}
         <div className="space-y-4">
              {pages.length > 0 ? (
-                <PaperPage paper={paper} questions={pages[currentPage]} isFirstPage={currentPage === 0} margins={margins} />
+                <PaperPage paper={paper} pageContent={pages[currentPage]} isFirstPage={currentPage === 0} margins={margins} allQuestions={paper.questions} />
             ) : (
-                <PaperPage paper={paper} questions={[]} isFirstPage={true} margins={margins}/>
+                <PaperPage paper={paper} pageContent={[]} isFirstPage={true} margins={margins} allQuestions={paper.questions} />
             )}
         </div>
         
@@ -273,4 +316,5 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         )}
     </>
   );
-}
+
+    
