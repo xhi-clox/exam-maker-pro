@@ -5,6 +5,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import type { Paper, Question, NumberingFormat } from './page';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 const subjectMap: { [key: string]: string } = {
   bangla: 'বাংলা',
@@ -50,7 +52,6 @@ const renderQuestionContent = (question: Question, index: number) => {
             <div key={question.id} className="mb-4 question-item">
               <div className="flex justify-between font-semibold mb-2">
                 <p>{index + 1}. {question.content}</p>
-                <p>{question.marks || ''}</p>
               </div>
               <table className="w-full border-collapse border border-black text-sm">
                 <tbody>
@@ -73,7 +74,6 @@ const renderQuestionContent = (question: Question, index: number) => {
       <div key={question.id} className="mb-4 question-item">
         <div className="flex justify-between font-semibold">
           <p className="flex-1">{index + 1}. {question.content}</p>
-          <p className="pl-4">{question.marks || ''}</p>
         </div>
   
         {question.subQuestions && question.subQuestions.length > 0 && (
@@ -106,12 +106,21 @@ const renderQuestionContent = (question: Question, index: number) => {
     );
 };
 
-const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; questions: Question[]; isFirstPage: boolean }>(({ paper, questions, isFirstPage }, ref) => {
+const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; questions: Question[]; isFirstPage: boolean; margins: any }>(({ paper, questions, isFirstPage, margins }, ref) => {
     const getSubjectName = (subjectKey: string) => subjectMap[subjectKey] || subjectKey;
     const getGradeName = (gradeKey: string) => gradeMap[gradeKey] || gradeKey;
     
+    const pageStyle: React.CSSProperties = {
+        width: '210mm',
+        minHeight: '297mm',
+        paddingTop: `${margins.top}mm`,
+        paddingBottom: `${margins.bottom}mm`,
+        paddingLeft: `${margins.left}mm`,
+        paddingRight: `${margins.right}mm`,
+    };
+
     return (
-        <div ref={ref} className="p-8 bg-white text-black font-serif max-w-3xl mx-auto border rounded-sm shadow-lg paper-page" style={{ width: '210mm', minHeight: '297mm'}}>
+        <div ref={ref} className="bg-white text-black font-serif max-w-3xl mx-auto border rounded-sm shadow-lg paper-page" style={pageStyle}>
             {isFirstPage && (
                 <>
                     <header className="text-center mb-6">
@@ -130,7 +139,7 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; questions: Qu
                 </>
             )}
 
-            <main className={isFirstPage ? '' : 'pt-16'}>
+            <main className={!isFirstPage ? 'pt-8' : ''}>
                 {questions.map((q, index) => renderQuestionContent(q, paper.questions.indexOf(q)))}
             </main>
         </div>
@@ -143,43 +152,57 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     const [pages, setPages] = useState<Question[][]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const hiddenRenderRef = useRef<HTMLDivElement>(null);
+    const [margins, setMargins] = useState({ top: 20, bottom: 20, left: 20, right: 20 });
+
+    const handleMarginChange = (side: keyof typeof margins, value: string) => {
+      const numValue = Number(value);
+      if (!isNaN(numValue)) {
+        setMargins(prev => ({...prev, [side]: numValue }));
+      }
+    }
     
     useEffect(() => {
         const calculatePages = () => {
             if (!hiddenRenderRef.current) return;
     
-            const PAGE_HEIGHT_PX = 1050; // Approximate height for A4 at 96 DPI, with margins
+            const PAGE_HEIGHT_MM = 297;
+            const contentHeightMM = PAGE_HEIGHT_MM - margins.top - margins.bottom;
+            const PAGE_HEIGHT_PX = contentHeightMM * 3.78; // Approx conversion from mm to px
             
-            const questionElements = Array.from(hiddenRenderRef.current.querySelectorAll('.question-item'));
+            const questionContainer = hiddenRenderRef.current.querySelector('main');
+            if (!questionContainer) return;
+
+            const questionElements = Array.from(questionContainer.querySelectorAll('.question-item'));
+
             if (questionElements.length === 0) {
-                setPages([[]]);
+                setPages([paper.questions]);
                 return;
             }
 
-            const headerHeight = (hiddenRenderRef.current.querySelector('header')?.clientHeight || 0) + 
-                                 (hiddenRenderRef.current.querySelector('.flex.justify-between')?.clientHeight || 0) * 2 + 
-                                 (hiddenRenderRef.current.querySelector('main')?.getBoundingClientRect().top || 0) - (hiddenRenderRef.current.getBoundingClientRect().top || 0);
+            const headerEl = hiddenRenderRef.current.querySelector('.preview-header');
+            const headerHeight = headerEl ? (headerEl.clientHeight + 24) : 0;
             
             let newPages: Question[][] = [];
             let currentPageQuestions: Question[] = [];
-            let currentHeight = headerHeight;
+            let currentHeight = 0;
             let isFirstPage = true;
 
             questionElements.forEach((el, index) => {
-                const questionHeight = (el as HTMLElement).offsetHeight + 16; // 16px for mb-4
-                
-                if (currentHeight + questionHeight > PAGE_HEIGHT_PX && currentPageQuestions.length > 0) {
+                const questionHeight = (el as HTMLElement).offsetHeight;
+                const questionMargin = 16;
+                const totalQuestionHeight = questionHeight + questionMargin;
+
+                const pageBreakThreshold = isFirstPage ? PAGE_HEIGHT_PX - headerHeight : PAGE_HEIGHT_PX;
+
+                if (currentHeight + totalQuestionHeight > pageBreakThreshold && currentPageQuestions.length > 0) {
                     newPages.push(currentPageQuestions);
                     currentPageQuestions = [];
-                    currentHeight = 64; // Approx padding top for subsequent pages
+                    currentHeight = 0;
                     isFirstPage = false;
                 }
                 
-                currentHeight += questionHeight;
-                const originalQuestionIndex = paper.questions.findIndex(q => q.id === (el as HTMLElement).dataset.questionId);
-                if (originalQuestionIndex > -1) {
-                  currentPageQuestions.push(paper.questions[originalQuestionIndex]);
-                }
+                currentHeight += totalQuestionHeight;
+                currentPageQuestions.push(paper.questions[index]);
             });
 
             if (currentPageQuestions.length > 0) {
@@ -192,47 +215,72 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             }
         };
         
-        const timer = setTimeout(calculatePages, 200);
+        // Use a timeout to ensure DOM is updated before calculating
+        const timer = setTimeout(calculatePages, 100);
 
         return () => clearTimeout(timer);
-    }, [paper, currentPage]);
-
-  const renderHiddenQuestion = (question: Question, index: number) => {
-    const rendered = renderQuestionContent(question, index);
-    return React.cloneElement(rendered, { 'data-question-id': question.id });
-  }
+    }, [paper, margins, currentPage]);
 
   return (
     <>
         {/* Hidden container for layout calculation */}
-        <div className="absolute top-0 left-0 -z-10 opacity-0 pointer-events-none" style={{ width: '210mm' }}>
+        <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: '210mm' }}>
              <div ref={hiddenRenderRef}>
-                <div className='p-8'>
-                  <header className="text-center mb-6">
-                      <h1 className="text-xl font-bold">{paper.schoolName}</h1>
-                      <h2 className="text-lg">{paper.examTitle}</h2>
-                  </header>
-                  <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
-                      <p>বিষয়: {subjectMap[paper.subject] || paper.subject}</p>
-                      <p>পূর্ণমান: {paper.totalMarks}</p>
-                  </div>
-                  <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
-                      <p>শ্রেণি: {gradeMap[paper.grade] || paper.grade}</p>
-                      <p>সময়: {paper.timeAllowed}</p>
+                <div style={{
+                    paddingTop: `${margins.top}mm`,
+                    paddingBottom: `${margins.bottom}mm`,
+                    paddingLeft: `${margins.left}mm`,
+                    paddingRight: `${margins.right}mm`,
+                }}>
+                  <div className="preview-header">
+                    <header className="text-center mb-6">
+                        <h1 className="text-xl font-bold">{paper.schoolName}</h1>
+                        <h2 className="text-lg">{paper.examTitle}</h2>
+                    </header>
+                    <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
+                        <p>বিষয়: {subjectMap[paper.subject] || paper.subject}</p>
+                        <p>পূর্ণমান: {paper.totalMarks}</p>
+                    </div>
+                    <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
+                        <p>শ্রেণি: {gradeMap[paper.grade] || paper.grade}</p>
+                        <p>সময়: {paper.timeAllowed}</p>
+                    </div>
                   </div>
                   <main>
-                   {paper.questions.map((q, index) => renderHiddenQuestion(q, index))}
+                   {paper.questions.map((q, index) => {
+                       const rendered = renderQuestionContent(q, index);
+                       return React.cloneElement(rendered, { key: q.id });
+                   })}
                   </main>
                 </div>
+            </div>
+        </div>
+
+        <div className="flex justify-center items-center gap-4 mb-4 p-4 border-b bg-slate-50">
+            <div className='flex items-center gap-2'>
+              <Label htmlFor='margin-top'>Top (mm)</Label>
+              <Input id='margin-top' type="number" value={margins.top} onChange={(e) => handleMarginChange('top', e.target.value)} className="w-20 h-8" />
+            </div>
+             <div className='flex items-center gap-2'>
+              <Label htmlFor='margin-bottom'>Bottom (mm)</Label>
+              <Input id='margin-bottom' type="number" value={margins.bottom} onChange={(e) => handleMarginChange('bottom', e.target.value)} className="w-20 h-8" />
+            </div>
+             <div className='flex items-center gap-2'>
+              <Label htmlFor='margin-left'>Left (mm)</Label>
+              <Input id='margin-left' type="number" value={margins.left} onChange={(e) => handleMarginChange('left', e.target.value)} className="w-20 h-8" />
+            </div>
+             <div className='flex items-center gap-2'>
+              <Label htmlFor='margin-right'>Right (mm)</Label>
+              <Input id='margin-right' type="number" value={margins.right} onChange={(e) => handleMarginChange('right', e.target.value)} className="w-20 h-8" />
             </div>
         </div>
 
         {/* Visible container for rendering pages */}
         <div className="space-y-4">
              {pages.length > 0 ? (
-                <PaperPage paper={paper} questions={pages[currentPage]} isFirstPage={currentPage === 0} />
+                <PaperPage paper={paper} questions={pages[currentPage]} isFirstPage={currentPage === 0} margins={margins} />
             ) : (
-                <PaperPage paper={paper} questions={[]} isFirstPage={true} />
+                <PaperPage paper={paper} questions={paper.questions} isFirstPage={true} margins={margins}/>
             )}
         </div>
         
@@ -250,3 +298,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
+
+    
+
+    
