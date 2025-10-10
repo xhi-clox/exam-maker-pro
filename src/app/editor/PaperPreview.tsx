@@ -67,20 +67,6 @@ const renderQuestionPreview = (question: Question, index: number) => {
           );
     }
 
-    if (question.type === 'fraction') {
-        return (
-            <div key={question.id} className="mb-4">
-                <div className="flex items-center gap-4">
-                    <p className="font-semibold">{index + 1}. {question.content}</p>
-                    <div className="inline-flex flex-col items-center text-lg">
-                        <span className="border-b border-black px-2">{question.numerator}</span>
-                        <span>{question.denominator}</span>
-                    </div>
-                    <p className="font-semibold ml-auto">{question.marks || ''}</p>
-                </div>
-            </div>
-        )
-    }
   
     return (
       <div key={question.id} className="mb-4">
@@ -145,3 +131,4 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
   );
 }
 
+    

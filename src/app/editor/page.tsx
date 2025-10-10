@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle, Divide } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -25,7 +25,7 @@ type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
 export interface Question {
   id: string;
-  type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay' | 'table' | 'fraction';
+  type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay' | 'table';
   content: string;
   marks?: number;
   options?: { id: string; text: string }[];
@@ -115,15 +115,7 @@ export default function EditorPage() {
             handleSubQuestionChange(qId, sqId, 'content', newValue);
         }
     } else {
-        if (id.includes('numerator')) {
-            const [_, qId] = id.split('-');
-            handleQuestionChange(qId, 'numerator', newValue);
-        } else if (id.includes('denominator')) {
-            const [_, qId] = id.split('-');
-            handleQuestionChange(qId, 'denominator', newValue);
-        } else {
-            handleQuestionChange(qId, 'content', newValue);
-        }
+        handleQuestionChange(qId, 'content', newValue);
     }
   };
 
@@ -542,38 +534,6 @@ export default function EditorPage() {
                   </div>
                 </>
               ), true);
-        case 'fraction':
-            return questionCard('Fraction Question', (
-                <div className="flex items-center gap-4 p-4">
-                  <Textarea
-                    value={question.content}
-                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
-                    onFocus={(e) => handleFocus(e, question.id)}
-                    className="bg-white flex-grow"
-                    placeholder="Question text..."
-                    rows={2}
-                  />
-                  <div className="flex flex-col items-center">
-                    <Input
-                      type="text"
-                      value={question.numerator}
-                      onChange={(e) => handleQuestionChange(question.id, 'numerator', e.target.value)}
-                      onFocus={(e) => handleFocus(e, `numerator-${question.id}`)}
-                      className="w-24 text-center text-lg border-b-0 rounded-b-none"
-                      placeholder="Numerator"
-                    />
-                    <div className="w-24 h-0.5 bg-black"></div>
-                    <Input
-                      type="text"
-                      value={question.denominator}
-                      onChange={(e) => handleQuestionChange(question.id, 'denominator', e.target.value)}
-                      onFocus={(e) => handleFocus(e, `denominator-${question.id}`)}
-                      className="w-24 text-center text-lg border-t-0 rounded-t-none"
-                      placeholder="Denominator"
-                    />
-                  </div>
-                </div>
-            ), true);
         default:
             return null;
     }
@@ -641,13 +601,6 @@ export default function EditorPage() {
             ['The poets', '', 'different from any other night'],
             ['People in the village', 'are', 'friendly with others in a moonlit night'],
         ];
-    }
-
-    if (type === 'fraction') {
-        newQuestion.content = 'Simplify the fraction:';
-        newQuestion.marks = 2;
-        newQuestion.numerator = '8';
-        newQuestion.denominator = '12';
     }
 
     setPaper(prev => ({
@@ -740,7 +693,6 @@ export default function EditorPage() {
                     <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')}><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
                     <Button variant="outline" onClick={() => addQuestion('essay')}><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
-                    <Button variant="outline" onClick={() => addQuestion('fraction')}><Divide className="mr-2 size-4" /> Fraction</Button>
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
@@ -807,3 +759,4 @@ export default function EditorPage() {
   );
 }
 
+    
