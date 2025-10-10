@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import PaperPreview from './PaperPreview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -34,8 +34,6 @@ export interface Question {
   tableData?: string[][];
   rows?: number;
   cols?: number;
-  numerator?: string;
-  denominator?: string;
 }
 
 export interface Paper {
@@ -637,9 +635,11 @@ export default function EditorPage() {
                     <PaperPreview paper={paper} />
                   </div>
                 </div>
+                <DialogFooter>
+                    <Button onClick={handleDownloadPdf}><Download className="mr-2 size-4" /> Download PDF</Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button onClick={handleDownloadPdf}><Download className="mr-2 size-4" /> Download PDF</Button>
         </div>
       </header>
 
@@ -758,5 +758,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
