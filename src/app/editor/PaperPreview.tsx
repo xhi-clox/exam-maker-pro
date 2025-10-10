@@ -42,7 +42,30 @@ const getNumbering = (format: NumberingFormat | undefined, index: number): strin
 };
 
 const renderQuestionPreview = (question: Question, index: number) => {
-    const isContainer = question.type === 'passage' || question.type === 'fill-in-the-blanks' || question.type === 'mcq' || question.type === 'short' || question.type === 'essay';
+    
+    if (question.type === 'table') {
+        return (
+            <div key={question.id} className="mb-4">
+              <div className="flex justify-between font-semibold mb-2">
+                <p>{index + 1}. {question.content}</p>
+                <p>{question.marks || ''}</p>
+              </div>
+              <table className="w-full border-collapse border border-black text-sm">
+                <tbody>
+                  {question.tableData?.map((row, rIndex) => (
+                    <tr key={rIndex}>
+                      {row.map((cell, cIndex) => (
+                        <td key={cIndex} className="border border-black p-1">
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+    }
   
     return (
       <div key={question.id} className="mb-4">
@@ -57,7 +80,7 @@ const renderQuestionPreview = (question: Question, index: number) => {
               <div key={sq.id}>
                 <div className="flex justify-between">
                   <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
-                  {sq.marks && <p>{sq.marks}</p>}
+                  
                 </div>
                 {sq.options && sq.options.length > 0 && (
                   <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
