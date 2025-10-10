@@ -281,36 +281,48 @@ export default function EditorPage() {
 
   const renderQuestion = (question: Question, index: number) => {
     const handleRemove = () => removeQuestion(question.id);
+    const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'essay', 'mcq'].includes(question.type);
 
     const questionCard = (title: string, children: React.ReactNode, showNumberingFormat = false) => (
-      <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
-        <QuestionActions onRemove={handleRemove} />
-        <div className="flex items-center justify-between">
-          <Label className="font-bold">{`${index + 1}. ${title}`}</Label>
-          {showNumberingFormat && (
-            <div className="flex items-center gap-2">
-              <Label htmlFor={`numbering-${question.id}`} className="text-sm">নাম্বারিং:</Label>
-              <Select 
-                value={question.numberingFormat} 
-                onValueChange={(value: NumberingFormat) => handleQuestionChange(question.id, 'numberingFormat', value)}
-              >
-                <SelectTrigger id={`numbering-${question.id}`} className="w-32 h-8 text-xs">
-                  <SelectValue placeholder="Format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bangla-alpha">ক, খ, গ</SelectItem>
-                  <SelectItem value="bangla-numeric">১, ২, ৩</SelectItem>
-                  <SelectItem value="roman">i, ii, iii</SelectItem>
-                </SelectContent>
-              </Select>
+        <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
+          <QuestionActions onRemove={handleRemove} />
+          <div className="flex items-center justify-between">
+            <div className='flex items-center gap-2'>
+              <Label className="font-bold">{`${index + 1}. ${title}`}</Label>
+              {!isContainer && (
+                <Input 
+                  type="number" 
+                  value={question.marks} 
+                  onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
+                  className="w-20 h-8"
+                  placeholder="Marks"
+                />
+              )}
             </div>
-          )}
-        </div>
-        {children}
-      </Card>
-    );
+            {showNumberingFormat && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor={`numbering-${question.id}`} className="text-sm">নাম্বারিং:</Label>
+                <Select 
+                  value={question.numberingFormat} 
+                  onValueChange={(value: NumberingFormat) => handleQuestionChange(question.id, 'numberingFormat', value)}
+                >
+                  <SelectTrigger id={`numbering-${question.id}`} className="w-32 h-8 text-xs">
+                    <SelectValue placeholder="Format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bangla-alpha">ক, খ, গ</SelectItem>
+                    <SelectItem value="bangla-numeric">১, ২, ৩</SelectItem>
+                    <SelectItem value="roman">i, ii, iii</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          {children}
+        </Card>
+      );
 
-    const subQuestionRenderer = (qType: Question['type']) => (
+      const subQuestionRenderer = (qType: Question['type']) => (
         <>
             <Textarea 
                 value={question.content} 
@@ -340,68 +352,68 @@ export default function EditorPage() {
     );
 
     switch (question.type) {
-      case 'passage':
-        return questionCard('অনুচ্ছেদ', subQuestionRenderer('short'), true);
-      case 'fill-in-the-blanks':
-         return questionCard('শূন্যস্থান পূরণ', subQuestionRenderer('fill-in-the-blanks'), true);
-      case 'short':
-        return questionCard('সংক্ষিপ্ত প্রশ্ন', subQuestionRenderer('short'), true);
-      case 'essay':
-        return questionCard('রচনামূলক প্রশ্ন', subQuestionRenderer('essay'), true);
-         case 'mcq':
-            return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', (
-              <>
-                <Textarea 
-                  value={question.content} 
-                  onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
-                  className="bg-white" />
-                <div className="pl-6 space-y-4">
-                  {question.subQuestions?.map((sq, sqIndex) => (
-                    <div key={sq.id} className="p-3 rounded-md border bg-slate-100 space-y-2 relative group/sub">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{getNumbering(question.numberingFormat, sqIndex)})</span>
-                        <Textarea 
-                          value={sq.content} 
-                          onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
-                          className="flex-grow bg-white" 
-                          placeholder="MCQ প্রশ্ন এখানে লিখুন..."
-                        />
+        case 'passage':
+            return questionCard('অনুচ্ছেদ', subQuestionRenderer('short'), true);
+        case 'fill-in-the-blanks':
+             return questionCard('শূন্যস্থান পূরণ', subQuestionRenderer('fill-in-the-blanks'), true);
+        case 'short':
+          return questionCard('সংক্ষিপ্ত প্রশ্ন', subQuestionRenderer('short'), true);
+        case 'essay':
+          return questionCard('রচনামূলক প্রশ্ন', subQuestionRenderer('essay'), true);
+        case 'mcq':
+        return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', (
+            <>
+            <Textarea 
+                value={question.content} 
+                onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                className="bg-white" />
+            <div className="pl-6 space-y-4">
+                {question.subQuestions?.map((sq, sqIndex) => (
+                <div key={sq.id} className="p-3 rounded-md border bg-slate-100 space-y-2 relative group/sub">
+                    <div className="flex items-center gap-2">
+                    <span className="font-semibold">{getNumbering(question.numberingFormat, sqIndex)})</span>
+                    <Textarea 
+                        value={sq.content} 
+                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
+                        className="flex-grow bg-white" 
+                        placeholder="MCQ প্রশ্ন এখানে লিখুন..."
+                    />
+                    <Input 
+                        type="number" 
+                        value={sq.marks} 
+                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
+                        className="w-20" 
+                    />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeSubQuestion(question.id, sq.id)}>
+                        <Trash2 className="size-4" />
+                    </Button>
+                    </div>
+                    <div className="pl-10 grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {sq.options?.map((opt, optIndex) => (
+                        <div key={opt.id} className="flex items-center gap-2">
+                        <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)})</span>
                         <Input 
-                          type="number" 
-                          value={sq.marks} 
-                          onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
-                          className="w-20" 
+                            value={opt.text}
+                            onChange={(e) => handleOptionChange(question.id, sq.id, opt.id, e.target.value)}
+                            className="bg-white"
                         />
-                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeSubQuestion(question.id, sq.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeOption(question.id, sq.id, opt.id)}>
                             <Trash2 className="size-4" />
                         </Button>
-                      </div>
-                      <div className="pl-10 grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {sq.options?.map((opt, optIndex) => (
-                          <div key={opt.id} className="flex items-center gap-2">
-                            <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)})</span>
-                            <Input 
-                              value={opt.text}
-                              onChange={(e) => handleOptionChange(question.id, sq.id, opt.id, e.target.value)}
-                              className="bg-white"
-                            />
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeOption(question.id, sq.id, opt.id)}>
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="pl-10">
-                        <Button variant="outline" size="sm" onClick={() => addOption(question.id, sq.id)}><Plus className="mr-2 size-4" /> অপশন যোগ করুন</Button>
-                      </div>
+                        </div>
+                    ))}
                     </div>
-                  ))}
-                  <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id, 'mcq')}><Plus className="mr-2 size-4" /> MCQ প্রশ্ন যোগ করুন</Button>
+                    <div className="pl-10">
+                    <Button variant="outline" size="sm" onClick={() => addOption(question.id, sq.id)}><Plus className="mr-2 size-4" /> অপশন যোগ করুন</Button>
+                    </div>
                 </div>
-              </>
-            ), true);
-      default:
-        return null;
+                ))}
+                <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id, 'mcq')}><Plus className="mr-2 size-4" /> MCQ প্রশ্ন যোগ করুন</Button>
+            </div>
+            </>
+        ), true);
+        default:
+            return null;
     }
   }
 
