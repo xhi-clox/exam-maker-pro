@@ -14,9 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import PaperPreview from './PaperPreview';
 
 // Define types for our question structure
-interface Question {
+export interface Question {
   id: string;
   type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay';
   content: string;
@@ -24,7 +26,7 @@ interface Question {
   subQuestions?: Question[];
 }
 
-interface Paper {
+export interface Paper {
   schoolName: string;
   examTitle: string;
   subject: string;
@@ -166,7 +168,19 @@ export default function EditorPage() {
           <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+                <DialogHeader>
+                  <DialogTitle>Question Paper Preview</DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 overflow-auto bg-gray-100 p-4">
+                  <PaperPreview paper={paper} />
+                </div>
+              </DialogContent>
+            </Dialog>
             <Button><Download className="mr-2 size-4" /> Download PDF</Button>
         </div>
       </header>
