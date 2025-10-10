@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -23,6 +23,7 @@ export interface Question {
   type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay';
   content: string;
   marks?: number;
+  options?: string[];
   subQuestions?: Question[];
 }
 
@@ -78,7 +79,19 @@ export default function EditorPage() {
   const handleQuestionChange = (id: string, field: 'content' | 'marks', value: string | number) => {
     setPaper(prev => ({
       ...prev,
-      questions: prev.questions.map(q => q.id === id ? { ...q, [field]: value } : q)
+      questions: prev.questions.map(q => {
+        if (q.id === id) {
+          return { ...q, [field]: value };
+        }
+        // Handle sub-question changes if they are not in a group
+        if (q.subQuestions) {
+          const newSubQuestions = q.subQuestions.map(sq => 
+            sq.id === id ? { ...sq, [field]: value } : sq
+          );
+          return { ...q, subQuestions: newSubQuestions };
+        }
+        return q;
+      })
     }));
   };
 
@@ -146,12 +159,18 @@ export default function EditorPage() {
   const renderQuestion = (question: Question) => {
     const handleRemove = () => removeQuestion(question.id);
 
+    const questionCard = (title: string, children: React.ReactNode) => (
+      <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
+        <QuestionActions onRemove={handleRemove} />
+        <Label className="font-bold">{title}</Label>
+        {children}
+      </Card>
+    );
+
     switch (question.type) {
       case 'passage':
-        return (
-          <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
-            <QuestionActions onRemove={handleRemove} />
-            <Label className="font-bold">অনুচ্ছেদ</Label>
+        return questionCard('অনুচ্ছেদ', (
+          <>
             <Textarea 
               value={question.content} 
               onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
@@ -166,7 +185,7 @@ export default function EditorPage() {
                   <Input 
                     type="number" 
                     value={sq.marks} 
-                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', parseInt(e.target.value))}
+                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
                     className="w-20" />
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
                     <Trash2 className="size-4" />
@@ -175,34 +194,54 @@ export default function EditorPage() {
               ))}
               <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id)}><Plus className="mr-2 size-4" /> প্রশ্ন যোগ করুন</Button>
             </div>
-          </Card>
-        );
+          </>
+        ));
       case 'fill-in-the-blanks':
-         return (
-          <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
-             <QuestionActions onRemove={handleRemove} />
-             <Label className="font-bold">শূন্যস্থান পূরণ</Label>
-             <div className="pl-6 space-y-2">
-               {question.subQuestions?.map((sq) => (
-                <div key={sq.id} className="flex items-center gap-2">
-                  <Textarea 
-                    value={sq.content} 
-                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
-                    className="flex-grow bg-white" />
-                  <Input 
-                    type="number" 
-                    value={sq.marks} 
-                    onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', parseInt(e.target.value))}
-                    className="w-20" />
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-               ))}
-              <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id)}><Plus className="mr-2 size-4" /> শূন্যস্থান যোগ করুন</Button>
-             </div>
-          </Card>
-        );
+         return questionCard('শূন্যস্থান পূরণ', (
+           <div className="pl-6 space-y-2">
+             {question.subQuestions?.map((sq) => (
+              <div key={sq.id} className="flex items-center gap-2">
+                <Textarea 
+                  value={sq.content} 
+                  onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
+                  className="flex-grow bg-white" />
+                <Input 
+                  type="number" 
+                  value={sq.marks} 
+                  onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
+                  className="w-20" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+             ))}
+            <Button variant="outline" size="sm" onClick={() => addSubQuestion(question.id)}><Plus className="mr-2 size-4" /> শূন্যস্থান যোগ করুন</Button>
+           </div>
+         ));
+      case 'short':
+      case 'essay':
+      case 'mcq':
+        const titleMap = {
+            short: 'সংক্ষিপ্ত প্রশ্ন',
+            essay: 'রচনামূলক প্রশ্ন',
+            mcq: 'বহুনির্বাচনি প্রশ্ন (MCQ)'
+        }
+        return questionCard(titleMap[question.type], (
+            <div className="flex items-center gap-2">
+                <Textarea 
+                  value={question.content} 
+                  onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                  className="flex-grow bg-white" 
+                  placeholder={question.type === 'mcq' ? "MCQ প্রশ্ন এখানে লিখুন..." : "প্রশ্ন এখানে লিখুন..."}
+                />
+                <Input 
+                  type="number" 
+                  value={question.marks} 
+                  onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
+                  className="w-20" 
+                />
+            </div>
+        ));
       default:
         return null;
     }
@@ -214,15 +253,28 @@ export default function EditorPage() {
       type: type,
       content: '',
       subQuestions: [],
+      marks: 5,
     };
 
     if (type === 'passage') {
       newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
       newQuestion.subQuestions = [{ id: `sq${Date.now()}`, type: 'short', content: 'ক) ', marks: 2 }];
+      delete newQuestion.marks;
     } else if (type === 'fill-in-the-blanks') {
        newQuestion.content = 'খালি ځای পূরণ কর:';
        newQuestion.subQuestions = [{ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'ক) ', marks: 1 }];
+       delete newQuestion.marks;
+    } else if (type === 'short') {
+        newQuestion.content = 'প্রশ্ন...';
+        newQuestion.marks = 2;
+    } else if (type === 'mcq') {
+        newQuestion.content = 'MCQ প্রশ্ন...';
+        newQuestion.marks = 1;
+    } else if (type === 'essay') {
+        newQuestion.content = 'রচনামূলক প্রশ্ন...';
+        newQuestion.marks = 10;
     }
+
 
     setPaper(prev => ({
       ...prev,
@@ -307,7 +359,7 @@ export default function EditorPage() {
                   </CardHeader>
                   <CardContent className="flex flex-col gap-2">
                     <Button variant="outline" onClick={() => addQuestion('passage')}><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
-                    <Button variant="outline" onClick={() => addQuestion('mcq')}><Plus className="mr-2 size-4" /> MCQ</Button>
+                    <Button variant="outline" onClick={() => addQuestion('mcq')}><ListOrdered className="mr-2 size-4" /> MCQ</Button>
                     <Button variant="outline" onClick={() => addQuestion('short')}><Type className="mr-2 size-4" /> সংক্ষিপ্ত প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')}><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
                     <Button variant="outline" onClick={() => addQuestion('essay')}><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
