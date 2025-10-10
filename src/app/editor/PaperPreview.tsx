@@ -47,29 +47,6 @@ const getNumbering = (format: NumberingFormat | undefined, index: number): strin
 
 const renderQuestionContent = (question: Question, index: number) => {
     
-    if (question.type === 'table') {
-        return (
-            <div key={question.id} className="mb-4 question-item">
-              <div className="flex justify-between font-semibold mb-2">
-                <p>{index + 1}. {question.content}</p>
-              </div>
-              <table className="w-full border-collapse border border-black text-sm">
-                <tbody>
-                  {question.tableData?.map((row, rIndex) => (
-                    <tr key={rIndex}>
-                      {row.map((cell, cIndex) => (
-                        <td key={cIndex} className="border border-black p-1">
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          );
-    }
-  
     return (
       <div key={question.id} className="mb-4 question-item">
         <div className="flex justify-between font-semibold">
@@ -169,9 +146,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
               return;
             }
     
-            // Millimeters to Pixels conversion factor (approximate for 96 DPI)
             const MM_TO_PX = 3.7795275591;
-    
             const PAGE_HEIGHT_MM = 297;
             const contentHeightPx = (PAGE_HEIGHT_MM - margins.top - margins.bottom) * MM_TO_PX;
             
@@ -181,7 +156,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             
             const questionElements = Array.from(hiddenPage.querySelectorAll('.question-item'));
             if(questionElements.length === 0) {
-                setPages([paper.questions]);
+                setPages([]); // No questions, so no pages
                 return;
             }
 
@@ -192,10 +167,9 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
 
             questionElements.forEach((el, index) => {
                 const questionHeight = (el as HTMLElement).offsetHeight;
-                
                 const pageBreakThreshold = isFirstPage ? contentHeightPx - headerHeight : contentHeightPx;
                 
-                if (currentHeight + questionHeight > pageBreakThreshold && currentPageQuestions.length > 0) {
+                if (currentHeight > 0 && currentHeight + questionHeight > pageBreakThreshold) {
                     newPages.push(currentPageQuestions);
                     currentPageQuestions = [];
                     currentHeight = 0;
@@ -216,11 +190,9 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             }
         };
         
-        // Use a timeout to ensure DOM is updated before calculating
         const timer = setTimeout(calculatePages, 100);
-
         return () => clearTimeout(timer);
-    }, [paper.questions, margins]);
+    }, [paper.questions, margins, currentPage]);
 
   return (
     <>
@@ -280,7 +252,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
              {pages.length > 0 ? (
                 <PaperPage paper={paper} questions={pages[currentPage]} isFirstPage={currentPage === 0} margins={margins} />
             ) : (
-                <PaperPage paper={paper} questions={paper.questions} isFirstPage={true} margins={margins}/>
+                <PaperPage paper={paper} questions={[]} isFirstPage={true} margins={margins}/>
             )}
         </div>
         
@@ -298,5 +270,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
+
+    
 
     
