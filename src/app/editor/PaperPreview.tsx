@@ -176,14 +176,14 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 const mainContentEl = questionElement.querySelector('.question-content');
                 const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
 
-                const availableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
+                let availableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
 
-                // Check if main question content itself is too large for a new page
-                if (currentPageHeight + mainContentHeight > availableHeight && currentPageHeight > 0) {
+                if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
                     newPages.push(currentPageContent);
                     currentPageContent = [];
                     currentPageHeight = 0;
                     isFirstPage = false;
+                    availableHeight = pageContentHeightPx;
                 }
                 
                 currentPageHeight += mainContentHeight;
@@ -191,22 +191,27 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                     mainQuestion: { ...question, subQuestions: [] },
                     subQuestions: [],
                 };
-                currentPageContent.push(currentQuestionOnPage);
                 
+                const existingMainInPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
+                if (!existingMainInPage) {
+                    currentPageContent.push(currentQuestionOnPage);
+                }
+                
+                let mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id)!;
+
                 question.subQuestions?.forEach((sq) => {
                     const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
                     if (!subQuestionEl) return;
-
+                    
                     const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
-                    const recheckAvailableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
+                    let recheckAvailableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
 
                     if (currentPageHeight + subQuestionHeight > recheckAvailableHeight) {
                         newPages.push(currentPageContent);
                         currentPageContent = [];
                         currentPageHeight = 0;
                         isFirstPage = false;
-
-                        // Check if this sub-question needs to start on a new page under the same main question
+                        
                         const existingMain = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
                         if (!existingMain) {
                             currentQuestionOnPage = {
@@ -214,16 +219,13 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                                 subQuestions: [],
                             };
                             currentPageContent.push(currentQuestionOnPage);
-                            // Add main question content height if it's a new page for this main question
                             currentPageHeight += mainContentHeight;
                         }
+                        mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id)!;
                     }
 
                     currentPageHeight += subQuestionHeight;
-                    const mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
-                    if (mainOnPage) {
-                       mainOnPage.subQuestions.push(sq);
-                    }
+                    mainOnPage.subQuestions.push(sq);
                 });
             });
 
@@ -316,5 +318,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         )}
     </>
   );
+
+    
 
     
