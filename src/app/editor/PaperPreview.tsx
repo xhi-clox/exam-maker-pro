@@ -158,124 +158,11 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 setPages([]);
                 return;
             }
-
-            let newPages: Question[][] = [];
-            let currentPageQuestions: Question[] = [];
-            let currentPageSubQuestions: Question[] = [];
-            let currentHeight = 0;
-            let isFirstPage = true;
-
-            paper.questions.forEach((question, questionIndex) => {
-                const mainQuestionContent = questionElements[questionIndex].querySelector('.question-content');
-                if (!mainQuestionContent) return;
-
-                const mainQuestionHeight = mainQuestionContent.getBoundingClientRect().height;
-                const pageBreakThreshold = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
-
-                // Check if main question itself needs a new page
-                if (currentHeight > 0 && currentHeight + mainQuestionHeight > pageBreakThreshold) {
-                    newPages.push([{ ...question, subQuestions: currentPageSubQuestions }]);
-                    currentPageSubQuestions = [];
-                    currentHeight = 0;
-                    isFirstPage = false;
-                }
-
-                currentHeight += mainQuestionHeight;
-                let currentQuestionForPage = { ...question, subQuestions: [] };
-
-                const subQuestionElements = Array.from(questionElements[questionIndex].querySelectorAll('.subquestion-item'));
-
-                subQuestionElements.forEach((sqEl, sqIndex) => {
-                    const subQuestion = question.subQuestions?.[sqIndex];
-                    if (!subQuestion) return;
-
-                    const sqHeight = sqEl.getBoundingClientRect().height;
-                    const updatedPageBreakThreshold = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
-
-                    if (currentHeight > 0 && currentHeight + sqHeight > updatedPageBreakThreshold) {
-                        // Current page is full, push it and start a new one
-                        const pageToAdd = { ...currentQuestionForPage, subQuestions: currentPageSubQuestions };
-                        const existingPageIndex = newPages.findIndex(p => p[0]?.id === pageToAdd.id);
-                        
-                        if(currentPageQuestions.length > 0) {
-                             newPages.push(currentPageQuestions);
-                        } else if(existingPageIndex !== -1) {
-                            newPages[existingPageIndex] = pageToAdd;
-                        } else {
-                            newPages.push([pageToAdd]);
-                        }
-                       
-                        currentPageQuestions = [];
-                        currentPageSubQuestions = [];
-                        currentHeight = 0;
-                        isFirstPage = false;
-                        currentQuestionForPage = { ...question, subQuestions: [] };
-                    }
-                    
-                    currentHeight += sqHeight;
-                    currentPageSubQuestions.push(subQuestion);
-                });
-
-                const finalPageQuestion = { ...currentQuestionForPage, subQuestions: currentPageSubQuestions };
-                const existingPageIndex = currentPageQuestions.findIndex(q => q.id === finalPageQuestion.id);
-                if (existingPageIndex !== -1) {
-                    currentPageQuestions[existingPageIndex] = finalPageQuestion;
-                } else {
-                    currentPageQuestions.push(finalPageQuestion);
-                }
-            });
-
-            if (currentPageQuestions.length > 0) {
-                newPages.push(currentPageQuestions);
-            }
-
-            // This logic is complex, so let's simplify the output for now
-            // This is a placeholder for a more complex merging logic if needed
-            const finalPages: Question[][] = [];
-            let questionMap = new Map<string, Question>();
-
-            newPages.flat().forEach(q => {
-                if(questionMap.has(q.id)) {
-                    const existingQ = questionMap.get(q.id)!;
-                    existingQ.subQuestions = [...(existingQ.subQuestions || []), ...(q.subQuestions || [])];
-                } else {
-                    questionMap.set(q.id, { ...q });
-                }
-            });
-
-
-            const rePaginated: Question[][] = [];
-            let currentPageRePaginated: Question[] = [];
-            let currentRePaginatedHeight = 0;
-            let isFirstRePaginatedPage = true;
-
-            const allRenderableItems = Array.from(hiddenPage.children[0].querySelectorAll('.question-content, .subquestion-item'));
-
-            allRenderableItems.forEach(itemEl => {
-                const itemHeight = itemEl.getBoundingClientRect().height;
-                const pageBreakThreshold = isFirstRePaginatedPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
-                
-                if (currentRePaginatedHeight > 0 && currentRePaginatedHeight + itemHeight > pageBreakThreshold) {
-                    rePaginated.push(currentPageRePaginated);
-                    currentPageRePaginated = [];
-                    currentRePaginatedHeight = 0;
-                    isFirstRePaginatedPage = false;
-                }
-
-                // This is a simplified logic, it needs to map back to original Question objects.
-                // For the sake of fixing the bug, we'll use a placeholder logic.
-                // A full implementation would require a mapping from DOM element back to the question/subquestion object.
-                currentRePaginatedHeight += itemHeight;
-
-                // This part is conceptually where we'd add the question/subquestion to the page
-                // The current structure doesn't easily allow this.
-            });
             
-            // For now, we will use a simpler (though potentially less accurate) logic to prevent crashes
             const simplifiedPages: Question[][] = [];
             let currentSimplePage: Question[] = [];
             let currentSimpleHeight = 0;
-            isFirstPage = true;
+            let isFirstPage = true;
             
             paper.questions.forEach((q, index) => {
                 const questionElement = questionElements[index];
@@ -305,10 +192,11 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             }
         };
         
+        // Use a timeout to ensure the DOM is updated before calculating.
         const timer = setTimeout(calculatePages, 100);
         return () => clearTimeout(timer);
 
-    }, [paper.questions, margins]);
+    }, [paper.questions, margins, currentPage]);
 
   return (
     <>
