@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -40,34 +41,46 @@ const getNumbering = (format: NumberingFormat | undefined, index: number): strin
   }
 };
 
-
 const renderQuestionPreview = (question: Question, index: number) => {
-  return (
-    <div key={question.id} className="mb-4">
-      <div className="flex justify-between font-semibold">
-        <p>{index + 1}. {question.content}</p>
-        {question.subQuestions && question.subQuestions.length > 0 ? null : <p>{question.marks || ''}</p>}
-      </div>
-      {question.subQuestions && question.subQuestions.length > 0 && (
-        <div className="pl-6 mt-2 space-y-2">
-          {question.subQuestions.map((sq, sqIndex) => (
-            <div key={sq.id} className="flex justify-between">
-              <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
-              <p>{sq.marks}</p>
-            </div>
-          ))}
+    const isContainer = question.type === 'passage' || question.type === 'fill-in-the-blanks' || question.type === 'mcq';
+  
+    return (
+      <div key={question.id} className="mb-4">
+        <div className="flex justify-between font-semibold">
+          <p>{index + 1}. {question.content}</p>
+          {isContainer ? null : <p>{question.marks || ''}</p>}
         </div>
-      )}
-      {question.options && question.options.length > 0 && (
-          <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
-              {question.options.map((option, optIndex) => (
-                  <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
-              ))}
+  
+        {question.subQuestions && question.subQuestions.length > 0 && (
+          <div className="pl-6 mt-2 space-y-2">
+            {question.subQuestions.map((sq, sqIndex) => (
+              <div key={sq.id}>
+                <div className="flex justify-between">
+                  <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
+                  <p>{sq.marks}</p>
+                </div>
+                {sq.options && sq.options.length > 0 && (
+                  <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
+                    {sq.options.map((option, optIndex) => (
+                      <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-      )}
-    </div>
-  );
-};
+        )}
+  
+        {question.type !== 'mcq' && question.options && question.options.length > 0 && (
+          <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
+            {question.options.map((option, optIndex) => (
+              <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
 export default function PaperPreview({ paper }: { paper: Paper }) {
   const getSubjectName = (subjectKey: string) => subjectMap[subjectKey] || subjectKey;
@@ -95,3 +108,5 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </div>
   );
 }
+
+    
