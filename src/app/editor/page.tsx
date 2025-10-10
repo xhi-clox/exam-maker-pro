@@ -63,9 +63,9 @@ const initialPaperData: Paper = {
       numberingFormat: 'bangla-alpha',
       marks: 10,
       subQuestions: [
-        { id: 'q1a', type: 'short', content: 'রউফ কেন নিজে দায়িত্ব নিলেন?' },
-        { id: 'q1b', type: 'short', content: 'কীভাবে তিনি শহিদ হলেন?' },
-        { id: 'q1c', type: 'essay', content: 'দেশের জন্য তার আত্মত্যাগের মহিমা বর্ণনা কর।' },
+        { id: 'q1a', type: 'short', content: 'রউফ কেন নিজে দায়িত্ব নিলেন?', marks: 2 },
+        { id: 'q1b', type: 'short', content: 'কীভাবে তিনি শহিদ হলেন?', marks: 3 },
+        { id: 'q1c', type: 'essay', content: 'দেশের জন্য তার আত্মত্যাগের মহিমা বর্ণনা কর।', marks: 5 },
       ]
     },
     {
@@ -75,8 +75,8 @@ const initialPaperData: Paper = {
       numberingFormat: 'bangla-alpha',
       marks: 5,
       subQuestions: [
-        { id: 'q2a', type: 'fill-in-the-blanks', content: '_____ দেশের গৌরব।' },
-        { id: 'q2b', type: 'fill-in-the-blanks', content: 'তিনি ____ রক্ষা করার জন্য জীবন দিলেন।' },
+        { id: 'q2a', type: 'fill-in-the-blanks', content: '_____ দেশের গৌরব।', marks: 2.5 },
+        { id: 'q2b', type: 'fill-in-the-blanks', content: 'তিনি ____ রক্ষা করার জন্য জীবন দিলেন।', marks: 2.5 },
       ]
     }
   ],
@@ -139,7 +139,7 @@ export default function EditorPage() {
     setPaper(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleQuestionChange = (id: string, field: keyof Question, value: string | number) => {
+  const handleQuestionChange = (id: string, field: keyof Question, value: string | number | NumberingFormat) => {
     setPaper(prev => ({
       ...prev,
       questions: prev.questions.map(q => {
@@ -151,7 +151,7 @@ export default function EditorPage() {
     }));
   };
   
-    const handleSubQuestionChange = (parentId: string, subId: string, field: 'content', value: string | number) => {
+    const handleSubQuestionChange = (parentId: string, subId: string, field: keyof Question, value: string | number) => {
         setPaper(prev => ({
           ...prev,
           questions: prev.questions.map(q =>
@@ -174,6 +174,7 @@ export default function EditorPage() {
             id: `sq${Date.now()}`,
             type: type,
             content: 'নতুন প্রশ্ন...',
+            marks: 1,
           };
           if (type === 'mcq') {
             newSubQuestion.options = [
@@ -387,46 +388,44 @@ export default function EditorPage() {
     const handleRemove = () => removeQuestion(question.id);
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay'].includes(question.type);
 
-    const questionCard = (title: string, children: React.ReactNode, showNumberingAndMarks = false) => (
+    const questionCard = (title: string, children: React.ReactNode) => (
         <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
           <QuestionActions onRemove={handleRemove} />
           <div className="flex items-center justify-between">
             <div className='flex items-center gap-2'>
               <Label className="font-bold">{`${index + 1}. ${title}`}</Label>
             </div>
-            {showNumberingAndMarks && (
-              <div className="flex items-center gap-4">
-                 <div className="flex items-center gap-2">
-                    <Label htmlFor={`marks-${question.id}`} className="text-sm">Marks:</Label>
-                    <Input 
-                      id={`marks-${question.id}`}
-                      type="number" 
-                      value={question.marks} 
-                      onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
-                      className="w-20 h-8"
-                      placeholder="Marks"
-                    />
-                 </div>
-                { isContainer && (
-                <div className="flex items-center gap-2">
-                    <Label htmlFor={`numbering-${question.id}`} className="text-sm">নাম্বারিং:</Label>
-                    <Select 
-                      value={question.numberingFormat} 
-                      onValueChange={(value: NumberingFormat) => handleQuestionChange(question.id, 'numberingFormat', value)}
-                    >
-                      <SelectTrigger id={`numbering-${question.id}`} className="w-32 h-8 text-xs">
-                        <SelectValue placeholder="Format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bangla-alpha">ক, খ, গ</SelectItem>
-                        <SelectItem value="bangla-numeric">১, ২, ৩</SelectItem>
-                        <SelectItem value="roman">i, ii, iii</SelectItem>
-                      </SelectContent>
-                    </Select>
-                </div>
-                )}
+            <div className="flex items-center gap-4">
+               <div className="flex items-center gap-2">
+                  <Label htmlFor={`marks-${question.id}`} className="text-sm">Marks:</Label>
+                  <Input 
+                    id={`marks-${question.id}`}
+                    type="number" 
+                    value={question.marks} 
+                    onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
+                    className="w-20 h-8"
+                    placeholder="Marks"
+                  />
+               </div>
+              { isContainer && (
+              <div className="flex items-center gap-2">
+                  <Label htmlFor={`numbering-${question.id}`} className="text-sm">নাম্বারিং:</Label>
+                  <Select 
+                    value={question.numberingFormat} 
+                    onValueChange={(value: NumberingFormat) => handleQuestionChange(question.id, 'numberingFormat', value)}
+                  >
+                    <SelectTrigger id={`numbering-${question.id}`} className="w-32 h-8 text-xs">
+                      <SelectValue placeholder="Format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bangla-alpha">ক, খ, গ</SelectItem>
+                      <SelectItem value="bangla-numeric">১, ২, ৩</SelectItem>
+                      <SelectItem value="roman">i, ii, iii</SelectItem>
+                    </SelectContent>
+                  </Select>
               </div>
-            )}
+              )}
+            </div>
           </div>
           {children}
         </Card>
@@ -450,6 +449,17 @@ export default function EditorPage() {
                         onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
                         onFocus={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
                         className="flex-grow bg-white" />
+                     <div className="flex items-center gap-2">
+                        <Label htmlFor={`marks-${sq.id}`} className="text-sm sr-only">Marks:</Label>
+                        <Input 
+                        id={`marks-${sq.id}`}
+                        type="number" 
+                        value={sq.marks} 
+                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
+                        className="w-20 h-8"
+                        placeholder="Marks"
+                        />
+                    </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
                         <Trash2 className="size-4" />
                     </Button>
@@ -485,15 +495,15 @@ export default function EditorPage() {
 
     switch (question.type) {
         case 'passage':
-            return questionCard('অনুচ্ছেদ', subQuestionRenderer('short'), true);
+            return questionCard('অনুচ্ছেদ', subQuestionRenderer('short'));
         case 'fill-in-the-blanks':
-             return questionCard('শূন্যস্থান পূরণ', subQuestionRenderer('fill-in-the-blanks'), true);
+             return questionCard('শূন্যস্থান পূরণ', subQuestionRenderer('fill-in-the-blanks'));
         case 'short':
-          return questionCard('সংক্ষিপ্ত প্রশ্ন', subQuestionRenderer('short'), true);
+          return questionCard('সংক্ষিপ্ত প্রশ্ন', subQuestionRenderer('short'));
         case 'essay':
-          return questionCard('রচনামূলক প্রশ্ন', subQuestionRenderer('essay'), true);
+          return questionCard('রচনামূলক প্রশ্ন', subQuestionRenderer('essay'));
         case 'mcq':
-             return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', subQuestionRenderer('mcq'), true);
+             return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', subQuestionRenderer('mcq'));
         case 'table':
             return questionCard('সারণী প্রশ্ন', (
                 <>
@@ -531,7 +541,7 @@ export default function EditorPage() {
                     </table>
                   </div>
                 </>
-              ), true);
+              ));
         default:
             return null;
     }
@@ -553,22 +563,22 @@ export default function EditorPage() {
         case 'passage':
           newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...'});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'fill-in-the-blanks':
           newQuestion.content = 'খালি জায়গা পূরণ কর:';
           newQuestion.marks = 5;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...'});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
           break;
         case 'short':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...'});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'essay':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 20;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...'});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
           break;
         case 'mcq':
             newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
@@ -578,6 +588,7 @@ export default function EditorPage() {
                 id: `sq${Date.now()}`,
                 type: 'mcq',
                 content: 'নতুন MCQ প্রশ্ন...',
+                marks: 1,
                 options: [
                     { id: `opt${Date.now()}-1`, text: 'অপশন ১' },
                     { id: `opt${Date.now()}-2`, text: 'অপশন ২' },
@@ -758,3 +769,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
