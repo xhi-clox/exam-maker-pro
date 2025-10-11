@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import PaperPreview from './PaperPreview';
+import PaperPreview, { type PaperSettings, type PageContent } from './PaperPreview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import MathExpressions from './MathExpressions';
@@ -61,7 +61,6 @@ const initialPaperData: Paper = {
   questions: [],
 };
 
-// This counter should be outside the component to persist across re-renders.
 let idCounter = 0;
 const generateId = (prefix: string) => {
   idCounter++;
@@ -69,34 +68,49 @@ const generateId = (prefix: string) => {
 };
 
 const ensureUniqueIds = (questions: Question[]): Question[] => {
-  return produce(questions, draft => {
-    const processNode = (node: any) => {
-      // Use a more robust unique ID generator
-      node.id = generateId(`${node.type || 'id_'}_`);
-
-      if (node.options) {
-        node.options.forEach((option: any) => processNode(option));
-      }
-      if (node.subQuestions) {
-        node.subQuestions.forEach((sub: any) => processNode(sub));
-      }
-    };
-
-    draft.forEach(q => processNode(q));
-  });
+    return produce(questions, draft => {
+      const processNode = (node: any) => {
+        node.id = generateId(`${node.type || 'id_'}_`);
+  
+        if (node.options) {
+          node.options.forEach((option: any) => processNode(option));
+        }
+        if (node.subQuestions) {
+          node.subQuestions.forEach((sub: any) => processNode(sub));
+        }
+      };
+  
+      draft.forEach(q => processNode(q));
+    });
 };
 
-
 export default function EditorPage() {
-  const [paper, setPaper] = useState<Paper>(() => ({
-    ...initialPaperData,
-    questions: ensureUniqueIds(initialPaperData.questions),
-  }));
+  const [paper, setPaper] = useState<Paper | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
+  
+  const [pages, setPages] = useState<PageContent[][]>([]);
+  const hiddenRenderRef = useRef<HTMLDivElement>(null);
+  const [settings, setSettings] = useState<PaperSettings>({ 
+    margins: { top: 10, bottom: 10, left: 20, right: 20 },
+    width: 877,
+    height: 827,
+    fontSize: 12,
+  });
 
+  // State initialization effect
+  useEffect(() => {
+    if (paper === null) {
+      setPaper({
+        ...initialPaperData,
+        questions: ensureUniqueIds(initialPaperData.questions),
+      });
+    }
+  }, [paper]);
+
+  // Import effect
   useEffect(() => {
     const from = searchParams.get('from');
     if ((from === 'image' || from === 'suggest') && paper) {
@@ -106,10 +120,10 @@ export default function EditorPage() {
           const parsedData = JSON.parse(data);
 
           setPaper(currentPaper => {
-            if (!currentPaper) return initialPaperData;
+            if (!currentPaper) return null; // Should not happen if init effect works
 
             const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
-
+            
             return produce(currentPaper, draft => {
               draft.questions.push(...newQuestions);
               // Optionally update header info if the paper is new/empty
@@ -164,85 +178,112 @@ export default function EditorPage() {
 
   const handleDownloadPdf = async () => {
     const container = previewContainerRef.current;
-    if (!container || !paper) return;
-
-    const originalPages = Array.from(container.querySelectorAll<HTMLDivElement>('.paper-page'));
-    if (originalPages.length === 0) return;
-
-    let n = originalPages.length;
-    const paddedPages: (HTMLDivElement | null)[] = [...originalPages];
-    while (paddedPages.length % 4 !== 0 && paddedPages.length > 0) {
-        paddedPages.push(null);
+    if (!container || !paper || pages.length === 0) return;
+  
+    const allRenderedPages: React.ReactElement[] = pages.map((pageContent, index) => (
+      <PaperPreview
+        paper={paper}
+        pageContent={pageContent}
+        isFirstPage={index === 0}
+        settings={settings}
+        allQuestions={paper.questions}
+        isForPdf
+      />
+    ));
+  
+    let n = allRenderedPages.length;
+    const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
+    while (paddedPageIndices.length % 4 !== 0 && paddedPageIndices.length > 0) {
+      paddedPageIndices.push(null);
     }
-    n = paddedPages.length;
-
-    const bookletOrderNodes: (HTMLDivElement | null)[] = [];
+    n = paddedPageIndices.length;
+  
+    const bookletOrderIndices: (number | null)[] = [];
     if (n > 0) {
-        for (let i = 0; i < n / 2; i++) {
-            if (i % 2 === 0) {
-                bookletOrderNodes.push(paddedPages[n - 1 - i]);
-                bookletOrderNodes.push(paddedPages[i]);
-            } else {
-                bookletOrderNodes.push(paddedPages[i]);
-                bookletOrderNodes.push(paddedPages[n - 1 - i]);
-            }
+      for (let i = 0; i < n / 2; i++) {
+        if (i % 2 === 0) {
+          bookletOrderIndices.push(paddedPageIndices[n - 1 - i]);
+          bookletOrderIndices.push(paddedPageIndices[i]);
+        } else {
+          bookletOrderIndices.push(paddedPageIndices[i]);
+          bookletOrderIndices.push(paddedPageIndices[n - 1 - i]);
         }
+      }
     }
-
-
+  
     const a4Width = 842; // A4 landscape width in points
     const a4Height = 595; // A4 landscape height in points
     const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'pt',
-        format: 'a4',
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a4',
     });
-
+  
     const singlePageWidth = a4Width / 2;
     const singlePageHeight = a4Height;
-
-    const captureNode = async (node: HTMLDivElement | null) => {
-        if (!node) {
-             const blankCanvas = document.createElement('canvas');
-             blankCanvas.width = singlePageWidth * 2;
-             blankCanvas.height = singlePageHeight * 2;
-             const ctx = blankCanvas.getContext('2d');
-             if(ctx){
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, blankCanvas.width, blankCanvas.height);
-             }
-             return blankCanvas;
+  
+    const captureNode = async (pageIndex: number | null) => {
+        if (pageIndex === null) {
+          const blankCanvas = document.createElement('canvas');
+          blankCanvas.width = singlePageWidth * 2;
+          blankCanvas.height = singlePageHeight * 2;
+          const ctx = blankCanvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, blankCanvas.width, blankCanvas.height);
+          }
+          return blankCanvas;
         }
 
-        const clonedNode = node.cloneNode(true) as HTMLDivElement;
-        clonedNode.style.position = 'absolute';
-        clonedNode.style.left = '-9999px';
-        clonedNode.style.top = '0px';
-        document.body.appendChild(clonedNode);
+        const pageElement = (
+            <div
+              style={{
+                width: `${settings.width}px`,
+                height: `${settings.height}px`,
+                position: 'absolute',
+                top: '0px',
+                left: '-9999px',
+              }}
+            >
+             {allRenderedPages[pageIndex]}
+            </div>
+        );
+
+        const tempContainer = document.createElement('div');
+        document.body.appendChild(tempContainer);
         
-        const canvas = await html2canvas(clonedNode, { scale: 2 });
+        // This is a bit of a hack, but we need to render the React element to an HTML element
+        // We'll use a temporary solution with react-dom/client
+        const ReactDOM = await import('react-dom/client');
+        const root = ReactDOM.createRoot(tempContainer);
+        await new Promise<void>((resolve) => {
+            root.render(pageElement, () => resolve());
+        });
+
+        const nodeToCapture = tempContainer.children[0].children[0] as HTMLElement;
+        const canvas = await html2canvas(nodeToCapture, { scale: 2 });
         
-        document.body.removeChild(clonedNode);
-        
+        root.unmount();
+        document.body.removeChild(tempContainer);
+
         return canvas;
     };
-
-
-    for (let i = 0; i < bookletOrderNodes.length; i += 2) {
-        const leftNode = bookletOrderNodes[i];
-        const rightNode = bookletOrderNodes[i + 1];
-
-        const leftCanvas = await captureNode(leftNode);
-        const rightCanvas = await captureNode(rightNode);
-        
-        pdf.addImage(leftCanvas.toDataURL('image/png'), 'PNG', 0, 0, singlePageWidth, singlePageHeight);
-        pdf.addImage(rightCanvas.toDataURL('image/png'), 'PNG', singlePageWidth, 0, singlePageWidth, singlePageHeight);
-
-        if (i + 2 < bookletOrderNodes.length) {
-            pdf.addPage();
-        }
+  
+    for (let i = 0; i < bookletOrderIndices.length; i += 2) {
+      const leftPageIndex = bookletOrderIndices[i];
+      const rightPageIndex = bookletOrderIndices[i + 1];
+  
+      const leftCanvas = await captureNode(leftPageIndex);
+      const rightCanvas = await captureNode(rightPageIndex);
+  
+      pdf.addImage(leftCanvas.toDataURL('image/png'), 'PNG', 0, 0, singlePageWidth, singlePageHeight);
+      pdf.addImage(rightCanvas.toDataURL('image/png'), 'PNG', singlePageWidth, 0, singlePageWidth, singlePageHeight);
+  
+      if (i + 2 < bookletOrderIndices.length) {
+        pdf.addPage();
+      }
     }
-
+  
     pdf.save('question-paper-booklet.pdf');
   };
 
@@ -251,190 +292,166 @@ export default function EditorPage() {
   };
 
   const handleQuestionChange = (id: string, field: keyof Question, value: string | number | NumberingFormat) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const question = draft.questions.find(q => q.id === id);
-            if (question) {
-                (question as any)[field] = value;
-            }
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const question = draft.questions.find(q => q.id === id);
+        if (question) {
+            (question as any)[field] = value;
+        }
+    }));
   };
   
     const handleSubQuestionChange = (parentId: string, subId: string, field: keyof Question, value: string | number) => {
-        setPaper(prev => {
-            if (!prev) return null;
-            return produce(prev, draft => {
-                const parentQuestion = draft.questions.find(q => q.id === parentId);
-                if (parentQuestion && parentQuestion.subQuestions) {
-                    const subQuestion = parentQuestion.subQuestions.find(sq => sq.id === subId);
-                    if (subQuestion) {
-                        (subQuestion as any)[field] = value;
-                    }
+        if (!paper) return;
+        setPaper(produce(paper, draft => {
+            const parentQuestion = draft.questions.find(q => q.id === parentId);
+            if (parentQuestion && parentQuestion.subQuestions) {
+                const subQuestion = parentQuestion.subQuestions.find(sq => sq.id === subId);
+                if (subQuestion) {
+                    (subQuestion as any)[field] = value;
                 }
-            });
-        });
+            }
+        }));
       };
   
   const addSubQuestion = (questionId: string, type: Question['type'] = 'short') => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const question = draft.questions.find(q => q.id === questionId);
-            if (question) {
-                const newSubQuestion: Question = {
-                    id: generateId('sq_'),
-                    type: type,
-                    content: 'নতুন প্রশ্ন...',
-                    marks: 1,
-                };
-                if (type === 'mcq') {
-                    newSubQuestion.options = [
-                        { id: generateId('opt_'), text: 'অপশন ১' },
-                        { id: generateId('opt_'), text: 'অপশন ২' },
-                        { id: generateId('opt_'), text: 'অপশন ৩' },
-                        { id: generateId('opt_'), text: 'অপশন ৪' },
-                    ];
-                }
-                if (!question.subQuestions) {
-                    question.subQuestions = [];
-                }
-                question.subQuestions.push(newSubQuestion);
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const question = draft.questions.find(q => q.id === questionId);
+        if (question) {
+            const newSubQuestion: Question = {
+                id: generateId('sq_'),
+                type: type,
+                content: 'নতুন প্রশ্ন...',
+                marks: 1,
+            };
+            if (type === 'mcq') {
+                newSubQuestion.options = [
+                    { id: generateId('opt_'), text: 'অপশন ১' },
+                    { id: generateId('opt_'), text: 'অপশন ২' },
+                    { id: generateId('opt_'), text: 'অপশন ৩' },
+                    { id: generateId('opt_'), text: 'অপশন ৪' },
+                ];
             }
-        });
-    });
+            if (!question.subQuestions) {
+                question.subQuestions = [];
+            }
+            question.subQuestions.push(newSubQuestion);
+        }
+    }));
   };
   
   const removeSubQuestion = (questionId: string, subQuestionId: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const question = draft.questions.find(q => q.id === questionId);
-            if (question && question.subQuestions) {
-                question.subQuestions = question.subQuestions.filter(sq => sq.id !== subQuestionId);
-            }
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const question = draft.questions.find(q => q.id === questionId);
+        if (question && question.subQuestions) {
+            question.subQuestions = question.subQuestions.filter(sq => sq.id !== subQuestionId);
+        }
+    }));
   };
 
   const addOption = (questionId: string, subQuestionId: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const q = draft.questions.find(q => q.id === questionId);
-            if (q && q.subQuestions) {
-                const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
-                if (sq) {
-                    const newOption = { id: generateId('opt_'), text: 'নতুন অপশন' };
-                     if (!sq.options) {
-                        sq.options = [];
-                    }
-                    sq.options.push(newOption);
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const q = draft.questions.find(q => q.id === questionId);
+        if (q && q.subQuestions) {
+            const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
+            if (sq) {
+                const newOption = { id: generateId('opt_'), text: 'নতুন অপশন' };
+                 if (!sq.options) {
+                    sq.options = [];
                 }
+                sq.options.push(newOption);
             }
-        });
-    });
+        }
+    }));
   };
 
   const removeOption = (questionId: string, subQuestionId: string, optionId: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const q = draft.questions.find(q => q.id === questionId);
-             if (q && q.subQuestions) {
-                const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
-                if (sq && sq.options) {
-                    sq.options = sq.options.filter(opt => opt.id !== optionId);
-                }
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const q = draft.questions.find(q => q.id === questionId);
+         if (q && q.subQuestions) {
+            const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
+            if (sq && sq.options) {
+                sq.options = sq.options.filter(opt => opt.id !== optionId);
             }
-        });
-    });
+        }
+    }));
   };
 
   const handleOptionChange = (questionId: string, subQuestionId: string, optionId: string, text: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const q = draft.questions.find(q => q.id === questionId);
-            if (q && q.subQuestions) {
-                const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
-                if (sq && sq.options) {
-                    const opt = sq.options.find(opt => opt.id === optionId);
-                    if (opt) {
-                        opt.text = text;
-                    }
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const q = draft.questions.find(q => q.id === questionId);
+        if (q && q.subQuestions) {
+            const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
+            if (sq && sq.options) {
+                const opt = sq.options.find(opt => opt.id === optionId);
+                if (opt) {
+                    opt.text = text;
                 }
             }
-        });
-    });
+        }
+    }));
   };
 
   const handleTableCellChange = (questionId: string, rowIndex: number, colIndex: number, value: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const q = draft.questions.find(q => q.id === questionId);
-            if (q && q.tableData) {
-                q.tableData[rowIndex][colIndex] = value;
-            }
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const q = draft.questions.find(q => q.id === questionId);
+        if (q && q.tableData) {
+            q.tableData[rowIndex][colIndex] = value;
+        }
+    }));
   };
   
   const addRow = (questionId: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const q = draft.questions.find(q => q.id === questionId);
-            if (q) {
-                const newRow = Array(q.cols || 1).fill('');
-                if (!q.tableData) q.tableData = [];
-                q.tableData.push(newRow);
-                q.rows = (q.rows || 0) + 1;
-            }
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const q = draft.questions.find(q => q.id === questionId);
+        if (q) {
+            const newRow = Array(q.cols || 1).fill('');
+            if (!q.tableData) q.tableData = [];
+            q.tableData.push(newRow);
+            q.rows = (q.rows || 0) + 1;
+        }
+    }));
   };
   
   const removeRow = (questionId: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const q = draft.questions.find(q => q.id === questionId);
-            if (q && q.tableData && q.rows && q.rows > 1) {
-                q.tableData.pop();
-                q.rows -= 1;
-            }
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const q = draft.questions.find(q => q.id === questionId);
+        if (q && q.tableData && q.rows && q.rows > 1) {
+            q.tableData.pop();
+            q.rows -= 1;
+        }
+    }));
   };
   
   const addCol = (questionId: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const q = draft.questions.find(q => q.id === questionId);
-            if (q) {
-                if (!q.tableData) q.tableData = [[]];
-                q.tableData.forEach(row => row.push(''));
-                q.cols = (q.cols || 0) + 1;
-            }
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const q = draft.questions.find(q => q.id === questionId);
+        if (q) {
+            if (!q.tableData) q.tableData = [[]];
+            q.tableData.forEach(row => row.push(''));
+            q.cols = (q.cols || 0) + 1;
+        }
+    }));
   };
   
   const removeCol = (questionId: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const q = draft.questions.find(q => q.id === questionId);
-            if (q && q.tableData && q.cols && q.cols > 1) {
-                q.tableData.forEach(row => row.pop());
-                q.cols -= 1;
-            }
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const q = draft.questions.find(q => q.id === questionId);
+        if (q && q.tableData && q.cols && q.cols > 1) {
+            q.tableData.forEach(row => row.pop());
+            q.cols -= 1;
+        }
+    }));
   };
 
   const getNumbering = (format: NumberingFormat | undefined, index: number): string => {
@@ -463,26 +480,111 @@ export default function EditorPage() {
   };
 
   const moveQuestion = (index: number, direction: 'up' | 'down') => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            const newIndex = direction === 'up' ? index - 1 : index + 1;
-            if (newIndex < 0 || newIndex >= draft.questions.length) {
-                return;
-            }
-            const [movedQuestion] = draft.questions.splice(index, 1);
-            draft.questions.splice(newIndex, 0, movedQuestion);
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= draft.questions.length) {
+            return;
+        }
+        const [movedQuestion] = draft.questions.splice(index, 1);
+        draft.questions.splice(newIndex, 0, movedQuestion);
+    }));
   };
 
   const removeQuestion = (id: string) => {
-    setPaper(prev => {
-        if (!prev) return null;
-        return produce(prev, draft => {
-            draft.questions = draft.questions.filter(q => q.id !== id);
-        });
-    });
+    if (!paper) return;
+    setPaper(produce(paper, draft => {
+        draft.questions = draft.questions.filter(q => q.id !== id);
+    }));
+  };
+
+  const addQuestion = (type: Question['type']) => {
+    if (!paper) return;
+
+    const newQuestion: Question = {
+      id: generateId('q_'),
+      type: type,
+      content: '',
+      marks: 5,
+    };
+    
+    if (type === 'section-header') {
+        newQuestion.content = 'ক বিভাগ';
+        delete newQuestion.marks;
+    }
+
+    if (type === 'passage' || type === 'short' || type === 'essay' || type === 'fill-in-the-blanks' || type === 'mcq' || type === 'creative') {
+      newQuestion.subQuestions = [];
+      newQuestion.numberingFormat = 'bangla-alpha';
+  
+      switch (type) {
+        case 'passage':
+          newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
+          newQuestion.marks = 10;
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          break;
+        case 'creative':
+          newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
+          delete newQuestion.marks;
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'জ্ঞানমূলক', marks: 1});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'অনুধাবনমূলক', marks: 2});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'প্রয়োগমূলক', marks: 3});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
+          break;
+        case 'fill-in-the-blanks':
+          newQuestion.content = 'খালি জায়গা পূরণ কর:';
+          newQuestion.marks = 5;
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
+          break;
+        case 'short':
+          newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
+          newQuestion.marks = 10;
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          break;
+        case 'essay':
+          newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
+          newQuestion.marks = 20;
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
+          break;
+        case 'mcq':
+            newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
+            newQuestion.marks = 10;
+            newQuestion.numberingFormat = 'bangla-numeric';
+            newQuestion.subQuestions.push({
+                id: generateId('sq_'),
+                type: 'mcq',
+                content: 'নতুন MCQ প্রশ্ন...',
+                marks: 1,
+                options: [
+                    { id: generateId('opt_'), text: 'অপশন ১' },
+                    { id: generateId('opt_'), text: 'অপশন ২' },
+                    { id: generateId('opt_'), text: 'অপশন ৩' },
+                    { id: generateId('opt_'), text: 'অপশন ৪' },
+                ]
+            });
+            break;
+      }
+    }
+    
+    if (type === 'table') {
+        newQuestion.content = 'Make four sentences from the substitution table.';
+        newQuestion.marks = 4;
+        newQuestion.rows = 3;
+        newQuestion.cols = 3;
+        newQuestion.tableData = [
+            ['A moonlit night', 'is', 'in the habit of enjoying a moonlit night very much'],
+            ['The poets', '', 'different from any other night'],
+            ['People in the village', 'are', 'friendly with others in a moonlit night'],
+        ];
+    }
+
+    setPaper(produce(paper, draft => {
+      draft.questions.push(newQuestion);
+    }));
+  };
+
+  const addNote = () => {
+    if(paper) handlePaperDetailChange('notes', '(ক ও খ বিভাগ থেকে দুটি এবং গ ও ঘ বিভাগ থেকে ১টি সহ মোট ৭ টি প্রশ্নের উত্তর দাও)');
   };
 
   const QuestionActions = ({ index }: { index: number }) => (
@@ -685,96 +787,98 @@ export default function EditorPage() {
     }
   }
 
-  const addQuestion = (type: Question['type']) => {
-    const newQuestion: Question = {
-      id: generateId('q_'),
-      type: type,
-      content: '',
-      marks: 5,
-    };
-    
-    if (type === 'section-header') {
-        newQuestion.content = 'ক বিভাগ';
-        delete newQuestion.marks;
-    }
+  useEffect(() => {
+    if (!paper) return;
 
-    if (type === 'passage' || type === 'short' || type === 'essay' || type === 'fill-in-the-blanks' || type === 'mcq' || type === 'creative') {
-      newQuestion.subQuestions = [];
-      newQuestion.numberingFormat = 'bangla-alpha';
-  
-      switch (type) {
-        case 'passage':
-          newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
-          newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
-          break;
-        case 'creative':
-          newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
-          delete newQuestion.marks;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'জ্ঞানমূলক', marks: 1});
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'অনুধাবনমূলক', marks: 2});
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'প্রয়োগমূলক', marks: 3});
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
-          break;
-        case 'fill-in-the-blanks':
-          newQuestion.content = 'খালি জায়গা পূরণ কর:';
-          newQuestion.marks = 5;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
-          break;
-        case 'short':
-          newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
-          newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
-          break;
-        case 'essay':
-          newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
-          newQuestion.marks = 20;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
-          break;
-        case 'mcq':
-            newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
-            newQuestion.marks = 10;
-            newQuestion.numberingFormat = 'bangla-numeric';
-            newQuestion.subQuestions.push({
-                id: generateId('sq_'),
-                type: 'mcq',
-                content: 'নতুন MCQ প্রশ্ন...',
-                marks: 1,
-                options: [
-                    { id: generateId('opt_'), text: 'অপশন ১' },
-                    { id: generateId('opt_'), text: 'অপশন ২' },
-                    { id: generateId('opt_'), text: 'অপশন ৩' },
-                    { id: generateId('opt_'), text: 'অপশন ৪' },
-                ]
+    const calculatePages = () => {
+        if (!hiddenRenderRef.current || paper.questions.length === 0) {
+            setPages([]);
+            return;
+        }
+
+        const pageBreakThreshold = settings.height - (settings.margins.top + settings.margins.bottom) * 3.78; // Convert mm to px
+        const hiddenPage = hiddenRenderRef.current;
+        const headerEl = hiddenPage.querySelector('.preview-header');
+        const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+        
+        const newPages: PageContent[][] = [];
+        let currentPageContent: PageContent[] = [];
+        let currentPageHeight = 0;
+        let isFirstPage = true;
+
+        const startNewPage = () => {
+            if (currentPageContent.length > 0) {
+                newPages.push(currentPageContent);
+            }
+            currentPageContent = [];
+            currentPageHeight = 0;
+            isFirstPage = false;
+        };
+
+        paper.questions.forEach((question) => {
+            const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
+            if (!questionElement) return;
+
+            const mainContentEl = questionElement.querySelector('.question-content');
+            const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
+
+            let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+
+            let mainOnPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
+
+            if (!mainOnPage) {
+                if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
+                    startNewPage();
+                    availableHeight = pageBreakThreshold;
+                }
+                if (isFirstPage && currentPageHeight === 0) {
+                    currentPageHeight += headerHeight;
+                }
+                
+                const contentToAdd: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: true };
+                currentPageContent.push(contentToAdd);
+                mainOnPage = contentToAdd;
+                currentPageHeight += mainContentHeight;
+            }
+
+            question.subQuestions?.forEach((sq) => {
+                const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
+                if (!subQuestionEl) return;
+                
+                const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
+                let currentAvailableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+
+                if (currentPageHeight + subQuestionHeight > currentAvailableHeight) {
+                    startNewPage();
+                    currentAvailableHeight = pageBreakThreshold;
+
+                    let existingMainOnNewPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
+                    if (!existingMainOnNewPage) {
+                        const newMainContent: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: false };
+                        currentPageContent.push(newMainContent);
+                        mainOnPage = newMainContent;
+                    } else {
+                        mainOnPage = existingMainOnNewPage;
+                    }
+                }
+
+                mainOnPage!.subQuestions.push(sq);
+                currentPageHeight += subQuestionHeight;
             });
-            break;
-      }
-    }
-    
-    if (type === 'table') {
-        newQuestion.content = 'Make four sentences from the substitution table.';
-        newQuestion.marks = 4;
-        newQuestion.rows = 3;
-        newQuestion.cols = 3;
-        newQuestion.tableData = [
-            ['A moonlit night', 'is', 'in the habit of enjoying a moonlit night very much'],
-            ['The poets', '', 'different from any other night'],
-            ['People in the village', 'are', 'friendly with others in a moonlit night'],
-        ];
-    }
+        });
 
-    setPaper(prev => {
-      if (!prev) return null;
-      return produce(prev, draft => {
-        draft.questions.push(newQuestion);
-      });
-    });
-  };
+        if (currentPageContent.length > 0) {
+            newPages.push(currentPageContent);
+        }
+        
+        setPages(newPages);
+    };
 
+    // Recalculate pages when paper or settings change
+    const timer = setTimeout(calculatePages, 200);
+    return () => clearTimeout(timer);
 
-  const addNote = () => {
-    if(paper) handlePaperDetailChange('notes', '(ক ও খ বিভাগ থেকে দুটি এবং গ ও ঘ বিভাগ থেকে ১টি সহ মোট ৭ টি প্রশ্নের উত্তর দাও)');
-  };
+  }, [paper, settings]);
   
   if (!paper) {
       return (
@@ -801,7 +905,22 @@ export default function EditorPage() {
                   <DialogTitle>Question Paper Preview</DialogTitle>
                 </DialogHeader>
                 <div className="flex-1 overflow-auto bg-gray-100 p-4" ref={previewContainerRef}>
-                  <PaperPreview paper={paper} />
+                  <PaperPreview 
+                    paper={paper} 
+                    pages={pages}
+                    settings={settings}
+                  />
+                  {/* Hidden div for calculations */}
+                  <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
+                      <div ref={hiddenRenderRef}>
+                          <PaperPreview 
+                            paper={paper} 
+                            pages={pages}
+                            settings={settings}
+                            isForPdf={true}
+                          />
+                      </div>
+                  </div>
                 </div>
                 <DialogFooter>
                     <Button onClick={handleDownloadPdf}><Download className="mr-2 size-4" /> Download PDF</Button>
@@ -942,3 +1061,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+```
