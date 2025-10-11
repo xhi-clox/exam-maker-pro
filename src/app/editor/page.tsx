@@ -87,53 +87,59 @@ const defaultInitialQuestions: Question[] = [
   }
 ];
 
-let idCounter = 0;
-const generateId = (prefix: string) => `${prefix}${Date.now()}_${idCounter++}`;
-
-// Function to ensure all question/sub-question/option IDs are unique
-const ensureUniqueIds = (questions: Question[]): Question[] => {
-    const processQuestion = (q: Question): Question => {
-        const newQuestion: Question = { ...q, id: generateId('q_') };
-        
-        if (newQuestion.subQuestions) {
-            newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
-                const newSq: Question = { ...sq, id: generateId('sq_') };
-                if (newSq.options) {
-                    newSq.options = newSq.options.map(opt => ({ ...opt, id: generateId('opt_') }));
-                }
-                // Recursively process sub-questions of sub-questions if any
-                if (newSq.subQuestions) {
-                    newSq.subQuestions = newSq.subQuestions.map(processQuestion);
-                }
-                return newSq;
-            });
-        }
-        
-        if (newQuestion.options) {
-            newQuestion.options = newQuestion.options.map(opt => ({ ...opt, id: generateId('opt_') }));
-        }
-
-        return newQuestion;
-    };
-
-    return questions.map(processQuestion);
-};
-
 
 export default function EditorPage() {
-  const [paper, setPaper] = useState<Paper>(() => ({
-      ...initialPaperData,
-      questions: ensureUniqueIds(defaultInitialQuestions),
-  }));
+  const [paper, setPaper] = useState<Paper | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
+  const idCounter = useRef(0);
 
-  // Effect for handling imported data from image/suggest.
+  const generateId = (prefix: string) => {
+    idCounter.current += 1;
+    return `${prefix}${idCounter.current}`;
+  };
+
+  const ensureUniqueIds = (questions: Question[]): Question[] => {
+      const processQuestion = (q: Question): Question => {
+          const newQuestion: Question = { ...q, id: generateId('q_') };
+          
+          if (newQuestion.subQuestions) {
+              newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
+                  const newSq: Question = { ...sq, id: generateId('sq_') };
+                  if (newSq.options) {
+                      newSq.options = newSq.options.map(opt => ({ ...opt, id: generateId('opt_') }));
+                  }
+                  if (newSq.subQuestions) {
+                      newSq.subQuestions = newSq.subQuestions.map(processQuestion);
+                  }
+                  return newSq;
+              });
+          }
+          
+          if (newQuestion.options) {
+              newQuestion.options = newQuestion.options.map(opt => ({ ...opt, id: generateId('opt_') }));
+          }
+
+          return newQuestion;
+      };
+
+      return questions.map(processQuestion);
+  };
+
+  useEffect(() => {
+    if (!paper) {
+      setPaper({
+        ...initialPaperData,
+        questions: ensureUniqueIds(defaultInitialQuestions),
+      });
+    }
+  }, [paper]);
+  
   useEffect(() => {
     const from = searchParams.get('from');
-    if ((from === 'image' || from === 'suggest')) {
+    if ((from === 'image' || from === 'suggest') && paper) {
       const data = localStorage.getItem('newImageData');
       if (data) {
         try {
@@ -141,15 +147,17 @@ export default function EditorPage() {
           const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
           
           if (newQuestions.length > 0) {
-              setPaper(currentPaper => produce(currentPaper, draft => {
-                 draft.questions.push(...newQuestions);
-              }));
+              setPaper(currentPaper => {
+                if (!currentPaper) return null;
+                return produce(currentPaper, draft => {
+                   draft.questions.push(...newQuestions);
+                });
+              });
           }
 
         } catch (e) {
           console.error("Failed to parse or append paper data from localStorage", e);
         } finally {
-          // Clean up localStorage and URL to prevent re-triggering
           localStorage.removeItem('newImageData');
           const url = new URL(window.location.href);
           url.searchParams.delete('from');
@@ -157,7 +165,7 @@ export default function EditorPage() {
         }
       }
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, paper]);
 
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
@@ -176,7 +184,6 @@ export default function EditorPage() {
     element.focus();
     element.setSelectionRange((selectionStart ?? 0) + expression.length, (selectionStart ?? 0) + expression.length);
 
-    // Manually trigger change to update state
     if (id.startsWith('option')) {
         const [_, qId, sqId, optId] = id.split('-');
         handleOptionChange(qId, sqId, optId, newValue);
@@ -919,3 +926,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
