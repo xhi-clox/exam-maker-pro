@@ -34,8 +34,9 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
     return produce(questions, draft => {
       const processNode = (node: any) => {
         // A simple function to generate a more unique-ish ID for client-side rendering
-        const simpleUniqueId = () => `${Math.random().toString(36).substr(2, 9)}`;
-        node.id = generateId(node.type ? `${node.type}_` : 'id_');
+        const simpleUniqueId = () => `${prefix}${Math.random().toString(36).substr(2, 9)}`;
+        const prefix = node.type ? `${node.type}_` : 'id_';
+        node.id = simpleUniqueId();
   
         if (node.options) {
           node.options.forEach((option: any) => processNode(option));
@@ -197,9 +198,10 @@ export default function EditorPage() {
     document.body.appendChild(renderContainer);
     
     // Use React's DOM rendering to get the page nodes
-    const { render } = await import('react-dom');
+    const { createRoot } = await import('react-dom/client');
     await new Promise<void>((resolve) => {
-      render(<div>{pageNodesToRender}</div>, renderContainer, () => resolve());
+        createRoot(renderContainer).render(<div>{pageNodesToRender}</div>);
+        setTimeout(resolve, 500); // Give it a moment to render
     });
 
     const renderedPageNodes = Array.from(renderContainer.children) as HTMLElement[];
@@ -274,8 +276,6 @@ export default function EditorPage() {
     pdf.save('question-paper-booklet.pdf');
 
     // Cleanup
-    const { unmountComponentAtNode } = await import('react-dom');
-    unmountComponentAtNode(renderContainer);
     renderContainer.remove();
   };
 
@@ -783,7 +783,7 @@ export default function EditorPage() {
     if (!paper) return;
 
     const calculatePages = () => {
-        if (!hiddenRenderRef.current || paper.questions.length === 0) {
+        if (!hiddenRenderRef.current) {
             setPages([]);
             return;
         }
@@ -848,7 +848,7 @@ export default function EditorPage() {
                     if (!existingMainOnNewPage) {
                         const newMainContent: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: false };
                         currentPageContent.push(newMainContent);
-                        mainOnPage = newMainContent;
+                         mainOnPage = newMainContent;
                     } else {
                         mainOnPage = existingMainOnNewPage;
                     }
@@ -979,9 +979,6 @@ export default function EditorPage() {
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
-                     <Link href="/ai/suggest" passHref>
-                        <Button variant="outline" className="w-full border-purple-500 text-purple-500"><Sparkles className="mr-2 size-4" /> AI দিয়ে তৈরি করুন</Button>
-                    </Link>
                   </CardContent>
                 </Card>
 
@@ -1045,13 +1042,13 @@ export default function EditorPage() {
       <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
           <div ref={hiddenRenderRef}>
               {paper && (
-                  <PaperPage
-                      paper={paper} 
-                      pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
-                      isFirstPage={true} 
-                      settings={settings} 
-                      allQuestions={paper.questions}
-                  />
+                   <PaperPage
+                        paper={paper} 
+                        pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
+                        isFirstPage={true} 
+                        settings={settings} 
+                        allQuestions={paper.questions}
+                    />
               )}
           </div>
       </div>
