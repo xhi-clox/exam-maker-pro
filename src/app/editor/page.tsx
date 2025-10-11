@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -25,7 +25,7 @@ type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
 export interface Question {
   id: string;
-  type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay' | 'table';
+  type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay' | 'table' | 'creative';
   content: string;
   marks?: number;
   options?: { id: string; text: string }[];
@@ -400,7 +400,7 @@ export default function EditorPage() {
 
   const renderQuestion = (question: Question, index: number) => {
     const handleRemove = () => removeQuestion(question.id);
-    const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay'].includes(question.type);
+    const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
 
     const questionCard = (title: string, children: React.ReactNode) => (
         <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
@@ -499,6 +499,8 @@ export default function EditorPage() {
     switch (question.type) {
         case 'passage':
             return questionCard('অনুচ্ছেদ', subQuestionRenderer('short'));
+        case 'creative':
+            return questionCard('সৃজনশীল প্রশ্ন', subQuestionRenderer('short'));
         case 'fill-in-the-blanks':
              return questionCard('শূন্যস্থান পূরণ', subQuestionRenderer('fill-in-the-blanks'));
         case 'short':
@@ -558,7 +560,7 @@ export default function EditorPage() {
       marks: 5,
     };
 
-    if (type === 'passage' || type === 'short' || type === 'essay' || type === 'fill-in-the-blanks' || type === 'mcq') {
+    if (type === 'passage' || type === 'short' || type === 'essay' || type === 'fill-in-the-blanks' || type === 'mcq' || type === 'creative') {
       newQuestion.subQuestions = [];
       newQuestion.numberingFormat = 'bangla-alpha';
   
@@ -567,6 +569,11 @@ export default function EditorPage() {
           newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
           newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          break;
+        case 'creative':
+          newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
+          newQuestion.marks = 10;
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন সৃজনশীল প্রশ্ন...', marks: 2});
           break;
         case 'fill-in-the-blanks':
           newQuestion.content = 'খালি জায়গা পূরণ কর:';
@@ -700,6 +707,7 @@ export default function EditorPage() {
                   </CardHeader>
                   <CardContent className="flex flex-col gap-2">
                     <Button variant="outline" onClick={() => addQuestion('passage')}><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
+                    <Button variant="outline" onClick={() => addQuestion('creative')}><BookMarked className="mr-2 size-4" /> সৃজনশীল প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('mcq')}><ListOrdered className="mr-2 size-4" /> MCQ</Button>
                     <Button variant="outline" onClick={() => addQuestion('short')}><Type className="mr-2 size-4" /> সংক্ষিপ্ত প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')}><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
@@ -770,3 +778,4 @@ export default function EditorPage() {
     </div>
   );
 }
+
