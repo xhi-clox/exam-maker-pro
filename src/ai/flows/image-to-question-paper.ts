@@ -21,29 +21,29 @@ const ImageToQuestionPaperInputSchema = z.object({
 export type ImageToQuestionPaperInput = z.infer<typeof ImageToQuestionPaperInputSchema>;
 
 // This schema should align with the `Paper` interface in `src/app/editor/page.tsx`
-const QuestionSchema = z.object({
-  id: z.string(),
+// This is a simplified, non-recursive schema for improved AI consistency.
+const SimpleQuestionSchema = z.object({
+  id: z.string().describe("A unique identifier for the question (e.g., 'q1', 'q2a')."),
   type: z.enum(['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'table', 'creative', 'section-header']),
-  content: z.string(),
-  marks: z.number().optional(),
-  options: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
-  numberingFormat: z.enum(['bangla-alpha', 'bangla-numeric', 'roman']).optional(),
-  tableData: z.array(z.array(z.string())).optional(),
+  content: z.string().describe("The text content of the question, passage, or section header."),
+  marks: z.number().optional().describe("The marks for this specific question."),
+  options: z.array(z.object({ id: z.string(), text: z.string() })).optional().describe("Multiple choice options, if applicable."),
+  numberingFormat: z.enum(['bangla-alpha', 'bangla-numeric', 'roman']).optional().describe("The numbering style for sub-questions (e.g., ক, খ, গ)."),
+  tableData: z.array(z.array(z.string())).optional().describe("Data for table questions."),
   rows: z.number().optional(),
   cols: z.number().optional(),
+  subQuestions: z.array(z.object({
+      id: z.string().describe("A unique identifier for the sub-question (e.g., 'q1a', 'q1b')."),
+      type: z.enum(['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'table', 'creative', 'section-header']),
+      content: z.string().describe("The text content of the sub-question."),
+      marks: z.number().optional().describe("The marks for this sub-question."),
+      options: z.array(z.object({ id: z.string(), text: z.string() })).optional().describe("Multiple choice options for the sub-question."),
+  })).optional().describe("An array of sub-questions nested under a main question (e.g., a passage or creative question)."),
 });
 
-// Allow for recursive sub-questions
-type Question = z.infer<typeof QuestionSchema> & {
-  subQuestions?: Question[];
-};
-
-const RecursiveQuestionSchema: z.ZodType<Question> = QuestionSchema.extend({
-  subQuestions: z.lazy(() => z.array(RecursiveQuestionSchema)).optional(),
-});
 
 const ImageToQuestionPaperOutputSchema = z.object({
-    questions: z.array(RecursiveQuestionSchema).describe('The array of questions extracted from the image.'),
+    questions: z.array(SimpleQuestionSchema).describe('The array of questions extracted from the image.'),
 });
 
 export type ImageToQuestionPaperOutput = z.infer<typeof ImageToQuestionPaperOutputSchema>;
@@ -58,19 +58,18 @@ const prompt = ai.definePrompt({
   output: {schema: ImageToQuestionPaperOutputSchema},
   prompt: `You are an expert in processing exam papers from images, especially for the Bangladeshi education system. Your task is to analyze the provided image, which could be anything from a polished document to a rough, unorganized, or handwritten draft of questions.
 
-You must interpret the content and structure it into a valid JSON object that matches the output schema. Your SOLE FOCUS is on the questions themselves. DO NOT extract header information like School Name, Exam Title, Subject, etc.
+You must interpret the content and structure it into a valid JSON object that matches the output schema. Your SOLE FOCUS is on the questions themselves. DO NOT extract header information like School Name, Exam Title, Subject, Time, or Total Marks.
 
 Key Instructions:
-1.  **Analyze and Structure**: Carefully analyze the image to identify all questions, passages (উদ্দীপক), section headers (e.g., ক-বিভাগ), and instructions. Infer the structure, including nested sub-questions (like ক, খ, গ, ঘ under a creative question).
-2.  **Identify Question Types**: Determine the type for each question. Use 'creative' for questions with a main passage followed by sub-questions. Use 'passage' for passages with associated questions that are not in the 'creative' format. Use 'mcq' for multiple choice, 'short' for short answers, 'essay' for long answers, 'fill-in-the-blanks', 'table', and 'section-header' for section titles.
-3.  **Extract Details**: Extract the question content, marks, and any multiple-choice options. For creative questions, marks should be on the sub-questions, not the main question.
-4.  **Handle Handwriting and Poor Quality**: The image may be handwritten or messy. Do your best to decipher the text.
-5.  **Generate IDs**: Create a unique 'id' for every single question, sub-question, and option (e.g., 'q1', 'sq1a', 'opt1a1').
-6.  **Language**: The content is likely in Bengali. Ensure your output maintains the correct language.
+1.  **Analyze and Structure**: Carefully analyze the image to identify all questions, passages (উদ্দীপক), section headers (e.g., ক-বিভাগ), and instructions. Infer the structure. A 'creative' question or a 'passage' will have a main 'content' body and its associated questions should be listed in the 'subQuestions' array.
+2.  **Identify Question Types**: Determine the type for each item. Use 'section-header' for section titles (e.g., ক-বিভাগ). Use 'creative' for a main passage followed by sub-questions (like ক, খ, গ, ঘ). Use 'passage' for other stimulus texts. Use 'mcq' for multiple choice, 'short' for short answers, and 'essay' for long answers.
+3.  **Extract Details**: Extract the question content and marks. For creative questions, the total marks might be on the main question, but individual marks MUST be on each sub-question.
+4.  **MANDATORY: Generate Unique IDs**: You MUST create a unique 'id' for every single question, sub-question, and option. Use a prefix and a number (e.g., 'q1', 'sq1a', 'opt1a1'). IDs must be unique across the entire JSON object.
+5.  **Language**: The content is likely in Bengali. Ensure your output maintains the correct language and characters.
 
 Image: {{media url=photoDataUri}}
 
-Return a single, valid JSON object containing ONLY the 'questions' array.`,
+Return a single, valid JSON object containing ONLY the 'questions' array. Do not wrap it in other keys.`,
 });
 
 const imageToQuestionPaperFlow = ai.defineFlow(
@@ -84,3 +83,4 @@ const imageToQuestionPaperFlow = ai.defineFlow(
     return output!;
   }
 );
+

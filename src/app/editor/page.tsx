@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -88,8 +89,8 @@ const defaultInitialQuestions: Question[] = [
 
 // Function to ensure all question/sub-question/option IDs are unique
 const ensureUniqueIds = (questions: Question[]): Question[] => {
-    let counter = 0;
-    const generateId = (prefix: string) => `${prefix}${Math.floor(Math.random() * 10000)}_${counter++}`;
+    let counter = Date.now();
+    const generateId = (prefix: string) => `${prefix}${counter++}_${Math.floor(Math.random() * 10000)}`;
 
     const processQuestion = (q: Question): Question => {
         const newQuestion: Question = { ...q, id: generateId('q_') };
@@ -134,10 +135,9 @@ export default function EditorPage() {
         questions: ensureUniqueIds(defaultInitialQuestions),
       });
     }
-  }, []); // Empty dependency array ensures this runs only once.
+  }, []); 
 
   // Effect for handling imported data from image/suggest.
-  // Watches searchParams to reliably trigger on navigation.
   useEffect(() => {
     const from = searchParams.get('from');
     if ((from === 'image' || from === 'suggest') && paper) {
