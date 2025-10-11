@@ -87,11 +87,11 @@ const defaultInitialQuestions: Question[] = [
   }
 ];
 
+let idCounter = 0;
+const generateId = (prefix: string) => `${prefix}${Date.now()}_${idCounter++}`;
+
 // Function to ensure all question/sub-question/option IDs are unique
 const ensureUniqueIds = (questions: Question[]): Question[] => {
-    let counter = Date.now();
-    const generateId = (prefix: string) => `${prefix}${counter++}_${Math.floor(Math.random() * 10000)}`;
-
     const processQuestion = (q: Question): Question => {
         const newQuestion: Question = { ...q, id: generateId('q_') };
         
@@ -121,39 +121,30 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
 
 
 export default function EditorPage() {
-  const [paper, setPaper] = useState<Paper | null>(null);
+  const [paper, setPaper] = useState<Paper>(() => ({
+      ...initialPaperData,
+      questions: ensureUniqueIds(defaultInitialQuestions),
+  }));
   const router = useRouter();
   const searchParams = useSearchParams();
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
 
-  // Effect for initial state loading. Runs ONLY once on mount if paper is null.
-  useEffect(() => {
-    if (!paper) {
-      setPaper({
-        ...initialPaperData,
-        questions: ensureUniqueIds(defaultInitialQuestions),
-      });
-    }
-  }, []); 
-
   // Effect for handling imported data from image/suggest.
   useEffect(() => {
     const from = searchParams.get('from');
-    if ((from === 'image' || from === 'suggest') && paper) {
+    if ((from === 'image' || from === 'suggest')) {
       const data = localStorage.getItem('newImageData');
       if (data) {
         try {
           const parsedData = JSON.parse(data);
           const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
           
-          setPaper(currentPaper => {
-             if (!currentPaper) return null; // Should not happen with the init effect
-             // Use produce to safely append to the current state
-             return produce(currentPaper, draft => {
-               draft.questions.push(...newQuestions);
-             });
-          });
+          if (newQuestions.length > 0) {
+              setPaper(currentPaper => produce(currentPaper, draft => {
+                 draft.questions.push(...newQuestions);
+              }));
+          }
 
         } catch (e) {
           console.error("Failed to parse or append paper data from localStorage", e);
@@ -166,7 +157,7 @@ export default function EditorPage() {
         }
       }
     }
-  }, [searchParams, router, paper]); // Depend on searchParams to re-run on navigation
+  }, [searchParams, router]);
 
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
@@ -267,17 +258,17 @@ export default function EditorPage() {
             const question = draft.questions.find(q => q.id === questionId);
             if (question) {
                 const newSubQuestion: Question = {
-                    id: `sq${Math.random()}`,
+                    id: generateId('sq_'),
                     type: type,
                     content: 'নতুন প্রশ্ন...',
                     marks: 1,
                 };
                 if (type === 'mcq') {
                     newSubQuestion.options = [
-                        { id: `opt${Math.random()}-1`, text: 'অপশন ১' },
-                        { id: `opt${Math.random()}-2`, text: 'অপশন ২' },
-                        { id: `opt${Math.random()}-3`, text: 'অপশন ৩' },
-                        { id: `opt${Math.random()}-4`, text: 'অপশন ৪' },
+                        { id: generateId('opt_'), text: 'অপশন ১' },
+                        { id: generateId('opt_'), text: 'অপশন ২' },
+                        { id: generateId('opt_'), text: 'অপশন ৩' },
+                        { id: generateId('opt_'), text: 'অপশন ৪' },
                     ];
                 }
                 if (!question.subQuestions) {
@@ -309,7 +300,7 @@ export default function EditorPage() {
             if (q && q.subQuestions) {
                 const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
                 if (sq) {
-                    const newOption = { id: `opt${Math.random()}`, text: 'নতুন অপশন' };
+                    const newOption = { id: generateId('opt_'), text: 'নতুন অপশন' };
                      if (!sq.options) {
                         sq.options = [];
                     }
@@ -670,7 +661,7 @@ export default function EditorPage() {
 
   const addQuestion = (type: Question['type']) => {
     const newQuestion: Question = {
-      id: `q${Math.random()}`,
+      id: generateId('q_'),
       type: type,
       content: '',
       marks: 5,
@@ -689,45 +680,45 @@ export default function EditorPage() {
         case 'passage':
           newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'creative':
           newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           delete newQuestion.marks;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'short', content: 'জ্ঞানমূলক', marks: 1});
-          newQuestion.subQuestions.push({ id: `sq${Math.random()+1}`, type: 'short', content: 'অনুধাবনমূলক', marks: 2});
-          newQuestion.subQuestions.push({ id: `sq${Math.random()+2}`, type: 'short', content: 'প্রয়োগমূলক', marks: 3});
-          newQuestion.subQuestions.push({ id: `sq${Math.random()+3}`, type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'জ্ঞানমূলক', marks: 1});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'অনুধাবনমূলক', marks: 2});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'প্রয়োগমূলক', marks: 3});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
           break;
         case 'fill-in-the-blanks':
           newQuestion.content = 'খালি জায়গা পূরণ কর:';
           newQuestion.marks = 5;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
           break;
         case 'short':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'essay':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 20;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
+          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
           break;
         case 'mcq':
             newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
             newQuestion.marks = 10;
             newQuestion.numberingFormat = 'bangla-numeric';
             newQuestion.subQuestions.push({
-                id: `sq${Math.random()}`,
+                id: generateId('sq_'),
                 type: 'mcq',
                 content: 'নতুন MCQ প্রশ্ন...',
                 marks: 1,
                 options: [
-                    { id: `opt${Math.random()}-1`, text: 'অপশন ১' },
-                    { id: `opt${Math.random()}-2`, text: 'অপশন ২' },
-                    { id: `opt${Math.random()}-3`, text: 'অপশন ৩' },
-                    { id: `opt${Math.random()}-4`, text: 'অপশন ৪' },
+                    { id: generateId('opt_'), text: 'অপশন ১' },
+                    { id: generateId('opt_'), text: 'অপশন ২' },
+                    { id: generateId('opt_'), text: 'অপশন ৩' },
+                    { id: generateId('opt_'), text: 'অপশন ৪' },
                 ]
             });
             break;
@@ -749,7 +740,7 @@ export default function EditorPage() {
     setPaper(prev => {
       if (!prev) return null;
       return produce(prev, draft => {
-        draft.questions.push(...ensureUniqueIds([newQuestion]));
+        draft.questions.push(newQuestion);
       });
     });
   };
