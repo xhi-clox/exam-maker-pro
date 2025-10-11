@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -88,8 +88,8 @@ const defaultInitialQuestions: Question[] = [
 
 // Function to ensure all question/sub-question/option IDs are unique
 const ensureUniqueIds = (questions: Question[]): Question[] => {
-    let counter = Math.floor(Math.random() * 10000);
-    const generateId = (prefix: string) => `${prefix}${counter++}_${Date.now()}`;
+    let counter = 0;
+    const generateId = (prefix: string) => `${prefix}${Math.floor(Math.random() * 10000)}_${counter++}`;
 
     const processQuestion = (q: Question): Question => {
         const newQuestion: Question = { ...q, id: generateId('q_') };
@@ -118,58 +118,55 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
     return questions.map(processQuestion);
 };
 
-const getInitialPaper = (): Paper => {
-    return {
-        ...initialPaperData,
-        questions: ensureUniqueIds(defaultInitialQuestions),
-    }
-};
-
 
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
 
-  // Effect for initial state loading (default questions)
+  // Effect for initial state loading. Runs ONLY once on mount if paper is null.
   useEffect(() => {
-    setPaper(getInitialPaper());
-  }, []);
+    if (!paper) {
+      setPaper({
+        ...initialPaperData,
+        questions: ensureUniqueIds(defaultInitialQuestions),
+      });
+    }
+  }, []); // Empty dependency array ensures this runs only once.
 
-  // Effect for handling imported data from image/suggest
+  // Effect for handling imported data from image/suggest.
+  // Watches searchParams to reliably trigger on navigation.
   useEffect(() => {
     const from = searchParams.get('from');
-    const data = localStorage.getItem('newImageData');
-
-    if ((from === 'image' || from === 'suggest') && data) {
+    if ((from === 'image' || from === 'suggest') && paper) {
+      const data = localStorage.getItem('newImageData');
+      if (data) {
         try {
-            const parsedData = JSON.parse(data);
-            const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
-
-            setPaper(currentPaper => {
-                if (!currentPaper) return null; // Should not happen if initial state is set
-                
-                // Append questions to the existing paper
-                return produce(currentPaper, draft => {
-                    draft.questions.push(...newQuestions);
-                    // You might want to adjust total marks here as well
-                });
-            });
+          const parsedData = JSON.parse(data);
+          const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
+          
+          setPaper(currentPaper => {
+             if (!currentPaper) return null; // Should not happen with the init effect
+             // Use produce to safely append to the current state
+             return produce(currentPaper, draft => {
+               draft.questions.push(...newQuestions);
+             });
+          });
 
         } catch (e) {
-            console.error("Failed to parse paper data from localStorage", e);
+          console.error("Failed to parse or append paper data from localStorage", e);
         } finally {
-            // Clean up localStorage and URL to prevent re-triggering
-            localStorage.removeItem('newImageData');
-            const url = new URL(window.location.href);
-            url.searchParams.delete('from');
-            router.replace(url.toString(), { scroll: false });
+          // Clean up localStorage and URL to prevent re-triggering
+          localStorage.removeItem('newImageData');
+          const url = new URL(window.location.href);
+          url.searchParams.delete('from');
+          router.replace(url.toString(), { scroll: false });
         }
+      }
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, paper]); // Depend on searchParams to re-run on navigation
 
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
@@ -270,17 +267,17 @@ export default function EditorPage() {
             const question = draft.questions.find(q => q.id === questionId);
             if (question) {
                 const newSubQuestion: Question = {
-                    id: `sq${Math.random()}${Date.now()}`,
+                    id: `sq${Math.random()}`,
                     type: type,
                     content: 'নতুন প্রশ্ন...',
                     marks: 1,
                 };
                 if (type === 'mcq') {
                     newSubQuestion.options = [
-                        { id: `opt${Math.random()}${Date.now()}-1`, text: 'অপশন ১' },
-                        { id: `opt${Math.random()}${Date.now()}-2`, text: 'অপশন ২' },
-                        { id: `opt${Math.random()}${Date.now()}-3`, text: 'অপশন ৩' },
-                        { id: `opt${Math.random()}${Date.now()}-4`, text: 'অপশন ৪' },
+                        { id: `opt${Math.random()}-1`, text: 'অপশন ১' },
+                        { id: `opt${Math.random()}-2`, text: 'অপশন ২' },
+                        { id: `opt${Math.random()}-3`, text: 'অপশন ৩' },
+                        { id: `opt${Math.random()}-4`, text: 'অপশন ৪' },
                     ];
                 }
                 if (!question.subQuestions) {
@@ -312,7 +309,7 @@ export default function EditorPage() {
             if (q && q.subQuestions) {
                 const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
                 if (sq) {
-                    const newOption = { id: `opt${Math.random()}${Date.now()}`, text: 'নতুন অপশন' };
+                    const newOption = { id: `opt${Math.random()}`, text: 'নতুন অপশন' };
                      if (!sq.options) {
                         sq.options = [];
                     }
@@ -673,7 +670,7 @@ export default function EditorPage() {
 
   const addQuestion = (type: Question['type']) => {
     const newQuestion: Question = {
-      id: `q${Math.random()}${Date.now()}`,
+      id: `q${Math.random()}`,
       type: type,
       content: '',
       marks: 5,
@@ -692,45 +689,45 @@ export default function EditorPage() {
         case 'passage':
           newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'creative':
           newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           delete newQuestion.marks;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'short', content: 'জ্ঞানমূলক', marks: 1});
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()+1}`, type: 'short', content: 'অনুধাবনমূলক', marks: 2});
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()+2}`, type: 'short', content: 'প্রয়োগমূলক', marks: 3});
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()+3}`, type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'short', content: 'জ্ঞানমূলক', marks: 1});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()+1}`, type: 'short', content: 'অনুধাবনমূলক', marks: 2});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()+2}`, type: 'short', content: 'প্রয়োগমূলক', marks: 3});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()+3}`, type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
           break;
         case 'fill-in-the-blanks':
           newQuestion.content = 'খালি জায়গা পূরণ কর:';
           newQuestion.marks = 5;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
           break;
         case 'short':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'essay':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 20;
-          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
           break;
         case 'mcq':
             newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
             newQuestion.marks = 10;
             newQuestion.numberingFormat = 'bangla-numeric';
             newQuestion.subQuestions.push({
-                id: `sq${Math.random()}${Date.now()}`,
+                id: `sq${Math.random()}`,
                 type: 'mcq',
                 content: 'নতুন MCQ প্রশ্ন...',
                 marks: 1,
                 options: [
-                    { id: `opt${Math.random()}${Date.now()}-1`, text: 'অপশন ১' },
-                    { id: `opt${Math.random()}${Date.now()}-2`, text: 'অপশন ২' },
-                    { id: `opt${Math.random()}${Date.now()}-3`, text: 'অপশন ৩' },
-                    { id: `opt${Math.random()}${Date.now()}-4`, text: 'অপশন ৪' },
+                    { id: `opt${Math.random()}-1`, text: 'অপশন ১' },
+                    { id: `opt${Math.random()}-2`, text: 'অপশন ২' },
+                    { id: `opt${Math.random()}-3`, text: 'অপশন ৩' },
+                    { id: `opt${Math.random()}-4`, text: 'অপশন ৪' },
                 ]
             });
             break;
@@ -749,10 +746,12 @@ export default function EditorPage() {
         ];
     }
 
-    setPaper(prev => prev ? ({
-      ...prev,
-      questions: [...prev.questions, newQuestion]
-    }) : null);
+    setPaper(prev => {
+      if (!prev) return null;
+      return produce(prev, draft => {
+        draft.questions.push(...ensureUniqueIds([newQuestion]));
+      });
+    });
   };
 
 
@@ -861,10 +860,10 @@ export default function EditorPage() {
                     <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')}><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
                     <Button variant="outline" onClick={() => addQuestion('essay')}><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
-                    <Link href="/editor/image?from=editor" passHref>
+                    <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
-                     <Link href="/ai/suggest?from=editor" passHref>
+                     <Link href="/ai/suggest" passHref>
                         <Button variant="outline" className="w-full border-purple-500 text-purple-500"><Sparkles className="mr-2 size-4" /> AI দিয়ে তৈরি করুন</Button>
                     </Link>
                   </CardContent>

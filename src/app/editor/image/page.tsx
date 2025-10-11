@@ -55,7 +55,7 @@ export default function ImageToQuestionPage() {
       localStorage.setItem('newImageData', JSON.stringify(extractedJson));
       router.push('/editor?from=image');
     } catch (e) {
-      console.error("Invalid JSON format");
+      console.error("Invalid JSON format", e);
       setError("Failed to prepare data for the editor due to an invalid format.");
     }
   };
@@ -125,7 +125,7 @@ export default function ImageToQuestionPage() {
                 <span className="flex items-center justify-center size-8 rounded-full bg-primary text-primary-foreground font-bold">2</span>
                  ফলাফল পর্যালোচনা করুন
               </CardTitle>
-              <CardDescription>AI দ্বারা তৈরি প্রশ্নপত্রটি দেখুন এবং এডিটরে নিয়ে সম্পাদনা করুন।</CardDescription>
+              <CardDescription>AI द्वारा তৈরি প্রশ্নপত্রটি দেখুন এবং এডিটরে নিয়ে সম্পাদনা করুন।</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {isLoading ? (
