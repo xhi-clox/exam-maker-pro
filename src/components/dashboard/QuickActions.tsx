@@ -4,6 +4,7 @@
 import {
   BrainCircuit,
   FilePlus,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,6 +12,14 @@ import { cn } from '@/lib/utils';
 
 
 const actions = [
+    {
+      Icon: Sparkles,
+      title: "AI Suggest Question Paper",
+      description: "Generate a paper from a topic",
+      href: "/ai/suggest",
+      color: "bg-green-500",
+      className: "from-green-500/10 to-green-500/5",
+    },
     {
       Icon: BrainCircuit,
       title: "ছবি থেকে প্রশ্ন",

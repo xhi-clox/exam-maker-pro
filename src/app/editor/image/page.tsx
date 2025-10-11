@@ -1,17 +1,18 @@
+
 'use client';
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BrainCircuit, Upload, ArrowRight } from 'lucide-react';
-import { imageToQuestionPaper } from '@/ai/flows/image-to-question-paper';
+import { imageToQuestionPaper, type ImageToQuestionPaperOutput } from '@/ai/flows/image-to-question-paper';
 import { useRouter } from 'next/navigation';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function ImageToQuestionPage() {
   const [image, setImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [extractedJson, setExtractedJson] = useState('');
+  const [extractedJson, setExtractedJson] = useState<ImageToQuestionPaperOutput | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -31,9 +32,10 @@ export default function ImageToQuestionPage() {
   const handleGenerate = async () => {
     if (!image) return;
     setIsLoading(true);
+    setExtractedJson(null);
     try {
       const result = await imageToQuestionPaper({ photoDataUri: image });
-      setExtractedJson(result.questionPaper);
+      setExtractedJson(result);
     } catch (error) {
       console.error('Failed to convert image to question paper:', error);
       // You can add a toast notification here to inform the user
@@ -42,12 +44,9 @@ export default function ImageToQuestionPage() {
   };
   
   const openEditorWithContent = () => {
-    // This is a simplified version. In a real app, you'd likely want to
-    // save this to a database and then redirect to the editor with the new paper's ID.
-    // For now, we'll use localStorage as a temporary bridge.
+    if (!extractedJson) return;
     try {
-      const paperData = JSON.parse(extractedJson);
-      localStorage.setItem('newImageData', JSON.stringify(paperData));
+      localStorage.setItem('newImageData', JSON.stringify(extractedJson));
       router.push('/editor?from=image');
     } catch (e) {
       console.error("Invalid JSON format");
@@ -107,9 +106,9 @@ export default function ImageToQuestionPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea
-              className="h-64 font-code"
-              value={extractedJson}
-              readOnly={!extractedJson}
+              className="h-80 font-code"
+              value={extractedJson ? JSON.stringify(extractedJson, null, 2) : ''}
+              readOnly
               placeholder="এখানে AI দ্বারা তৈরি JSON আউটপুট দেখা যাবে..."
             />
             <Button onClick={openEditorWithContent} disabled={!extractedJson} className="w-full">

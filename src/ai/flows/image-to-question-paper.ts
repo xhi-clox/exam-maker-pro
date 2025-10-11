@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -19,9 +20,39 @@ const ImageToQuestionPaperInputSchema = z.object({
 });
 export type ImageToQuestionPaperInput = z.infer<typeof ImageToQuestionPaperInputSchema>;
 
-const ImageToQuestionPaperOutputSchema = z.object({
-  questionPaper: z.string().describe('The extracted question paper in JSON format.'),
+// This schema should align with the `Paper` interface in `src/app/editor/page.tsx`
+const QuestionSchema = z.object({
+  id: z.string(),
+  type: z.enum(['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'table', 'creative', 'section-header']),
+  content: z.string(),
+  marks: z.number().optional(),
+  options: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
+  numberingFormat: z.enum(['bangla-alpha', 'bangla-numeric', 'roman']).optional(),
+  tableData: z.array(z.array(z.string())).optional(),
+  rows: z.number().optional(),
+  cols: z.number().optional(),
 });
+
+// Allow for recursive sub-questions
+type Question = z.infer<typeof QuestionSchema> & {
+  subQuestions?: Question[];
+};
+
+const RecursiveQuestionSchema: z.ZodType<Question> = QuestionSchema.extend({
+  subQuestions: z.lazy(() => z.array(RecursiveQuestionSchema)).optional(),
+});
+
+const ImageToQuestionPaperOutputSchema = z.object({
+    schoolName: z.string().describe("The name of the school.").default(""),
+    examTitle: z.string().describe("The title of the exam.").default(""),
+    subject: z.string().describe("The subject of the exam.").default(""),
+    grade: z.string().describe("The grade/class for the exam.").default(""),
+    timeAllowed: z.string().describe("The time allowed for the exam.").default(""),
+    totalMarks: z.number().describe("The total marks for the exam.").default(0),
+    notes: z.string().optional().describe("General notes or instructions for the exam."),
+    questions: z.array(RecursiveQuestionSchema).describe('The array of questions extracted from the image.'),
+});
+
 export type ImageToQuestionPaperOutput = z.infer<typeof ImageToQuestionPaperOutputSchema>;
 
 export async function imageToQuestionPaper(input: ImageToQuestionPaperInput): Promise<ImageToQuestionPaperOutput> {
@@ -32,14 +63,22 @@ const prompt = ai.definePrompt({
   name: 'imageToQuestionPaperPrompt',
   input: {schema: ImageToQuestionPaperInputSchema},
   output: {schema: ImageToQuestionPaperOutputSchema},
-  prompt: `You are an expert in processing exam papers from images. Your task is to extract questions from a given image and convert them into a structured JSON format suitable for a digital exam paper.
+  prompt: `You are an expert in processing exam papers from images, especially for the Bangladeshi education system. Your task is to analyze the provided image, which could be anything from a polished document to a rough, unorganized, or handwritten draft of questions.
 
-Analyze the image provided and identify all the questions, their types (e.g., MCQ, short answer, essay), content, and any associated options or passages. Structure the output in a JSON format that represents the question paper. Consider the structure of nested questions. Ensure Bangla language is used for the questions and relevant context. The image will be passed to you in a data URI format, use the media helper to access the content of the image.
+You must interpret the content and structure it into a valid JSON object that matches the output schema.
+
+Key Instructions:
+1.  **Analyze and Structure**: Carefully analyze the image to identify all questions, passages (উদ্দীপক), section headers (e.g., ক-বিভাগ), and instructions. Infer the structure, including nested sub-questions (like ক, খ, গ, ঘ under a creative question).
+2.  **Identify Question Types**: Determine the type for each question. Use 'creative' for questions with a main passage followed by sub-questions. Use 'passage' for passages with associated questions that are not in the 'creative' format. Use 'mcq' for multiple choice, 'short' for short answers, 'essay' for long answers, 'fill-in-the-blanks', 'table', and 'section-header' for section titles.
+3.  **Extract Details**: Extract the question content, marks, and any multiple-choice options. For creative questions, marks should be on the sub-questions, not the main question.
+4.  **Handle Handwriting and Poor Quality**: The image may be handwritten or messy. Do your best to decipher the text.
+5.  **Generate IDs**: Create a unique 'id' for every single question, sub-question, and option (e.g., 'q1', 'sq1a', 'opt1a1').
+6.  **Language**: The content is likely in Bengali. Ensure your output maintains the correct language.
+7.  **Header Information**: Extract header details like School Name, Exam Title, Subject, Grade, Time, and Total Marks if they are present in the image. If they are not present, provide sensible defaults or empty strings.
 
 Image: {{media url=photoDataUri}}
 
-Return a JSON object representing the question paper.
-`,
+Return a single, valid JSON object representing the entire structured question paper.`,
 });
 
 const imageToQuestionPaperFlow = ai.defineFlow(
