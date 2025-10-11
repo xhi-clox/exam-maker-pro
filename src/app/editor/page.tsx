@@ -87,10 +87,39 @@ const defaultInitialQuestions: Question[] = [
   }
 ];
 
+// Function to ensure all question/sub-question/option IDs are unique
+const ensureUniqueIds = (questions: Question[]): Question[] => {
+    const uniqueIdCounter = { v: Date.now() };
+    const generateId = (prefix: string) => `${prefix}${uniqueIdCounter.v++}`;
+
+    const processQuestion = (q: Question): Question => {
+        const newQuestion = { ...q, id: generateId('q_') };
+        
+        if (newQuestion.subQuestions) {
+            newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
+                const newSq = { ...sq, id: generateId('sq_') };
+                if (newSq.options) {
+                    newSq.options = newSq.options.map(opt => ({ ...opt, id: generateId('opt_') }));
+                }
+                return newSq;
+            });
+        }
+        
+        if (newQuestion.options) {
+            newQuestion.options = newQuestion.options.map(opt => ({ ...opt, id: generateId('opt_') }));
+        }
+
+        return newQuestion;
+    };
+
+    return questions.map(processQuestion);
+};
+
+
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(() => ({
     ...initialPaperData,
-    questions: defaultInitialQuestions
+    questions: ensureUniqueIds(defaultInitialQuestions)
   }));
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
@@ -108,17 +137,33 @@ export default function EditorPage() {
           const parsedData = JSON.parse(data);
           
           setPaper(currentPaper => {
-            const newQuestions = parsedData.questions || [];
+            // Ensure incoming questions have unique IDs before appending
+            const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
 
-            // Always append questions, don't touch header data
-            const updatedPaper = produce(currentPaper, draft => {
-                draft.questions.push(...newQuestions);
-                // Optionally update total marks if present in parsed data
-                if (parsedData.totalMarks && typeof parsedData.totalMarks === 'number') {
-                    draft.totalMarks += parsedData.totalMarks;
-                }
-            });
-            return updatedPaper;
+            // If the editor is still in its initial state, replace everything.
+            // Otherwise, just append questions.
+            const isInitialState = currentPaper.questions.length === 0 && currentPaper.schoolName === initialPaperData.schoolName;
+
+            if (isInitialState) {
+                return {
+                    schoolName: parsedData.schoolName || initialPaperData.schoolName,
+                    examTitle: parsedData.examTitle || initialPaperData.examTitle,
+                    subject: parsedData.subject || initialPaperData.subject,
+                    grade: parsedData.grade || initialPaperData.grade,
+                    board: parsedData.board || initialPaperData.board,
+                    timeAllowed: parsedData.timeAllowed || initialPaperData.timeAllowed,
+                    totalMarks: parsedData.totalMarks || initialPaperData.totalMarks,
+                    notes: parsedData.notes,
+                    questions: newQuestions,
+                };
+            } else {
+                 return produce(currentPaper, draft => {
+                    draft.questions.push(...newQuestions);
+                    if (parsedData.totalMarks && typeof parsedData.totalMarks === 'number') {
+                        draft.totalMarks += parsedData.totalMarks;
+                    }
+                });
+            }
           });
 
         } catch (e) {
@@ -903,5 +948,7 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
 
     
