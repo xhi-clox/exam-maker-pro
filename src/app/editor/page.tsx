@@ -68,6 +68,24 @@ const generateId = (prefix: string) => {
   return `${prefix}${idCounter}`;
 };
 
+const ensureUniqueIds = (questions: Question[]): Question[] => {
+  return produce(questions, draft => {
+    const processNode = (node: any) => {
+      // Use a more robust unique ID generator
+      node.id = generateId(`${node.type || 'id_'}_`);
+
+      if (node.options) {
+        node.options.forEach((option: any) => processNode(option));
+      }
+      if (node.subQuestions) {
+        node.subQuestions.forEach((sub: any) => processNode(sub));
+      }
+    };
+
+    draft.forEach(q => processNode(q));
+  });
+};
+
 
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(() => ({
@@ -116,24 +134,6 @@ export default function EditorPage() {
       }
     }
   }, [searchParams, router, paper]);
-
-  const ensureUniqueIds = (questions: Question[]): Question[] => {
-    return produce(questions, draft => {
-      const processNode = (node: any) => {
-        // Use a more robust unique ID generator
-        node.id = generateId(`${node.type || 'id_'}_`);
-
-        if (node.options) {
-          node.options.forEach((option: any) => processNode(option));
-        }
-        if (node.subQuestions) {
-          node.subQuestions.forEach((sub: any) => processNode(sub));
-        }
-      };
-
-      draft.forEach(q => processNode(q));
-    });
-  };
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -880,9 +880,6 @@ export default function EditorPage() {
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
-                    <Link href="/ai/suggest" passHref>
-                       <Button variant="outline" className="w-full border-purple-500 text-purple-500"><Sparkles className="mr-2 size-4" /> AI দিয়ে তৈরি করুন</Button>
-                    </Link>
                   </CardContent>
                 </Card>
 
@@ -945,5 +942,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
