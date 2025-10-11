@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -409,29 +409,49 @@ export default function EditorPage() {
     }
   };
 
-  const QuestionActions = ({ onRemove }: { onRemove: () => void }) => (
-    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-      <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab">
-        <GripVertical className="size-4" />
+  const moveQuestion = (index: number, direction: 'up' | 'down') => {
+    setPaper(prev => {
+      const newQuestions = [...prev.questions];
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= newQuestions.length) {
+        return prev;
+      }
+      const [movedQuestion] = newQuestions.splice(index, 1);
+      newQuestions.splice(newIndex, 0, movedQuestion);
+      return { ...prev, questions: newQuestions };
+    });
+  };
+
+  const QuestionActions = ({ index }: { index: number }) => (
+    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveQuestion(index, 'up')} disabled={index === 0}>
+        <ArrowUp className="size-4" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onRemove}>
+      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveQuestion(index, 'down')} disabled={index === paper.questions.length - 1}>
+        <ArrowDown className="size-4" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeQuestion(paper.questions[index].id)}>
         <Trash2 className="size-4" />
       </Button>
     </div>
   );
 
-  const renderQuestion = (question: Question, questionNumber: number) => {
-    const handleRemove = () => removeQuestion(question.id);
+  const renderQuestion = (question: Question, index: number) => {
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
+    
+    let questionNumber = 0;
+    if (question.type !== 'section-header') {
+      questionNumber = paper.questions.slice(0, index + 1).filter(q => q.type !== 'section-header').length;
+    }
 
     if (question.type === 'section-header') {
         return (
             <Card key={question.id} className="group relative p-4 bg-slate-100">
-                 <QuestionActions onRemove={handleRemove} />
+                 <QuestionActions index={index} />
                  <Input 
                     value={question.content}
                     onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
-                    className="text-center font-bold underline decoration-dotted text-lg border-0 focus-visible:ring-0 shadow-none"
+                    className="text-center font-bold underline decoration-dotted text-lg border-0 focus-visible:ring-0 shadow-none bg-transparent"
                  />
             </Card>
         )
@@ -439,12 +459,19 @@ export default function EditorPage() {
 
     const questionCard = (title: string, children: React.ReactNode) => (
         <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
-          <QuestionActions onRemove={handleRemove} />
-          <div className="flex items-center justify-between">
-            <div className='flex items-center gap-2'>
-              <Label className="font-bold">{`${questionNumber}. ${title}`}</Label>
+          <QuestionActions index={index} />
+          <div className="flex items-start justify-between">
+            <Label className="font-bold pt-1.5">{`${questionNumber}.`}</Label>
+            <div className="flex-1 ml-2">
+                <Textarea
+                    value={title}
+                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    onFocus={(e) => handleFocus(e, question.id)}
+                    className="bg-white font-semibold"
+                    rows={1}
+                />
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 pl-4">
               { question.type !== 'creative' && (
                 <div className="flex items-center gap-2">
                     <Label htmlFor={`marks-${question.id}`} className="text-sm">Marks:</Label>
@@ -484,11 +511,6 @@ export default function EditorPage() {
 
       const subQuestionRenderer = (qType: Question['type']) => (
         <>
-            <Textarea 
-                value={question.content} 
-                onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
-                onFocus={(e) => handleFocus(e, question.id)}
-                className="bg-white" />
             <div className="pl-6 space-y-2">
             {question.subQuestions?.map((sq, sqIndex) => (
                 <div key={sq.id} className="flex items-start gap-2 pt-2">
@@ -694,8 +716,6 @@ export default function EditorPage() {
     }))
   };
 
-  let questionCounter = 0;
-  
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50 text-foreground">
       {/* Header */}
@@ -752,12 +772,7 @@ export default function EditorPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {paper.questions.map((q) => {
-                    if (q.type !== 'section-header') {
-                      questionCounter++;
-                    }
-                    return renderQuestion(q, questionCounter)
-                  })}
+                  {paper.questions.map((q, index) => renderQuestion(q, index))}
                 </div>
               )}
             </div>
@@ -845,3 +860,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
