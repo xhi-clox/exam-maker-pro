@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -11,7 +12,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Paper } from '@/types';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, FilePlus, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import Link from 'next/link';
 
@@ -49,9 +50,16 @@ const recentPapers: Paper[] = [
 export function RecentPapers() {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="font-headline">সাম্প্রতিক প্রশ্নপত্র</CardTitle>
-        <CardDescription>আপনার সাম্প্রতিক তৈরি করা প্রশ্নপত্রগুলো এখানে দেখুন।</CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="font-headline">Recent Papers</CardTitle>
+          <CardDescription>Here are the papers you've recently worked on.</CardDescription>
+        </div>
+        <Button variant="outline" asChild>
+            <Link href="#">
+                View All <ChevronRight className="ml-2 size-4" />
+            </Link>
+        </Button>
       </CardHeader>
       <CardContent>
         <Table>
@@ -60,13 +68,13 @@ export function RecentPapers() {
               <TableHead>শিরোনাম</TableHead>
               <TableHead>বিষয়</TableHead>
               <TableHead>শ্রেণি</TableHead>
-              <TableHead>آخر আপডেট</TableHead>
+              <TableHead>Last Updated</TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {recentPapers.map((paper) => (
-              <TableRow key={paper.id}>
+              <TableRow key={paper.id} className="cursor-pointer hover:bg-muted/50">
                 <TableCell className="font-medium">
                   <Link href={`/editor/${paper.id}`} className="hover:underline">
                     {paper.title}
@@ -76,10 +84,11 @@ export function RecentPapers() {
                   <Badge variant="outline">{paper.subject}</Badge>
                 </TableCell>
                 <TableCell>{paper.grade}</TableCell>
-                <TableCell>{paper.lastUpdated}</TableCell>
+                <TableCell className="text-muted-foreground">{paper.lastUpdated}</TableCell>
                 <TableCell>
                   <Button variant="ghost" size="icon">
                     <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">More options</span>
                   </Button>
                 </TableCell>
               </TableRow>
