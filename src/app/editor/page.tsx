@@ -89,15 +89,16 @@ const defaultInitialQuestions: Question[] = [
 
 // Function to ensure all question/sub-question/option IDs are unique
 const ensureUniqueIds = (questions: Question[]): Question[] => {
-    const uniqueIdCounter = { v: Date.now() };
-    const generateId = (prefix: string) => `${prefix}${uniqueIdCounter.v++}`;
+    // Use a non-date-based counter to avoid hydration issues.
+    let counter = Math.floor(Math.random() * 10000);
+    const generateId = (prefix: string) => `${prefix}${counter++}`;
 
     const processQuestion = (q: Question): Question => {
-        const newQuestion = { ...q, id: generateId('q_') };
+        const newQuestion: Question = { ...q, id: generateId('q_') };
         
         if (newQuestion.subQuestions) {
             newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
-                const newSq = { ...sq, id: generateId('sq_') };
+                const newSq: Question = { ...sq, id: generateId('sq_') };
                 if (newSq.options) {
                     newSq.options = newSq.options.map(opt => ({ ...opt, id: generateId('opt_') }));
                 }
@@ -121,6 +122,7 @@ export default function EditorPage() {
     ...initialPaperData,
     questions: ensureUniqueIds(defaultInitialQuestions)
   }));
+
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
 
@@ -142,7 +144,7 @@ export default function EditorPage() {
 
             // If the editor is still in its initial state, replace everything.
             // Otherwise, just append questions.
-            const isInitialState = currentPaper.questions.length === 0 && currentPaper.schoolName === initialPaperData.schoolName;
+            const isInitialState = currentPaper.questions.length === 2 && currentPaper.schoolName === initialPaperData.schoolName;
 
             if (isInitialState) {
                 return {
@@ -948,7 +950,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
-
-    
