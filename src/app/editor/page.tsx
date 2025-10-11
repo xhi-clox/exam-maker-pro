@@ -283,6 +283,7 @@ export default function EditorPage() {
       if (!elementToCapture) return null;
 
       const canvas = await html2canvas(elementToCapture, { scale: 2 });
+      root.unmount();
       renderContainer.removeChild(pageContainer);
       return canvas.toDataURL('image/png');
     };
