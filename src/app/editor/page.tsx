@@ -118,7 +118,7 @@ export default function EditorPage() {
   const hiddenRenderRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<PaperSettings>({ 
     margins: { top: 20, bottom: 20, left: 15, right: 15 },
-    width: 421,
+    width: 421, 
     height: 595,
     fontSize: 12,
   });
@@ -234,7 +234,7 @@ export default function EditorPage() {
       const root = createRoot(pageContainer);
       await new Promise<void>(resolve => {
         root.render(nodeToRender);
-        setTimeout(resolve, 300);
+        setTimeout(resolve, 300); // Give it a moment to render
       });
 
       const elementToCapture = pageContainer.firstChild as HTMLElement;
@@ -777,89 +777,97 @@ export default function EditorPage() {
 
   useLayoutEffect(() => {
     if (!paper) return;
-
+  
     const calculatePages = () => {
-        if (!hiddenRenderRef.current) {
-            setPages([]);
-            return;
+      if (!hiddenRenderRef.current) {
+        setPages([]);
+        return;
+      }
+  
+      const pageBreakThreshold = settings.height - (settings.margins.top + settings.margins.bottom) * 3.78; // Convert mm to px
+      const hiddenPage = hiddenRenderRef.current;
+      hiddenPage.innerHTML = '';
+  
+      const tempRenderContainer = document.createElement('div');
+      hiddenPage.appendChild(tempRenderContainer);
+      const root = createRoot(tempRenderContainer);
+  
+      const questionNodes = (
+        <div>
+          {paper.questions.map((q, index) => {
+            const questionNumber = paper.questions.slice(0, index + 1).filter(q_ => q_.type !== 'section-header').length;
+            return renderQuestionContent(q, questionNumber, paper.questions, true);
+          })}
+        </div>
+      );
+  
+      root.render(questionNodes);
+  
+      setTimeout(() => {
+        const headerEl = document.querySelector('.preview-header');
+        let headerHeight = 0;
+        if (headerEl) {
+          const style = window.getComputedStyle(headerEl);
+          headerHeight = headerEl.clientHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
+        }
+  
+        const newPages: PageContent[][] = [];
+        let currentPageContent: PageContent[] = [];
+        let currentPageHeight = 0;
+        let isFirstPage = true;
+  
+        const startNewPage = () => {
+          if (currentPageContent.length > 0) {
+            newPages.push(currentPageContent);
+          }
+          currentPageContent = [];
+          currentPageHeight = 0;
+          isFirstPage = false;
+        };
+  
+        const questionElements = tempRenderContainer.querySelectorAll<HTMLElement>('[data-question-id]');
+  
+        questionElements.forEach((questionElement) => {
+          const questionId = questionElement.dataset.questionId;
+          const question = paper.questions.find(q => q.id === questionId);
+          if (!question) return;
+  
+          const style = window.getComputedStyle(questionElement);
+          const questionHeight = questionElement.offsetHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
+  
+          let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+          
+          if (currentPageHeight + questionHeight > availableHeight && currentPageContent.length > 0) {
+            startNewPage();
+          }
+  
+          if (isFirstPage && currentPageHeight === 0) {
+            currentPageHeight += headerHeight;
+          }
+  
+          const contentToAdd: PageContent = { mainQuestion: question, subQuestions: question.subQuestions || [], showMainContent: true };
+          
+          currentPageContent.push(contentToAdd);
+          currentPageHeight += questionHeight;
+        });
+  
+        if (currentPageContent.length > 0) {
+          newPages.push(currentPageContent);
+        }
+        
+        setPages(newPages);
+        
+        // Clean up
+        root.unmount();
+        if (hiddenPage.contains(tempRenderContainer)) {
+            hiddenPage.removeChild(tempRenderContainer);
         }
 
-        const pageBreakThreshold = settings.height - (settings.margins.top + settings.margins.bottom) * 3.78; // Convert mm to px
-        const hiddenPage = hiddenRenderRef.current;
-        hiddenPage.innerHTML = ''; // Clear previous content
-
-        const tempRenderContainer = document.createElement('div');
-        hiddenPage.appendChild(tempRenderContainer);
-        
-        const root = createRoot(tempRenderContainer);
-        root.render(
-            <>
-                {paper.questions.map((q, index) => {
-                    const questionNumber = paper.questions.slice(0, index + 1).filter(q => q.type !== 'section-header').length;
-                    return renderQuestionContent(q, questionNumber, paper.questions, true);
-                })}
-            </>
-        );
-
-        setTimeout(() => {
-            const headerEl = document.querySelector('.preview-header'); // Assuming a stable class for header
-            let headerHeight = 0;
-            if (headerEl) {
-              const style = window.getComputedStyle(headerEl);
-              headerHeight = headerEl.clientHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
-            }
-    
-            const newPages: PageContent[][] = [];
-            let currentPageContent: PageContent[] = [];
-            let currentPageHeight = 0;
-            let isFirstPage = true;
-    
-            const startNewPage = () => {
-                if (currentPageContent.length > 0) {
-                    newPages.push(currentPageContent);
-                }
-                currentPageContent = [];
-                currentPageHeight = 0;
-                isFirstPage = false;
-            };
-    
-            const questionElements = tempRenderContainer.querySelectorAll<HTMLElement>('[data-question-id]');
-    
-            questionElements.forEach((questionElement) => {
-                const questionId = questionElement.dataset.questionId;
-                const question = paper.questions.find(q => q.id === questionId);
-                if (!question) return;
-    
-                const style = window.getComputedStyle(questionElement);
-                const questionHeight = questionElement.offsetHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
-    
-                let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
-                
-                if (currentPageHeight + questionHeight > availableHeight && currentPageContent.length > 0) {
-                    startNewPage();
-                }
-    
-                if (isFirstPage && currentPageHeight === 0) {
-                    currentPageHeight += headerHeight;
-                }
-    
-                const contentToAdd: PageContent = { mainQuestion: question, subQuestions: question.subQuestions || [], showMainContent: true };
-                
-                currentPageContent.push(contentToAdd);
-                currentPageHeight += questionHeight;
-            });
-    
-            if (currentPageContent.length > 0) {
-                newPages.push(currentPageContent);
-            }
-            
-            setPages(newPages);
-
-        }, 200);
+      }, 200);
     };
-
+  
     calculatePages();
-
+  
   }, [paper, settings]);
   
   if (!paper) {
