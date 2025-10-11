@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,7 +75,7 @@ export default function EditorPage() {
     idCounter.current += 1;
     return `${prefix}${idCounter.current}`;
   };
-
+  
   useEffect(() => {
     if (!paper) {
       setPaper({
@@ -84,39 +84,26 @@ export default function EditorPage() {
       });
     }
   }, []);
-  
+
   const ensureUniqueIds = (questions: Question[]): Question[] => {
-    let questionIndex = 0;
+    return produce(questions, draft => {
+      const processNode = (node: any) => {
+        const newId = `${generateId('id_')}_${Math.random().toString(36).substring(2, 9)}`;
+        node.id = newId;
 
-    const processQuestion = (q: Question): Question => {
-      const newQuestionId = `${generateId('q_')}_${Math.random()}_${questionIndex++}`;
-      const newQuestion: Question = { ...q, id: newQuestionId };
-      
-      if (newQuestion.subQuestions) {
-        newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
-          const newSqId = `${generateId('sq_')}_${Math.random()}_${questionIndex++}`;
-          const newSq: Question = { ...sq, id: newSqId };
-          if (newSq.options) {
-            newSq.options = newSq.options.map((opt, optIndex) => ({ ...opt, id: `${generateId('opt_')}_${newSqId}_${optIndex}` }));
-          }
-          if (newSq.subQuestions) {
-            newSq.subQuestions = newSq.subQuestions.map(processQuestion);
-          }
-          return newSq;
-        });
-      }
-      
-      if (newQuestion.options) {
-        newQuestion.options = newQuestion.options.map((opt, optIndex) => ({ ...opt, id: `${generateId('opt_')}_${newQuestionId}_${optIndex}` }));
-      }
+        if (node.options) {
+          node.options.forEach((option: any) => processNode(option));
+        }
+        if (node.subQuestions) {
+          node.subQuestions.forEach((sub: any) => processNode(sub));
+        }
+      };
 
-      return newQuestion;
-    };
-
-    return questions.map(processQuestion);
+      draft.forEach(q => processNode(q));
+    });
   };
-  
-  useEffect(() => {
+
+  useLayoutEffect(() => {
     const from = searchParams.get('from');
     if ((from === 'image' || from === 'suggest') && paper) {
       const data = localStorage.getItem('newImageData');
@@ -128,10 +115,14 @@ export default function EditorPage() {
             
             setPaper(currentPaper => {
                 if (!currentPaper) return null;
+                
+                const isInitialPaper = currentPaper.questions.length === defaultInitialQuestions.length &&
+                  JSON.stringify(currentPaper.questions) === JSON.stringify(defaultInitialQuestions);
+
                 return produce(currentPaper, draft => {
                     draft.questions.push(...newQuestions);
                     
-                    if (draft.questions.length === newQuestions.length && defaultInitialQuestions.length === 0) {
+                    if (isInitialPaper) {
                         draft.schoolName = parsedData.schoolName || draft.schoolName;
                         draft.examTitle = parsedData.examTitle || draft.examTitle;
                         draft.subject = parsedData.subject || draft.subject;
@@ -155,7 +146,6 @@ export default function EditorPage() {
       }
     }
   }, [searchParams, router, paper]);
-
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -184,36 +174,66 @@ export default function EditorPage() {
     }
   };
 
-
   const handleDownloadPdf = async () => {
     const container = previewContainerRef.current;
     if (!container || !paper) return;
 
-    const pages = container.querySelectorAll<HTMLDivElement>('.paper-page');
-    if (pages.length === 0) return;
+    const previewPages = Array.from(container.querySelectorAll<HTMLDivElement>('.paper-page'));
+    if (previewPages.length === 0) return;
 
-    const pdf = new jsPDF({
-      orientation: 'p',
-      unit: 'px',
-    });
+    let n = previewPages.length;
+    // Pad with blank pages to make it a multiple of 4
+    const paddedPages = [...previewPages];
+    while (paddedPages.length % 4 !== 0) {
+      const blankPage = document.createElement('div');
+      blankPage.className = 'paper-page bg-white';
+      blankPage.style.width = `${previewPages[0].offsetWidth}px`;
+      blankPage.style.height = `${previewPages[0].offsetHeight}px`;
+      paddedPages.push(blankPage);
+    }
+    n = paddedPages.length;
 
-    const canvas = await html2canvas(pages[0], { scale: 2 });
-    const pageWidth = canvas.width;
-    const pageHeight = canvas.height;
-    pdf.internal.pageSize.setWidth(pageWidth);
-    pdf.internal.pageSize.setHeight(pageHeight);
-
-    const imgData = canvas.toDataURL('image/png');
-    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-
-    for (let i = 1; i < pages.length; i++) {
-        const pageCanvas = await html2canvas(pages[i], { scale: 2 });
-        const pageImgData = pageCanvas.toDataURL('image/png');
-        pdf.addPage([pageWidth, pageHeight], 'p');
-        pdf.addImage(pageImgData, 'PNG', 0, 0, pageWidth, pageHeight);
+    const bookletOrder: (HTMLDivElement | null)[] = [];
+    for (let i = 0; i < n / 2; i++) {
+        if (i % 2 === 0) {
+            bookletOrder.push(paddedPages[n - 1 - i]);
+            bookletOrder.push(paddedPages[i]);
+        } else {
+            bookletOrder.push(paddedPages[i]);
+            bookletOrder.push(paddedPages[n - 1 - i]);
+        }
     }
 
-    pdf.save('question-paper.pdf');
+    const a4Width = 842; // A4 landscape width in points
+    const a4Height = 595; // A4 landscape height in points
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a4',
+    });
+
+    for (let i = 0; i < bookletOrder.length; i += 2) {
+      const leftPageNode = bookletOrder[i];
+      const rightPageNode = bookletOrder[i + 1];
+
+      if (!leftPageNode || !rightPageNode) continue;
+
+      const singlePageCanvas = await html2canvas(leftPageNode, { scale: 2 });
+      const singlePageWidth = a4Width / 2;
+      const singlePageHeight = a4Height;
+
+      const leftCanvas = await html2canvas(leftPageNode, { scale: 2 });
+      const rightCanvas = await html2canvas(rightPageNode, { scale: 2 });
+      
+      pdf.addImage(leftCanvas.toDataURL('image/png'), 'PNG', 0, 0, singlePageWidth, singlePageHeight);
+      pdf.addImage(rightCanvas.toDataURL('image/png'), 'PNG', singlePageWidth, 0, singlePageWidth, singlePageHeight);
+
+      if (i + 2 < bookletOrder.length) {
+        pdf.addPage();
+      }
+    }
+
+    pdf.save('question-paper-booklet.pdf');
   };
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
@@ -849,6 +869,9 @@ export default function EditorPage() {
                     <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
+                    </Link>
+                     <Link href="/ai/suggest" passHref>
+                      <Button variant="outline" className="w-full border-purple-500 text-purple-500"><Sparkles className="mr-2 size-4" /> AI দিয়ে তৈরি করুন</Button>
                     </Link>
                   </CardContent>
                 </Card>

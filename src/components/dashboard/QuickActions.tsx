@@ -12,14 +12,6 @@ import { cn } from '@/lib/utils';
 
 const actions = [
     {
-      Icon: Sparkles,
-      title: "AI দিয়ে তৈরি করুন",
-      description: "Generate a paper from a topic",
-      href: "/ai/suggest",
-      color: "bg-green-500",
-      className: "from-green-500/10 to-green-500/5",
-    },
-    {
       Icon: BrainCircuit,
       title: "ছবি থেকে প্রশ্ন",
       description: "AI দিয়ে প্রশ্ন তৈরি করুন",
@@ -34,6 +26,14 @@ const actions = [
       href: "/editor",
       color: "bg-blue-500",
       className: "from-blue-500/10 to-blue-500/5",
+    },
+    {
+      Icon: Sparkles,
+      title: "AI দিয়ে তৈরি করুন",
+      description: "Generate a paper from a topic",
+      href: "/ai/suggest",
+      color: "bg-green-500",
+      className: "from-green-500/10 to-green-500/5",
     },
 ]
 
