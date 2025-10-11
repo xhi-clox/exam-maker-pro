@@ -86,6 +86,7 @@ export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(initialPaperData);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
+  let questionCounter = 0;
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -399,6 +400,10 @@ export default function EditorPage() {
   );
 
   const renderQuestion = (question: Question, index: number) => {
+    if (question.type !== 'section-header') {
+      questionCounter++;
+    }
+
     const handleRemove = () => removeQuestion(question.id);
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
 
@@ -420,20 +425,22 @@ export default function EditorPage() {
           <QuestionActions onRemove={handleRemove} />
           <div className="flex items-center justify-between">
             <div className='flex items-center gap-2'>
-              <Label className="font-bold">{`${index + 1}. ${title}`}</Label>
+              <Label className="font-bold">{`${questionCounter}. ${title}`}</Label>
             </div>
             <div className="flex items-center gap-4">
-               <div className="flex items-center gap-2">
-                  <Label htmlFor={`marks-${question.id}`} className="text-sm">Marks:</Label>
-                  <Input 
-                    id={`marks-${question.id}`}
-                    type="number" 
-                    value={question.marks} 
-                    onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
-                    className="w-20 h-8"
-                    placeholder="Marks"
-                  />
-               </div>
+              { question.type !== 'creative' && (
+                <div className="flex items-center gap-2">
+                    <Label htmlFor={`marks-${question.id}`} className="text-sm">Marks:</Label>
+                    <Input 
+                      id={`marks-${question.id}`}
+                      type="number" 
+                      value={question.marks} 
+                      onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
+                      className="w-20 h-8"
+                      placeholder="Marks"
+                    />
+                </div>
+              )}
               { isContainer && (
               <div className="flex items-center gap-2">
                   <Label htmlFor={`numbering-${question.id}`} className="text-sm">নাম্বারিং:</Label>
@@ -476,6 +483,19 @@ export default function EditorPage() {
                         onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
                         onFocus={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
                         className="flex-grow bg-white" />
+                    { question.type === 'creative' && (
+                       <div className="flex items-center gap-2 shrink-0">
+                         <Label htmlFor={`marks-${sq.id}`} className="text-sm">Marks:</Label>
+                         <Input 
+                           id={`marks-${sq.id}`}
+                           type="number" 
+                           value={sq.marks} 
+                           onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
+                           className="w-20 h-8"
+                           placeholder="Marks"
+                         />
+                      </div>
+                    )}
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeSubQuestion(question.id, sq.id)}>
                         <Trash2 className="size-4" />
                     </Button>
@@ -590,8 +610,12 @@ export default function EditorPage() {
           break;
         case 'creative':
           newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
-          newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন সৃজনশীল প্রশ্ন...', marks: 2});
+          // Marks are on sub-questions for creative, so we don't set it here.
+          delete newQuestion.marks;
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'ज्ञानমূলক', marks: 1});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()+1}`, type: 'short', content: 'অনুধাবনমূলক', marks: 2});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()+2}`, type: 'short', content: 'প্রয়োগমূলক', marks: 3});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()+3}`, type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
           break;
         case 'fill-in-the-blanks':
           newQuestion.content = 'খালি জায়গা পূরণ কর:';
@@ -653,6 +677,8 @@ export default function EditorPage() {
     }))
   };
 
+  questionCounter = 0;
+  
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50 text-foreground">
       {/* Header */}
@@ -797,5 +823,6 @@ export default function EditorPage() {
     </div>
   );
 }
+
 
 
