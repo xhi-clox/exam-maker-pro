@@ -101,12 +101,13 @@ export default function EditorPage() {
     useEffect(() => {
         // This effect runs only once on mount to initialize the paper.
         if (paper === null) {
+          const initialQuestions = ensureUniqueIds(initialPaperData.questions);
           setPaper({
             ...initialPaperData,
-            questions: ensureUniqueIds(initialPaperData.questions),
+            questions: initialQuestions,
           });
         }
-      }, [paper]);
+      }, []);
 
 
   const router = useRouter();
@@ -117,9 +118,9 @@ export default function EditorPage() {
   const [pages, setPages] = useState<PageContent[][]>([]);
   const hiddenRenderRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<PaperSettings>({ 
-    margins: { top: 10, bottom: 10, left: 20, right: 20 },
-    width: 877,
-    height: 827,
+    margins: { top: 10, bottom: 10, left: 10, right: 10 },
+    width: 421, // A4 landscape / 2
+    height: 595, // A4 landscape
     fontSize: 12,
   });
 
@@ -237,13 +238,13 @@ export default function EditorPage() {
     });
   
     const singlePageWidth = a4Width / 2;
-    const singlePageHeight = a4Height;
   
     const captureNode = async (pageIndex: number | null) => {
       if (pageIndex === null) {
         const blankCanvas = document.createElement('canvas');
-        blankCanvas.width = singlePageWidth * 2;
-        blankCanvas.height = singlePageHeight * 2;
+        const scale = 2;
+        blankCanvas.width = singlePageWidth * scale;
+        blankCanvas.height = a4Height * scale;
         const ctx = blankCanvas.getContext('2d');
         if (ctx) {
           ctx.fillStyle = 'white';
@@ -267,17 +268,17 @@ export default function EditorPage() {
       const leftCanvas = await captureNode(leftPageIndex);
       const rightCanvas = await captureNode(rightPageIndex);
   
-      pdf.addImage(leftCanvas.toDataURL('image/png'), 'PNG', 0, 0, singlePageWidth, singlePageHeight);
-      pdf.addImage(rightCanvas.toDataURL('image/png'), 'PNG', singlePageWidth, 0, singlePageWidth, singlePageHeight);
-  
-      if (i + 2 < bookletOrderIndices.length) {
+      if (i > 0) {
         pdf.addPage();
       }
+
+      pdf.addImage(leftCanvas, 'PNG', 0, 0, singlePageWidth, a4Height);
+      pdf.addImage(rightCanvas, 'PNG', singlePageWidth, 0, singlePageWidth, a4Height);
     }
   
     pdf.save('question-paper-booklet.pdf');
 
-    renderContainer.remove();
+    document.body.removeChild(renderContainer);
   };
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
@@ -1062,3 +1063,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
