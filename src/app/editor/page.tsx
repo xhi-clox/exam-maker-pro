@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,27 +76,25 @@ export default function EditorPage() {
     return `${prefix}${idCounter.current}`;
   };
 
-  // Effect for initial loading of default paper
   useEffect(() => {
     if (!paper) {
-      const initialQuestions = ensureUniqueIds(defaultInitialQuestions);
-       setPaper({
+      setPaper({
         ...initialPaperData,
-        questions: initialQuestions,
+        questions: ensureUniqueIds(defaultInitialQuestions),
       });
     }
-  }, [paper]);
+  }, []);
   
   const ensureUniqueIds = (questions: Question[]): Question[] => {
     let questionIndex = 0;
 
     const processQuestion = (q: Question): Question => {
-      const newQuestionId = `${generateId('q_')}_${Date.now()}_${questionIndex++}`;
+      const newQuestionId = `${generateId('q_')}_${Math.random()}_${questionIndex++}`;
       const newQuestion: Question = { ...q, id: newQuestionId };
       
       if (newQuestion.subQuestions) {
         newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
-          const newSqId = `${generateId('sq_')}_${Date.now()}_${questionIndex++}`;
+          const newSqId = `${generateId('sq_')}_${Math.random()}_${questionIndex++}`;
           const newSq: Question = { ...sq, id: newSqId };
           if (newSq.options) {
             newSq.options = newSq.options.map((opt, optIndex) => ({ ...opt, id: `${generateId('opt_')}_${newSqId}_${optIndex}` }));
@@ -118,7 +116,6 @@ export default function EditorPage() {
     return questions.map(processQuestion);
   };
   
-  // Effect for handling imported data from image or AI suggestion
   useEffect(() => {
     const from = searchParams.get('from');
     if ((from === 'image' || from === 'suggest') && paper) {
@@ -130,11 +127,10 @@ export default function EditorPage() {
             const newQuestions = ensureUniqueIds(parsedData.questions);
             
             setPaper(currentPaper => {
-                if (!currentPaper) return null; // Should not happen
+                if (!currentPaper) return null;
                 return produce(currentPaper, draft => {
                     draft.questions.push(...newQuestions);
                     
-                    // Only overwrite header if it's the default blank state
                     if (draft.questions.length === newQuestions.length && defaultInitialQuestions.length === 0) {
                         draft.schoolName = parsedData.schoolName || draft.schoolName;
                         draft.examTitle = parsedData.examTitle || draft.examTitle;
@@ -854,9 +850,6 @@ export default function EditorPage() {
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
-                     <Link href="/ai/suggest" passHref>
-                        <Button variant="outline" className="w-full border-purple-500 text-purple-500"><Sparkles className="mr-2 size-4" /> AI দিয়ে তৈরি করুন</Button>
-                    </Link>
                   </CardContent>
                 </Card>
 
@@ -919,5 +912,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    

@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 const actions = [
     {
       Icon: Sparkles,
-      title: "AI Suggest Question Paper",
+      title: "AI দিয়ে তৈরি করুন",
       description: "Generate a paper from a topic",
       href: "/ai/suggest",
       color: "bg-green-500",
@@ -61,5 +61,3 @@ export function QuickActions() {
     </div>
   );
 }
-
-    
