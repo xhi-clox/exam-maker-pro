@@ -291,7 +291,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         const timer = setTimeout(calculatePages, 200);
         return () => clearTimeout(timer);
     
-    }, [paper, settings]);
+    }, [paper.questions, settings]);
 
 
   return (
