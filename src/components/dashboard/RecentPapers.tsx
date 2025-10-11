@@ -67,7 +67,7 @@ export function RecentPapers() {
             <TableRow>
               <TableHead>শিরোনাম</TableHead>
               <TableHead>বিষয়</TableHead>
-              <TableHead>শ্রেণি</TableHead>
+              <TableHead> শ্রেি</TableHead>
               <TableHead>Last Updated</TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>

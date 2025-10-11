@@ -2,11 +2,9 @@
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { RecentPapers } from '@/components/dashboard/RecentPapers';
 import { StatsCards } from '@/components/dashboard/StatsCards';
-import { AppLayout } from '@/components/layout/AppLayout';
 
 export default function Home() {
   return (
-    <AppLayout>
       <div className="flex flex-col gap-8">
         <header>
           <h1 className="text-3xl font-bold font-headline text-foreground">
@@ -29,6 +27,5 @@ export default function Home() {
         <RecentPapers />
         
       </div>
-    </AppLayout>
   );
 }
