@@ -25,17 +25,13 @@ import { produce } from 'immer';
 import { createRoot } from 'react-dom/client';
 import { Slider } from '@/components/ui/slider';
 
-
 let idCounter = 0;
 const generateId = (prefix: string) => {
-  // This is a simple counter-based ID for client-side uniqueness.
-  // It's predictable and avoids hydration mismatches.
-  // A more robust solution might use a library like nanoid if needed for server-side generation.
   return `${prefix}${Date.now()}_${++idCounter}`;
 };
 
 const ensureUniqueIds = (questions: Question[]): Question[] => {
-    idCounter = 0; // Reset counter for each processing run
+    idCounter = 0;
     const seenIds = new Set<string>();
 
     return produce(questions, draft => {
@@ -58,6 +54,7 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
       draft.forEach(q => processNode(q, 'q_'));
     });
 };
+
 
 export type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
@@ -102,7 +99,6 @@ export default function EditorPage() {
     const [paper, setPaper] = useState<Paper | null>(null);
   
     useEffect(() => {
-        // This effect runs only once on mount to initialize the paper.
         if (paper === null) {
           const initialQuestions = ensureUniqueIds(initialPaperData.questions);
           setPaper({
@@ -122,8 +118,8 @@ export default function EditorPage() {
   const hiddenRenderRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<PaperSettings>({ 
     margins: { top: 20, bottom: 20, left: 15, right: 15 },
-    width: 421, // A4 landscape / 2 (in points)
-    height: 595, // A4 landscape (in points)
+    width: 421,
+    height: 595,
     fontSize: 12,
   });
 
@@ -137,7 +133,7 @@ export default function EditorPage() {
           const parsedData = JSON.parse(data);
           
           setPaper(currentPaper => {
-            if (!currentPaper) return null; // Should not happen if effect dependency is correct
+            if (!currentPaper) return null;
             
             const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
             
@@ -174,7 +170,6 @@ export default function EditorPage() {
     element.focus();
     element.setSelectionRange((selectionStart ?? 0) + expression.length, (selectionStart ?? 0) + expression.length);
 
-    // Manually trigger the state update
     const event = new Event('input', { bubbles: true });
     element.dispatchEvent(event);
   };
@@ -189,9 +184,8 @@ export default function EditorPage() {
   
     let n = pages.length;
     const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
-    // For booklet printing, the number of pages should be a multiple of 4.
     while (paddedPageIndices.length % 4 !== 0 && paddedPageIndices.length > 0) {
-      paddedPageIndices.push(null); // Add blank pages
+      paddedPageIndices.push(null);
     }
     n = paddedPageIndices.length;
   
@@ -199,11 +193,9 @@ export default function EditorPage() {
     if (n > 0) {
       for (let i = 0; i < n / 2; i++) {
         if (i % 2 === 0) {
-          // e.g., for 8 pages: 8, 1 | 6, 3
           bookletOrderIndices.push(paddedPageIndices[n - 1 - i]);
           bookletOrderIndices.push(paddedPageIndices[i]);
         } else {
-          // e.g., for 8 pages: 2, 7 | 4, 5
           bookletOrderIndices.push(paddedPageIndices[i]);
           bookletOrderIndices.push(paddedPageIndices[n - 1 - i]);
         }
@@ -239,10 +231,10 @@ export default function EditorPage() {
       const pageContainer = document.createElement('div');
       renderContainer.appendChild(pageContainer);
 
+      const root = createRoot(pageContainer);
       await new Promise<void>(resolve => {
-        const root = createRoot(pageContainer);
         root.render(nodeToRender);
-        setTimeout(resolve, 300); // Give it a moment to render
+        setTimeout(resolve, 300);
       });
 
       const elementToCapture = pageContainer.firstChild as HTMLElement;
@@ -254,6 +246,10 @@ export default function EditorPage() {
     };
   
     for (let i = 0; i < bookletOrderIndices.length; i += 2) {
+      if (i > 0) {
+        pdf.addPage();
+      }
+  
       const leftPageIndex = bookletOrderIndices[i];
       const rightPageIndex = bookletOrderIndices[i + 1];
   
@@ -261,10 +257,6 @@ export default function EditorPage() {
           captureNode(leftPageIndex),
           captureNode(rightPageIndex),
       ]);
-  
-      if (i > 0) {
-        pdf.addPage();
-      }
   
       const addImageToPdf = (canvas: HTMLCanvasElement | null, x: number) => {
         if (canvas) {
@@ -794,62 +786,79 @@ export default function EditorPage() {
 
         const pageBreakThreshold = settings.height - (settings.margins.top + settings.margins.bottom) * 3.78; // Convert mm to px
         const hiddenPage = hiddenRenderRef.current;
-        const headerEl = hiddenPage.querySelector('.preview-header');
-        let headerHeight = 0;
-        if (headerEl) {
-          const style = window.getComputedStyle(headerEl);
-          headerHeight = headerEl.clientHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
-        }
+        hiddenPage.innerHTML = ''; // Clear previous content
 
-        const newPages: PageContent[][] = [];
-        let currentPageContent: PageContent[] = [];
-        let currentPageHeight = 0;
-        let isFirstPage = true;
+        const tempRenderContainer = document.createElement('div');
+        hiddenPage.appendChild(tempRenderContainer);
+        
+        const root = createRoot(tempRenderContainer);
+        root.render(
+            <>
+                {paper.questions.map((q, index) => {
+                    const questionNumber = paper.questions.slice(0, index + 1).filter(q => q.type !== 'section-header').length;
+                    return renderQuestionContent(q, questionNumber, paper.questions, true);
+                })}
+            </>
+        );
 
-        const startNewPage = () => {
+        setTimeout(() => {
+            const headerEl = document.querySelector('.preview-header'); // Assuming a stable class for header
+            let headerHeight = 0;
+            if (headerEl) {
+              const style = window.getComputedStyle(headerEl);
+              headerHeight = headerEl.clientHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
+            }
+    
+            const newPages: PageContent[][] = [];
+            let currentPageContent: PageContent[] = [];
+            let currentPageHeight = 0;
+            let isFirstPage = true;
+    
+            const startNewPage = () => {
+                if (currentPageContent.length > 0) {
+                    newPages.push(currentPageContent);
+                }
+                currentPageContent = [];
+                currentPageHeight = 0;
+                isFirstPage = false;
+            };
+    
+            const questionElements = tempRenderContainer.querySelectorAll<HTMLElement>('[data-question-id]');
+    
+            questionElements.forEach((questionElement) => {
+                const questionId = questionElement.dataset.questionId;
+                const question = paper.questions.find(q => q.id === questionId);
+                if (!question) return;
+    
+                const style = window.getComputedStyle(questionElement);
+                const questionHeight = questionElement.offsetHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
+    
+                let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+                
+                if (currentPageHeight + questionHeight > availableHeight && currentPageContent.length > 0) {
+                    startNewPage();
+                }
+    
+                if (isFirstPage && currentPageHeight === 0) {
+                    currentPageHeight += headerHeight;
+                }
+    
+                const contentToAdd: PageContent = { mainQuestion: question, subQuestions: question.subQuestions || [], showMainContent: true };
+                
+                currentPageContent.push(contentToAdd);
+                currentPageHeight += questionHeight;
+            });
+    
             if (currentPageContent.length > 0) {
                 newPages.push(currentPageContent);
             }
-            currentPageContent = [];
-            currentPageHeight = 0;
-            isFirstPage = false;
-        };
-
-        paper.questions.forEach((question) => {
-            const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
-            if (!questionElement) return;
-
-            const style = window.getComputedStyle(questionElement);
-            const questionHeight = questionElement.clientHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
-
-            let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
             
-            if (currentPageHeight + questionHeight > availableHeight && currentPageContent.length > 0) {
-                startNewPage();
-                availableHeight = pageBreakThreshold;
-            }
+            setPages(newPages);
 
-            if (isFirstPage && currentPageHeight === 0) {
-                currentPageHeight += headerHeight;
-            }
-
-            const mainQuestionContent: Question = {...question, subQuestions: []};
-            const contentToAdd: PageContent = { mainQuestion: mainQuestionContent, subQuestions: question.subQuestions || [], showMainContent: true };
-            
-            currentPageContent.push(contentToAdd);
-            currentPageHeight += questionHeight;
-        });
-
-        if (currentPageContent.length > 0) {
-            newPages.push(currentPageContent);
-        }
-        
-        setPages(newPages);
+        }, 200);
     };
 
-    // Use a small timeout to ensure the DOM is updated before calculation
-    const timer = setTimeout(calculatePages, 200);
-    return () => clearTimeout(timer);
+    calculatePages();
 
   }, [paper, settings]);
   
@@ -1029,11 +1038,8 @@ export default function EditorPage() {
       </main>
       {/* Hidden div for calculations */}
       <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
-          <div ref={hiddenRenderRef}>
-              {paper && paper.questions.map(q => renderQuestionContent(q, 0, paper.questions, true))}
-          </div>
+          <div ref={hiddenRenderRef}></div>
       </div>
     </div>
   );
 }
-
