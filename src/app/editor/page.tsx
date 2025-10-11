@@ -471,7 +471,8 @@ export default function EditorPage() {
                     rows={1}
                 />
             </div>
-            <div className="flex items-center gap-4 pl-4">
+          </div>
+            <div className="flex items-center gap-4 pl-8">
               { question.type !== 'creative' && (
                 <div className="flex items-center gap-2">
                     <Label htmlFor={`marks-${question.id}`} className="text-sm">Marks:</Label>
@@ -504,7 +505,6 @@ export default function EditorPage() {
               </div>
               )}
             </div>
-          </div>
           {children}
         </Card>
       );
@@ -721,7 +721,7 @@ export default function EditorPage() {
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादক</h1>
+          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
         </div>
         <div className="flex items-center gap-2">
             <Dialog>
@@ -861,4 +861,5 @@ export default function EditorPage() {
   );
 }
 
+    
     
