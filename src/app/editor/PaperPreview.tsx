@@ -166,91 +166,92 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     }
     
     useEffect(() => {
-        const calculatePages = () => {
-            if (!hiddenRenderRef.current || paper.questions.length === 0) {
-                setPages([]);
-                return;
-            }
-            
-            const pageBreakThreshold = settings.height;
-            
-            const hiddenPage = hiddenRenderRef.current;
-            const headerEl = hiddenPage.querySelector('.preview-header');
-            const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
-            
-            const newPages: PageContent[][] = [];
-            let currentPageContent: PageContent[] = [];
-            let currentPageHeight = 0;
-            let isFirstPage = true;
+    const calculatePages = () => {
+        if (!hiddenRenderRef.current || paper.questions.length === 0) {
+            setPages([]);
+            return;
+        }
+        
+        const pageBreakThreshold = settings.height;
+        const hiddenPage = hiddenRenderRef.current;
+        const headerEl = hiddenPage.querySelector('.preview-header');
+        const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+        
+        const newPages: PageContent[][] = [];
+        let currentPageContent: PageContent[] = [];
+        let currentPageHeight = 0;
+        let isFirstPage = true;
 
-            let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
-            
-            paper.questions.forEach((question) => {
-                const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
-                if (!questionElement) return;
-
-                const mainContentEl = questionElement.querySelector('.question-content');
-                const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
-                
-                if (isFirstPage) {
-                    currentPageHeight += headerHeight;
-                }
-
-                if (currentPageHeight + mainContentHeight > availableHeight) {
-                    newPages.push(currentPageContent);
-                    currentPageContent = [];
-                    currentPageHeight = 0;
-                    isFirstPage = false;
-                    availableHeight = pageBreakThreshold;
-                }
-                
-                let mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
-                if (!mainOnPage) {
-                    mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
-                    currentPageContent.push(mainOnPage);
-                    currentPageHeight += mainContentHeight;
-                }
-
-                question.subQuestions?.forEach((sq) => {
-                    const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
-                    if (!subQuestionEl) return;
-                    
-                    const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
-
-                    if (currentPageHeight + subQuestionHeight > availableHeight) {
-                        newPages.push(currentPageContent);
-                        currentPageContent = [];
-                        currentPageHeight = 0;
-                        isFirstPage = false;
-                        availableHeight = pageBreakThreshold;
-
-                        mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
-                        if (!mainOnPage) {
-                           mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
-                           currentPageContent.push(mainOnPage);
-                           currentPageHeight += mainContentHeight;
-                        }
-                    }
-
-                    currentPageHeight += subQuestionHeight;
-                    mainOnPage.subQuestions.push(sq);
-                });
-            });
-
+        const startNewPage = () => {
             if (currentPageContent.length > 0) {
                 newPages.push(currentPageContent);
             }
-            
-            setPages(newPages);
-            if (currentPage >= newPages.length) {
-                setCurrentPage(Math.max(0, newPages.length - 1));
-            }
+            currentPageContent = [];
+            currentPageHeight = 0;
+            isFirstPage = false;
         };
 
-        const timer = setTimeout(calculatePages, 200);
-        return () => clearTimeout(timer);
+        paper.questions.forEach((question) => {
+            const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
+            if (!questionElement) return;
 
-    }, [paper, settings]);
+            const mainContentEl = questionElement.querySelector('.question-content');
+            const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
+            
+            const availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+
+            if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
+                startNewPage();
+            }
+            
+            let mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
+            if (!mainOnPage) {
+                mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
+                currentPageContent.push(mainOnPage);
+                const currentHeightOnPage = isFirstPage ? headerHeight + mainContentHeight : mainContentHeight;
+                if (currentPageHeight === 0) {
+                  currentPageHeight = currentHeightOnPage;
+                } else {
+                  currentPageHeight += mainContentHeight;
+                }
+            }
+            
+            question.subQuestions?.forEach((sq) => {
+                const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
+                if (!subQuestionEl) return;
+                
+                const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
+                const newAvailableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+
+                if (currentPageHeight + subQuestionHeight > newAvailableHeight) {
+                    startNewPage();
+                    mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
+                    if (!mainOnPage) {
+                       mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
+                       currentPageContent.push(mainOnPage);
+                       currentPageHeight += mainContentHeight;
+                    }
+                }
+
+                currentPageHeight += subQuestionHeight;
+                mainOnPage.subQuestions.push(sq);
+            });
+        });
+
+        if (currentPageContent.length > 0) {
+            newPages.push(currentPageContent);
+        }
+        
+        setPages(newPages);
+        if (currentPage >= newPages.length) {
+            setCurrentPage(Math.max(0, newPages.length - 1));
+        }
+    };
+
+    const timer = setTimeout(calculatePages, 200);
+    return () => clearTimeout(timer);
+
+}, [paper, settings]);
 
   return (
     <>
@@ -320,7 +321,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         {/* Visible container for rendering pages */}
         <div className="space-y-4">
              {pages.length > 0 ? (
-                <PaperPage paper={paper} pageContent={pages[currentPage]} isFirstPage={currentPage === 0} settings={settings} allQuestions={paper.questions} />
+                pages.map((pageContent, i) => <PaperPage key={i} paper={paper} pageContent={pageContent} isFirstPage={i === 0} settings={settings} allQuestions={paper.questions} />)
             ) : (
                 <PaperPage paper={paper} pageContent={[]} isFirstPage={true} settings={settings} allQuestions={paper.questions} />
             )}
@@ -340,3 +341,5 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
+
+    
