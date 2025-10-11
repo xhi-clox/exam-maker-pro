@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import PaperPreview from './PaperPreview';
 import jsPDF from 'jspdf';
@@ -101,6 +100,10 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
                 if (newSq.options) {
                     newSq.options = newSq.options.map(opt => ({ ...opt, id: generateId('opt_') }));
                 }
+                // Recursively process sub-questions of sub-questions if any
+                if (newSq.subQuestions) {
+                    newSq.subQuestions = newSq.subQuestions.map(processQuestion);
+                }
                 return newSq;
             });
         }
@@ -118,65 +121,67 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
 
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(initialPaperData);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const hasInitialized = useRef(false);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
 
-  const searchParams = useSearchParams();
-
-  // Initialize with default questions only on the client-side to avoid hydration errors
   useEffect(() => {
-    setPaper(prev => ({
-        ...prev,
-        questions: ensureUniqueIds(defaultInitialQuestions)
-    }));
-  }, []);
-
-  useLayoutEffect(() => {
+    // This effect runs only once on the client side after hydration.
+    // It handles both initializing default questions and importing from localStorage.
+    if (hasInitialized.current) {
+        return;
+    }
+    
     const from = searchParams.get('from');
-    if (from === 'image' || from === 'suggest') {
-      const data = localStorage.getItem('newImageData');
-      if (data) {
-        try {
-          const parsedData = JSON.parse(data);
-          
-          setPaper(currentPaper => {
-            const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
-            const isInitialState = currentPaper.questions.length === 0 || (currentPaper.questions.length === 2 && currentPaper.schoolName === initialPaperData.schoolName);
+    const data = localStorage.getItem('newImageData');
 
-            if (isInitialState && parsedData.questions) {
-                 return {
-                    schoolName: parsedData.schoolName || initialPaperData.schoolName,
-                    examTitle: parsedData.examTitle || initialPaperData.examTitle,
-                    subject: parsedData.subject || initialPaperData.subject,
-                    grade: parsedData.grade || initialPaperData.grade,
-                    board: parsedData.board || initialPaperData.board,
-                    timeAllowed: parsedData.timeAllowed || initialPaperData.timeAllowed,
-                    totalMarks: parsedData.totalMarks || initialPaperData.totalMarks,
-                    notes: parsedData.notes || initialPaperData.notes,
-                    questions: newQuestions,
-                };
-            } else {
-                 return produce(currentPaper, draft => {
-                    draft.questions.push(...newQuestions);
-                    if (parsedData.totalMarks && typeof parsedData.totalMarks === 'number') {
-                        draft.totalMarks += parsedData.totalMarks;
-                    }
-                });
-            }
-          });
+    if ((from === 'image' || from === 'suggest') && data) {
+        try {
+            const parsedData = JSON.parse(data);
+            const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
+
+            setPaper(currentPaper => {
+                const isInitialState = currentPaper.questions.length === 0;
+
+                if (isInitialState) {
+                    // If the paper is empty, replace the whole paper data
+                    return {
+                        ...initialPaperData,
+                        ...parsedData,
+                        questions: newQuestions,
+                    };
+                } else {
+                    // Otherwise, append questions and update marks
+                    return produce(currentPaper, draft => {
+                        draft.questions.push(...newQuestions);
+                        if (parsedData.totalMarks && typeof parsedData.totalMarks === 'number') {
+                            draft.totalMarks += parsedData.totalMarks;
+                        }
+                    });
+                }
+            });
 
         } catch (e) {
-          console.error("Failed to parse paper data from localStorage", e);
+            console.error("Failed to parse paper data from localStorage", e);
+            // Fallback to default questions if parsing fails
+            setPaper(prev => ({...prev, questions: ensureUniqueIds(defaultInitialQuestions)}));
         } finally {
-           localStorage.removeItem('newImageData');
-           const url = new URL(window.location.href);
-           url.searchParams.delete('from');
-           window.history.replaceState({}, '', url.toString());
+            localStorage.removeItem('newImageData');
+            const url = new URL(window.location.href);
+            url.searchParams.delete('from');
+            router.replace(url.toString(), { scroll: false });
         }
-      }
+    } else {
+        // If not importing, set the default questions
+        setPaper(prev => ({...prev, questions: ensureUniqueIds(defaultInitialQuestions)}));
     }
-  }, [searchParams]);
+    
+    hasInitialized.current = true;
+  }, [searchParams, router]);
+
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -947,5 +952,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
