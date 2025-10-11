@@ -87,21 +87,22 @@ type PageContent = {
   subQuestions: Question[];
 }
 
-const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: PageContent[]; isFirstPage: boolean; margins: any; allQuestions: Question[] }>(({ paper, pageContent, isFirstPage, margins, allQuestions }, ref) => {
+const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: PageContent[]; isFirstPage: boolean; settings: PaperSettings; allQuestions: Question[] }>(({ paper, pageContent, isFirstPage, settings, allQuestions }, ref) => {
     const getSubjectName = (subjectKey: string) => subjectMap[subjectKey] || subjectKey;
     const getGradeName = (gradeKey: string) => gradeMap[gradeKey] || gradeKey;
     
     const pageStyle: React.CSSProperties = {
-        width: '210mm',
-        minHeight: '297mm',
-        paddingTop: `${margins.top}mm`,
-        paddingBottom: `${margins.bottom}mm`,
-        paddingLeft: `${margins.left}mm`,
-        paddingRight: `${margins.right}mm`,
+        width: `${settings.width}px`,
+        minHeight: `${settings.height}px`,
+        paddingTop: `${settings.margins.top}mm`,
+        paddingBottom: `${settings.margins.bottom}mm`,
+        paddingLeft: `${settings.margins.left}mm`,
+        paddingRight: `${settings.margins.right}mm`,
+        fontSize: `${settings.fontSize}pt`,
     };
 
     return (
-        <div ref={ref} className="bg-white text-black font-serif max-w-3xl mx-auto border rounded-sm shadow-lg paper-page" style={pageStyle}>
+        <div ref={ref} className="bg-white text-black font-serif max-w-none mx-auto border rounded-sm shadow-lg paper-page" style={pageStyle}>
             {isFirstPage && (
                 <>
                     <header className="text-center mb-6">
@@ -135,17 +136,32 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: 
 });
 PaperPage.displayName = "PaperPage";
 
+interface PaperSettings {
+  margins: { top: number; bottom: number; left: number; right: number; };
+  width: number;
+  height: number;
+  fontSize: number;
+}
 
 export default function PaperPreview({ paper }: { paper: Paper }) {
     const [pages, setPages] = useState<PageContent[][]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const hiddenRenderRef = useRef<HTMLDivElement>(null);
-    const [margins, setMargins] = useState({ top: 20, bottom: 20, left: 20, right: 20 });
+    const [settings, setSettings] = useState<PaperSettings>({ 
+      margins: { top: 20, bottom: 20, left: 20, right: 20 },
+      width: 870,
+      height: 1122, // Approx A4 height in px at 96 DPI
+      fontSize: 12,
+    });
 
-    const handleMarginChange = (side: keyof typeof margins, value: string) => {
+    const handleSettingChange = (key: keyof PaperSettings, value: any) => {
+        setSettings(prev => ({...prev, [key]: value }));
+    };
+
+    const handleMarginChange = (side: keyof PaperSettings['margins'], value: string) => {
       const numValue = Number(value);
       if (!isNaN(numValue)) {
-        setMargins(prev => ({...prev, [side]: numValue }));
+        setSettings(prev => ({...prev, margins: {...prev.margins, [side]: numValue }}));
       }
     }
     
@@ -155,11 +171,9 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 setPages([]);
                 return;
             }
-
-            const MM_TO_PX = 3.7795275591;
-            const PAGE_HEIGHT_MM = 297;
-            const pageContentHeightPx = (PAGE_HEIGHT_MM - margins.top - margins.bottom) * MM_TO_PX;
-
+            
+            const pageBreakThreshold = settings.height;
+            
             const hiddenPage = hiddenRenderRef.current;
             const headerEl = hiddenPage.querySelector('.preview-header');
             const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
@@ -169,29 +183,32 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             let currentPageHeight = 0;
             let isFirstPage = true;
 
+            let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+            
             paper.questions.forEach((question) => {
                 const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
                 if (!questionElement) return;
 
                 const mainContentEl = questionElement.querySelector('.question-content');
                 const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
+                
+                if (isFirstPage) {
+                    currentPageHeight += headerHeight;
+                }
 
-                let availableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
-
-                // Check if main question content itself overflows
-                if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
+                if (currentPageHeight + mainContentHeight > availableHeight) {
                     newPages.push(currentPageContent);
                     currentPageContent = [];
                     currentPageHeight = 0;
                     isFirstPage = false;
-                    availableHeight = pageContentHeightPx;
+                    availableHeight = pageBreakThreshold;
                 }
                 
-                currentPageHeight += mainContentHeight;
                 let mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
                 if (!mainOnPage) {
                     mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
                     currentPageContent.push(mainOnPage);
+                    currentPageHeight += mainContentHeight;
                 }
 
                 question.subQuestions?.forEach((sq) => {
@@ -199,15 +216,14 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                     if (!subQuestionEl) return;
                     
                     const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
-                    let recheckAvailableHeight = isFirstPage ? pageContentHeightPx - headerHeight : pageContentHeightPx;
 
-                    if (currentPageHeight + subQuestionHeight > recheckAvailableHeight) {
+                    if (currentPageHeight + subQuestionHeight > availableHeight) {
                         newPages.push(currentPageContent);
                         currentPageContent = [];
                         currentPageHeight = 0;
                         isFirstPage = false;
-                        
-                        // Check if we need to add the main question header to the new page
+                        availableHeight = pageBreakThreshold;
+
                         mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
                         if (!mainOnPage) {
                            mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
@@ -231,21 +247,22 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             }
         };
 
-        const timer = setTimeout(calculatePages, 100);
+        const timer = setTimeout(calculatePages, 200);
         return () => clearTimeout(timer);
 
-    }, [paper, margins]);
+    }, [paper, settings]);
 
   return (
     <>
         {/* Hidden container for layout calculation */}
-        <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: '210mm' }}>
+        <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
              <div ref={hiddenRenderRef}>
                 <div style={{
-                    paddingTop: `${margins.top}mm`,
-                    paddingBottom: `${margins.bottom}mm`,
-                    paddingLeft: `${margins.left}mm`,
-                    paddingRight: `${margins.right}mm`,
+                    paddingTop: `${settings.margins.top}mm`,
+                    paddingBottom: `${settings.margins.bottom}mm`,
+                    paddingLeft: `${settings.margins.left}mm`,
+                    paddingRight: `${settings.margins.right}mm`,
+                    fontSize: `${settings.fontSize}pt`,
                 }}>
                   <header className="text-center mb-6 preview-header">
                       <h1 className="text-xl font-bold">{paper.schoolName}</h1>
@@ -269,31 +286,43 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             </div>
         </div>
 
-        <div className="flex justify-center items-center gap-4 mb-4 p-4 border-b bg-slate-50">
+        <div className="flex flex-wrap justify-center items-center gap-4 mb-4 p-4 border-b bg-slate-50">
+            <div className='flex items-center gap-2'>
+              <Label htmlFor='paper-width'>Width (px)</Label>
+              <Input id='paper-width' type="number" value={settings.width} onChange={(e) => handleSettingChange('width', Number(e.target.value))} className="w-24 h-8" />
+            </div>
+            <div className='flex items-center gap-2'>
+              <Label htmlFor='paper-height'>Height (px)</Label>
+              <Input id='paper-height' type="number" value={settings.height} onChange={(e) => handleSettingChange('height', Number(e.target.value))} className="w-24 h-8" />
+            </div>
+            <div className='flex items-center gap-2'>
+              <Label htmlFor='font-size'>Font (pt)</Label>
+              <Input id='font-size' type="number" value={settings.fontSize} onChange={(e) => handleSettingChange('fontSize', Number(e.target.value))} className="w-20 h-8" />
+            </div>
             <div className='flex items-center gap-2'>
               <Label htmlFor='margin-top'>Top (mm)</Label>
-              <Input id='margin-top' type="number" value={margins.top} onChange={(e) => handleMarginChange('top', e.target.value)} className="w-20 h-8" />
+              <Input id='margin-top' type="number" value={settings.margins.top} onChange={(e) => handleMarginChange('top', e.target.value)} className="w-20 h-8" />
             </div>
              <div className='flex items-center gap-2'>
               <Label htmlFor='margin-bottom'>Bottom (mm)</Label>
-              <Input id='margin-bottom' type="number" value={margins.bottom} onChange={(e) => handleMarginChange('bottom', e.target.value)} className="w-20 h-8" />
+              <Input id='margin-bottom' type="number" value={settings.margins.bottom} onChange={(e) => handleMarginChange('bottom', e.target.value)} className="w-20 h-8" />
             </div>
              <div className='flex items-center gap-2'>
               <Label htmlFor='margin-left'>Left (mm)</Label>
-              <Input id='margin-left' type="number" value={margins.left} onChange={(e) => handleMarginChange('left', e.target.value)} className="w-20 h-8" />
+              <Input id='margin-left' type="number" value={settings.margins.left} onChange={(e) => handleMarginChange('left', e.target.value)} className="w-20 h-8" />
             </div>
              <div className='flex items-center gap-2'>
               <Label htmlFor='margin-right'>Right (mm)</Label>
-              <Input id='margin-right' type="number" value={margins.right} onChange={(e) => handleMarginChange('right', e.target.value)} className="w-20 h-8" />
+              <Input id='margin-right' type="number" value={settings.margins.right} onChange={(e) => handleMarginChange('right', e.target.value)} className="w-20 h-8" />
             </div>
         </div>
 
         {/* Visible container for rendering pages */}
         <div className="space-y-4">
              {pages.length > 0 ? (
-                <PaperPage paper={paper} pageContent={pages[currentPage]} isFirstPage={currentPage === 0} margins={margins} allQuestions={paper.questions} />
+                <PaperPage paper={paper} pageContent={pages[currentPage]} isFirstPage={currentPage === 0} settings={settings} allQuestions={paper.questions} />
             ) : (
-                <PaperPage paper={paper} pageContent={[]} isFirstPage={true} margins={margins} allQuestions={paper.questions} />
+                <PaperPage paper={paper} pageContent={[]} isFirstPage={true} settings={settings} allQuestions={paper.questions} />
             )}
         </div>
         
@@ -311,5 +340,3 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
-
-    
