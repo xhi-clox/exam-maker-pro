@@ -26,27 +26,33 @@ import { produce } from 'immer';
 let idCounter = 0;
 const generateId = (prefix: string) => {
   idCounter++;
-  return `${prefix}${Date.now()}_${idCounter}`;
+  // This is a simple counter-based ID for client-side uniqueness.
+  // It's predictable and avoids hydration mismatches.
+  return `${prefix}${idCounter}`;
 };
 
 const ensureUniqueIds = (questions: Question[]): Question[] => {
     idCounter = 0; // Reset counter for each processing run
+    const seenIds = new Set<string>();
+
     return produce(questions, draft => {
-      const processNode = (node: any) => {
-        // A simple function to generate a more unique-ish ID for client-side rendering
-        const simpleUniqueId = () => `${prefix}${Math.random().toString(36).substr(2, 9)}`;
-        const prefix = node.type ? `${node.type}_` : 'id_';
-        node.id = simpleUniqueId();
+      const processNode = (node: any, prefix: string) => {
+        let newId = node.id && !node.id.includes('undefined') ? node.id : generateId(prefix);
+        while(seenIds.has(newId)) {
+            newId = generateId(prefix);
+        }
+        node.id = newId;
+        seenIds.add(newId);
   
         if (node.options) {
-          node.options.forEach((option: any) => processNode(option));
+          node.options.forEach((option: any) => processNode(option, 'opt_'));
         }
         if (node.subQuestions) {
-          node.subQuestions.forEach((sub: any) => processNode(sub));
+          node.subQuestions.forEach((sub: any) => processNode(sub, 'sq_'));
         }
       };
   
-      draft.forEach(q => processNode(q));
+      draft.forEach(q => processNode(q, 'q_'));
     });
 };
 
@@ -93,13 +99,14 @@ export default function EditorPage() {
     const [paper, setPaper] = useState<Paper | null>(null);
   
     useEffect(() => {
-        if (!paper) {
-            setPaper({
-                ...initialPaperData,
-                questions: ensureUniqueIds(initialPaperData.questions),
-            });
+        // This effect runs only once on mount to initialize the paper.
+        if (paper === null) {
+          setPaper({
+            ...initialPaperData,
+            questions: ensureUniqueIds(initialPaperData.questions),
+          });
         }
-    }, [paper]);
+      }, [paper]);
 
 
   const router = useRouter();
@@ -119,17 +126,14 @@ export default function EditorPage() {
   // Import effect
   useEffect(() => {
     const from = searchParams.get('from');
-    if ((from === 'image' || from === 'suggest')) {
+    if ((from === 'image' || from === 'suggest') && paper) {
       const data = localStorage.getItem('newImageData');
       if (data) {
         try {
           const parsedData = JSON.parse(data);
           
           setPaper(currentPaper => {
-            if (!currentPaper) {
-                const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
-                 return { ...initialPaperData, questions: newQuestions };
-            }
+            if (!currentPaper) return null; // Should not happen if effect dependency is correct
             
             const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
             
@@ -148,7 +152,7 @@ export default function EditorPage() {
         }
       }
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, paper]);
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -191,20 +195,18 @@ export default function EditorPage() {
       />
     ));
     
-    // Create a temporary container to render pages for capturing
     const renderContainer = document.createElement('div');
     renderContainer.style.position = 'absolute';
     renderContainer.style.left = '-9999px';
     document.body.appendChild(renderContainer);
     
-    // Use React's DOM rendering to get the page nodes
     const { createRoot } = await import('react-dom/client');
     await new Promise<void>((resolve) => {
         createRoot(renderContainer).render(<div>{pageNodesToRender}</div>);
-        setTimeout(resolve, 500); // Give it a moment to render
+        setTimeout(resolve, 500); 
     });
 
-    const renderedPageNodes = Array.from(renderContainer.children) as HTMLElement[];
+    const renderedPageNodes = Array.from(renderContainer.querySelectorAll('.paper-page')) as HTMLElement[];
 
     let n = pages.length;
     const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
@@ -226,8 +228,8 @@ export default function EditorPage() {
       }
     }
   
-    const a4Width = 842; // A4 landscape width in points
-    const a4Height = 595; // A4 landscape height in points
+    const a4Width = 842; 
+    const a4Height = 595; 
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'pt',
@@ -275,7 +277,6 @@ export default function EditorPage() {
   
     pdf.save('question-paper-booklet.pdf');
 
-    // Cleanup
     renderContainer.remove();
   };
 
@@ -884,7 +885,7 @@ export default function EditorPage() {
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादক</h1>
+          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
         </div>
         <div className="flex items-center gap-2">
             <Dialog>
@@ -978,6 +979,12 @@ export default function EditorPage() {
                     <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
+                    </Link>
+                     <Link href="/ai/suggest" passHref>
+                      <Button variant="outline" className="w-full border-purple-500 text-purple-500">
+                        <Sparkles className="mr-2 size-4" />
+                        AI দিয়ে তৈরি করুন
+                      </Button>
                     </Link>
                   </CardContent>
                 </Card>
