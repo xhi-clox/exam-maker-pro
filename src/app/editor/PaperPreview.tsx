@@ -11,6 +11,7 @@ export interface PaperSettings {
   width: number;
   height: number;
   fontSize: number;
+  lineHeight: number;
 }
 
 export type PageContent = {
@@ -124,6 +125,7 @@ export const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageCo
         paddingLeft: `${settings.margins.left}mm`,
         paddingRight: `${settings.margins.right}mm`,
         fontSize: `${settings.fontSize}pt`,
+        lineHeight: settings.lineHeight,
         overflow: 'hidden',
         boxSizing: 'border-box'
     };

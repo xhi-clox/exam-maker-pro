@@ -123,6 +123,7 @@ export default function EditorPage() {
     width: 560, 
     height: 794,
     fontSize: 12,
+    lineHeight: 1.5,
   });
 
   // Import effect
@@ -198,24 +199,15 @@ export default function EditorPage() {
                 const img = new Image();
                 img.src = canvasDataUrl;
                 
-                const targetWidth = a4Width / 2;
-                const targetHeight = a4Height;
-                
-                const imgAspectRatio = img.width / img.height;
-                const targetAspectRatio = targetWidth / targetHeight;
+                const a4HalfWidth = a4Width / 2;
+                const a4HalfHeight = a4Height;
 
-                let drawWidth, drawHeight, drawX, drawY;
-
-                if (imgAspectRatio > targetAspectRatio) {
-                    drawWidth = targetWidth;
-                    drawHeight = drawWidth / imgAspectRatio;
-                } else {
-                    drawHeight = targetHeight;
-                    drawWidth = drawHeight * imgAspectRatio;
-                }
+                const scale = Math.min(a4HalfWidth / img.width, a4HalfHeight / img.height);
+                const drawWidth = img.width * scale;
+                const drawHeight = img.height * scale;
                 
-                drawX = x + (targetWidth - drawWidth) / 2;
-                drawY = (targetHeight - drawHeight) / 2;
+                const drawX = x + (a4HalfWidth - drawWidth) / 2;
+                const drawY = (a4HalfHeight - drawHeight) / 2;
 
                 pdf.addImage(img, 'PNG', drawX, drawY, drawWidth, drawHeight);
             }
@@ -831,24 +823,44 @@ export default function EditorPage() {
       const root = createRoot(tempRenderContainer);
   
       const questionNodes = (
-        <div>
-          {paper.questions.map((q, index) => {
-            const questionNumber = paper.questions.slice(0, index + 1).filter(q_ => q_.type !== 'section-header').length;
-            return renderQuestionContent(q, questionNumber, paper.questions, true);
-          })}
-        </div>
+        <PaperPage
+            paper={paper}
+            pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
+            isFirstPage={true} // Simplified for measurement
+            settings={settings}
+            allQuestions={paper.questions}
+        />
       );
   
       root.render(questionNodes);
   
       setTimeout(() => {
-        const headerEl = document.querySelector('.preview-header');
+        const renderedPaperPage = tempRenderContainer.querySelector('.paper-page');
+        if (!renderedPaperPage) {
+            root.unmount();
+            if (hiddenPage.contains(tempRenderContainer)) {
+                hiddenPage.removeChild(tempRenderContainer);
+            }
+            return;
+        }
+
+        const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>('[data-question-id]'));
+  
+        const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
         let headerHeight = 0;
         if (headerEl) {
-          const style = window.getComputedStyle(headerEl);
-          headerHeight = headerEl.clientHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
+            const style = window.getComputedStyle(headerEl);
+            headerHeight = headerEl.offsetHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
         }
-  
+
+        const notesEl = renderedPaperPage.querySelector<HTMLElement>('.text-center.text-sm.font-semibold.mb-6');
+        if(notesEl) headerHeight += notesEl.offsetHeight + parseInt(window.getComputedStyle(notesEl).marginBottom);
+        
+        const flexLineEls = renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm');
+        flexLineEls.forEach(el => {
+            headerHeight += el.offsetHeight + parseInt(window.getComputedStyle(el).marginBottom);
+        });
+
         const newPages: PageContent[][] = [];
         let currentPageContent: PageContent[] = [];
         let currentPageHeight = 0;
@@ -859,13 +871,15 @@ export default function EditorPage() {
             newPages.push(currentPageContent);
           }
           currentPageContent = [];
-          currentPageHeight = 0;
+          currentPageHeight = 0; // No header on subsequent pages
           isFirstPage = false;
         };
   
-        const questionElements = tempRenderContainer.querySelectorAll<HTMLElement>('[data-question-id]');
+        if (isFirstPage) {
+            currentPageHeight += headerHeight;
+        }
   
-        questionElements.forEach((questionElement) => {
+        allQuestionElements.forEach((questionElement) => {
           const questionId = questionElement.dataset.questionId;
           const question = paper.questions.find(q => q.id === questionId);
           if (!question) return;
@@ -873,16 +887,15 @@ export default function EditorPage() {
           const style = window.getComputedStyle(questionElement);
           const questionHeight = questionElement.offsetHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
   
-          let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+          let availableHeight = pageBreakThreshold;
           
           if (currentPageHeight + questionHeight > availableHeight && currentPageContent.length > 0) {
             startNewPage();
+             if (isFirstPage) { // This condition is now false, so header won't be added again
+                currentPageHeight += headerHeight;
+            }
           }
-  
-          if (isFirstPage && currentPageHeight === 0) {
-            currentPageHeight += headerHeight;
-          }
-  
+          
           const contentToAdd: PageContent = { mainQuestion: question, subQuestions: question.subQuestions || [], showMainContent: true };
           
           currentPageContent.push(contentToAdd);
@@ -901,7 +914,7 @@ export default function EditorPage() {
             hiddenPage.removeChild(tempRenderContainer);
         }
 
-      }, 200);
+      }, 300); // Increased timeout for complex rendering
     };
   
     calculatePages();
@@ -1069,6 +1082,14 @@ export default function EditorPage() {
                             value={[settings.fontSize]}
                             onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
                             min={8} max={18} step={1}
+                         />
+                      </div>
+                       <div className="space-y-2">
+                        <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
+                        <Slider
+                            value={[settings.lineHeight]}
+                            onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
+                            min={1.2} max={2.5} step={0.1}
                          />
                       </div>
                        <div className="space-y-2">
