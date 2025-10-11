@@ -94,6 +94,7 @@ const renderQuestionContent = (question: Question, questionIndex: number, allQue
 type PageContent = {
   mainQuestion: Question;
   subQuestions: Question[];
+  showMainContent: boolean;
 }
 
 const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: PageContent[]; isFirstPage: boolean; settings: PaperSettings; allQuestions: Question[] }>(({ paper, pageContent, isFirstPage, settings, allQuestions }, ref) => {
@@ -109,8 +110,6 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: 
         paddingRight: `${settings.margins.right}mm`,
         fontSize: `${settings.fontSize}pt`,
     };
-
-    const processedQuestionIds = new Set<string>();
 
     return (
         <div ref={ref} className="bg-white text-black font-serif max-w-none mx-auto border rounded-sm shadow-lg paper-page" style={pageStyle}>
@@ -139,9 +138,7 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: 
                         ...content.mainQuestion,
                         subQuestions: content.subQuestions
                     };
-                    const showMainContent = !processedQuestionIds.has(questionToRender.id);
-                    processedQuestionIds.add(questionToRender.id);
-                    return renderQuestionContent(questionToRender, originalQuestionIndex, allQuestions, showMainContent);
+                    return renderQuestionContent(questionToRender, originalQuestionIndex, allQuestions, content.showMainContent);
                 })}
             </main>
         </div>
@@ -194,6 +191,8 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
         let currentPageContent: PageContent[] = [];
         let currentPageHeight = 0;
         let isFirstPage = true;
+        
+        const processedQuestionIds = new Set<string>();
 
         const startNewPage = () => {
             if (currentPageContent.length > 0) {
@@ -220,12 +219,18 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
                     startNewPage();
                 }
-                mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
+                const showMainContent = !processedQuestionIds.has(question.id);
+                if(showMainContent) {
+                  processedQuestionIds.add(question.id);
+                }
+                mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [], showMainContent };
                 currentPageContent.push(mainOnPage);
-                const currentHeightOnPage = isFirstPage ? headerHeight + mainContentHeight : mainContentHeight;
+                
+                const currentHeightOnPage = isFirstPage ? headerHeight : 0;
                 if (currentPageHeight === 0) {
                   currentPageHeight = currentHeightOnPage;
-                } else {
+                }
+                if(showMainContent) {
                   currentPageHeight += mainContentHeight;
                 }
             }
@@ -242,10 +247,15 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                     // After starting a new page, check if a container for the main question is needed.
                     mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
                     if (!mainOnPage) {
-                       mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
+                       const showMainContent = !processedQuestionIds.has(question.id);
+                       if(showMainContent) {
+                         processedQuestionIds.add(question.id);
+                       }
+                       mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [], showMainContent };
                        currentPageContent.push(mainOnPage);
-                       // Only add main content height if this is the first time this question appears on a page
-                       // On a new page, the main question header itself won't be rendered again, so don't add its height.
+                       if(showMainContent) {
+                         currentPageHeight += mainContentHeight;
+                       }
                     }
                 }
 
