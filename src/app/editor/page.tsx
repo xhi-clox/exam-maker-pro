@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, GripVertical, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -25,7 +25,7 @@ type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
 export interface Question {
   id: string;
-  type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay' | 'table' | 'creative';
+  type: 'passage' | 'fill-in-the-blanks' | 'short' | 'mcq' | 'essay' | 'table' | 'creative' | 'section-header';
   content: string;
   marks?: number;
   options?: { id: string; text: string }[];
@@ -402,6 +402,19 @@ export default function EditorPage() {
     const handleRemove = () => removeQuestion(question.id);
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
 
+    if (question.type === 'section-header') {
+        return (
+            <Card key={question.id} className="group relative p-4 bg-slate-100">
+                 <QuestionActions onRemove={handleRemove} />
+                 <Input 
+                    value={question.content}
+                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    className="text-center font-bold underline decoration-dotted text-lg border-0 focus-visible:ring-0 shadow-none"
+                 />
+            </Card>
+        )
+    }
+
     const questionCard = (title: string, children: React.ReactNode) => (
         <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
           <QuestionActions onRemove={handleRemove} />
@@ -559,6 +572,11 @@ export default function EditorPage() {
       content: '',
       marks: 5,
     };
+    
+    if (type === 'section-header') {
+        newQuestion.content = 'ক বিভাগ';
+        delete newQuestion.marks;
+    }
 
     if (type === 'passage' || type === 'short' || type === 'essay' || type === 'fill-in-the-blanks' || type === 'mcq' || type === 'creative') {
       newQuestion.subQuestions = [];
@@ -640,7 +658,7 @@ export default function EditorPage() {
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
+          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादক</h1>
         </div>
         <div className="flex items-center gap-2">
             <Dialog>
@@ -706,6 +724,7 @@ export default function EditorPage() {
                     <CardTitle>প্রশ্ন যোগ করুন</CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-2">
+                    <Button variant="outline" onClick={() => addQuestion('section-header')}><Minus className="mr-2 size-4" /> বিভাগ যোগ করুন</Button>
                     <Button variant="outline" onClick={() => addQuestion('passage')}><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
                     <Button variant="outline" onClick={() => addQuestion('creative')}><BookMarked className="mr-2 size-4" /> সৃজনশীল প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('mcq')}><ListOrdered className="mr-2 size-4" /> MCQ</Button>
@@ -778,4 +797,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
 

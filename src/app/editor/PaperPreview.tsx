@@ -48,6 +48,15 @@ const getNumbering = (format: NumberingFormat | undefined, index: number): strin
 const renderQuestionContent = (question: Question, questionIndex: number, allQuestions: Question[], showMainContent: boolean) => {
     const originalQuestion = allQuestions.find(q => q.id === question.id);
 
+    if (question.type === 'section-header') {
+        return (
+            <div key={question.id} className="text-center font-bold underline decoration-dotted text-lg my-4" data-question-id={question.id}>
+                {question.content}
+            </div>
+        );
+    }
+
+
     return (
       <div key={question.id} className="mb-4 question-item" data-question-id={question.id}>
         {showMainContent && (
@@ -201,7 +210,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 currentPageHeight = 0;
                 isFirstPage = false;
             };
-
+            
             paper.questions.forEach((question) => {
                 const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
                 if (!questionElement) return;
@@ -210,46 +219,45 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
                 
                 const availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
-
-                let mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
-                let showMainContentOnNewPage = true;
                 
-                if (!mainOnPage) {
+                let mainQuestionOnPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
+
+                if (!mainQuestionOnPage) {
                     if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
                         startNewPage();
                     }
-                    mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [], showMainContent: true };
-                    currentPageContent.push(mainOnPage);
-                    if (currentPageHeight === 0 && isFirstPage) {
-                      currentPageHeight = headerHeight;
+                    if (isFirstPage && currentPageHeight === 0) {
+                        currentPageHeight = headerHeight;
                     }
+                    
+                    const contentToAdd: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: true };
+                    currentPageContent.push(contentToAdd);
+                    mainQuestionOnPage = contentToAdd;
                     currentPageHeight += mainContentHeight;
-                    showMainContentOnNewPage = false; 
                 }
-                
+
                 question.subQuestions?.forEach((sq) => {
                     const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
                     if (!subQuestionEl) return;
                     
                     const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
-                    const newAvailableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
-
-                    if (currentPageHeight + subQuestionHeight > newAvailableHeight) {
+                    const currentAvailableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+                    
+                    if (currentPageHeight + subQuestionHeight > currentAvailableHeight) {
                         startNewPage();
-                        mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
-                        if (!mainOnPage) {
-                           mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [], showMainContent: showMainContentOnNewPage };
-                           currentPageContent.push(mainOnPage);
-                           if(showMainContentOnNewPage) {
-                            currentPageHeight += mainContentHeight;
-                           }
+                        
+                        let existingMainOnNewPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
+                        if (!existingMainOnNewPage) {
+                            const newMainContent: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: false };
+                            currentPageContent.push(newMainContent);
+                            mainQuestionOnPage = newMainContent;
+                        } else {
+                            mainQuestionOnPage = existingMainOnNewPage;
                         }
                     }
 
+                    mainQuestionOnPage!.subQuestions.push(sq);
                     currentPageHeight += subQuestionHeight;
-                    if (!mainOnPage!.subQuestions.find(s => s.id === sq.id)) {
-                        mainOnPage!.subQuestions.push(sq);
-                    }
                 });
             });
 
