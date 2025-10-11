@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import PaperPreview, { type PaperSettings, type PageContent } from './PaperPreview';
+import PaperPreview, { PaperPage, type PaperSettings, type PageContent, renderQuestionContent } from './PaperPreview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import MathExpressions from './MathExpressions';
@@ -26,13 +26,16 @@ import { produce } from 'immer';
 let idCounter = 0;
 const generateId = (prefix: string) => {
   idCounter++;
-  return `${prefix}${idCounter}`;
+  return `${prefix}${Date.now()}_${idCounter}`;
 };
 
 const ensureUniqueIds = (questions: Question[]): Question[] => {
+    idCounter = 0; // Reset counter for each processing run
     return produce(questions, draft => {
       const processNode = (node: any) => {
-        node.id = generateId(`${node.type || 'id_'}_`);
+        // A simple function to generate a more unique-ish ID for client-side rendering
+        const simpleUniqueId = () => `${Math.random().toString(36).substr(2, 9)}`;
+        node.id = generateId(node.type ? `${node.type}_` : 'id_');
   
         if (node.options) {
           node.options.forEach((option: any) => processNode(option));
@@ -86,16 +89,16 @@ const initialPaperData: Paper = {
 
 
 export default function EditorPage() {
-  const [paper, setPaper] = useState<Paper | null>(null);
+    const [paper, setPaper] = useState<Paper | null>(null);
   
-  useEffect(() => {
-    if (paper === null) {
-      setPaper({
-        ...initialPaperData,
-        questions: ensureUniqueIds(initialPaperData.questions),
-      });
-    }
-  }, [paper]);
+    useEffect(() => {
+        if (!paper) {
+            setPaper({
+                ...initialPaperData,
+                questions: ensureUniqueIds(initialPaperData.questions),
+            });
+        }
+    }, [paper]);
 
 
   const router = useRouter();
@@ -115,14 +118,17 @@ export default function EditorPage() {
   // Import effect
   useEffect(() => {
     const from = searchParams.get('from');
-    if ((from === 'image' || from === 'suggest') && paper) {
+    if ((from === 'image' || from === 'suggest')) {
       const data = localStorage.getItem('newImageData');
       if (data) {
         try {
           const parsedData = JSON.parse(data);
-
+          
           setPaper(currentPaper => {
-            if (!currentPaper) return null; // Should not happen if effect order is right
+            if (!currentPaper) {
+                const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
+                 return { ...initialPaperData, questions: newQuestions };
+            }
             
             const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
             
@@ -135,14 +141,13 @@ export default function EditorPage() {
           console.error("Failed to parse or append paper data from localStorage", e);
         } finally {
           localStorage.removeItem('newImageData');
-          // Clean up URL without re-rendering
           const url = new URL(window.location.href);
           url.searchParams.delete('from');
           router.replace(url.pathname, { scroll: false });
         }
       }
     }
-  }, [searchParams, router, paper]);
+  }, [searchParams, router]);
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -172,10 +177,33 @@ export default function EditorPage() {
   };
 
   const handleDownloadPdf = async () => {
-    if (!hiddenRenderRef.current || !paper || pages.length === 0) return;
+    if (!paper || pages.length === 0) return;
   
-    const pageNodes = Array.from(hiddenRenderRef.current.children) as HTMLElement[];
-  
+    const pageNodesToRender = pages.map((pageContent, pageIndex) => (
+      <PaperPage
+        key={`render_${pageIndex}`}
+        paper={paper}
+        pageContent={pageContent}
+        isFirstPage={pageIndex === 0}
+        settings={settings}
+        allQuestions={paper.questions}
+      />
+    ));
+    
+    // Create a temporary container to render pages for capturing
+    const renderContainer = document.createElement('div');
+    renderContainer.style.position = 'absolute';
+    renderContainer.style.left = '-9999px';
+    document.body.appendChild(renderContainer);
+    
+    // Use React's DOM rendering to get the page nodes
+    const { render } = await import('react-dom');
+    await new Promise<void>((resolve) => {
+      render(<div>{pageNodesToRender}</div>, renderContainer, () => resolve());
+    });
+
+    const renderedPageNodes = Array.from(renderContainer.children) as HTMLElement[];
+
     let n = pages.length;
     const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
     while (paddedPageIndices.length % 4 !== 0 && paddedPageIndices.length > 0) {
@@ -220,22 +248,12 @@ export default function EditorPage() {
         return blankCanvas;
       }
   
-      const nodeToCapture = pageNodes[pageIndex];
+      const nodeToCapture = renderedPageNodes[pageIndex];
       if (!nodeToCapture) {
-         // Return a blank canvas if the node isn't found for some reason
         return captureNode(null);
       }
       
-      const clonedNode = nodeToCapture.cloneNode(true) as HTMLElement;
-      clonedNode.style.position = 'absolute';
-      clonedNode.style.left = '-9999px';
-      clonedNode.style.top = '0px';
-      document.body.appendChild(clonedNode);
-      
-      const canvas = await html2canvas(clonedNode, { scale: 2 });
-      
-      document.body.removeChild(clonedNode);
-      return canvas;
+      return await html2canvas(nodeToCapture, { scale: 2 });
     };
   
     for (let i = 0; i < bookletOrderIndices.length; i += 2) {
@@ -254,6 +272,11 @@ export default function EditorPage() {
     }
   
     pdf.save('question-paper-booklet.pdf');
+
+    // Cleanup
+    const { unmountComponentAtNode } = await import('react-dom');
+    unmountComponentAtNode(renderContainer);
+    renderContainer.remove();
   };
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
@@ -843,7 +866,6 @@ export default function EditorPage() {
         setPages(newPages);
     };
 
-    // Recalculate pages when paper or settings change
     const timer = setTimeout(calculatePages, 200);
     return () => clearTimeout(timer);
 
@@ -957,6 +979,9 @@ export default function EditorPage() {
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
+                     <Link href="/ai/suggest" passHref>
+                        <Button variant="outline" className="w-full border-purple-500 text-purple-500"><Sparkles className="mr-2 size-4" /> AI দিয়ে তৈরি করুন</Button>
+                    </Link>
                   </CardContent>
                 </Card>
 
@@ -1019,16 +1044,15 @@ export default function EditorPage() {
       {/* Hidden div for calculations */}
       <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
           <div ref={hiddenRenderRef}>
-              {paper && pages.map((pageContent, pageIndex) => (
+              {paper && (
                   <PaperPage
-                      key={pageIndex} 
                       paper={paper} 
-                      pageContent={pageContent} 
-                      isFirstPage={pageIndex === 0} 
+                      pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
+                      isFirstPage={true} 
                       settings={settings} 
                       allQuestions={paper.questions}
                   />
-              ))}
+              )}
           </div>
       </div>
     </div>
