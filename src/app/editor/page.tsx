@@ -61,31 +61,7 @@ const initialPaperData: Paper = {
   questions: [],
 };
 
-const defaultInitialQuestions: Question[] = [
-  {
-    id: 'q1',
-    type: 'passage',
-    content: 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:',
-    numberingFormat: 'bangla-alpha',
-    marks: 10,
-    subQuestions: [
-      { id: 'q1a', type: 'short', content: 'রউফ কেন নিজে দায়িত্ব নিলেন?', marks: 2 },
-      { id: 'q1b', type: 'short', content: 'কীভাবে তিনি শহিদ হলেন?', marks: 3 },
-      { id: 'q1c', type: 'essay', content: 'দেশের জন্য তার আত্মত্যাগের মহিমা বর্ণনা কর।', marks: 5 },
-    ]
-  },
-  {
-    id: 'q2',
-    type: 'fill-in-the-blanks',
-    content: 'খালি জায়গা পূরণ কর:',
-    numberingFormat: 'bangla-alpha',
-    marks: 5,
-    subQuestions: [
-      { id: 'q2a', type: 'fill-in-the-blanks', content: '_____ দেশের গৌরব।', marks: 2.5 },
-      { id: 'q2b', type: 'fill-in-the-blanks', content: 'তিনি ____ রক্ষা করার জন্য জীবন দিলেন।', marks: 2.5 },
-    ]
-  }
-];
+const defaultInitialQuestions: Question[] = [];
 
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
@@ -100,17 +76,27 @@ export default function EditorPage() {
     return `${prefix}${idCounter.current}`;
   };
 
+  // Effect for initial loading of default paper
+  useEffect(() => {
+    if (!paper) {
+      const initialQuestions = ensureUniqueIds(defaultInitialQuestions);
+       setPaper({
+        ...initialPaperData,
+        questions: initialQuestions,
+      });
+    }
+  }, [paper]);
+  
   const ensureUniqueIds = (questions: Question[]): Question[] => {
-    const newIdCounter = Date.now();
     let questionIndex = 0;
 
     const processQuestion = (q: Question): Question => {
-      const newQuestionId = `${generateId('q_')}_${newIdCounter}_${questionIndex++}`;
+      const newQuestionId = `${generateId('q_')}_${Date.now()}_${questionIndex++}`;
       const newQuestion: Question = { ...q, id: newQuestionId };
       
       if (newQuestion.subQuestions) {
         newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
-          const newSqId = `${generateId('sq_')}_${newIdCounter}_${questionIndex++}`;
+          const newSqId = `${generateId('sq_')}_${Date.now()}_${questionIndex++}`;
           const newSq: Question = { ...sq, id: newSqId };
           if (newSq.options) {
             newSq.options = newSq.options.map((opt, optIndex) => ({ ...opt, id: `${generateId('opt_')}_${newSqId}_${optIndex}` }));
@@ -132,16 +118,6 @@ export default function EditorPage() {
     return questions.map(processQuestion);
   };
   
-  // Effect for initial loading of default paper
-  useEffect(() => {
-    if (!paper) {
-      setPaper({
-        ...initialPaperData,
-        questions: ensureUniqueIds(defaultInitialQuestions),
-      });
-    }
-  }, []);
-
   // Effect for handling imported data from image or AI suggestion
   useEffect(() => {
     const from = searchParams.get('from');
@@ -150,14 +126,25 @@ export default function EditorPage() {
       if (data) {
         try {
           const parsedData = JSON.parse(data);
-          const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
-
-          if (newQuestions.length > 0) {
+          if (parsedData.questions && parsedData.questions.length > 0) {
+            const newQuestions = ensureUniqueIds(parsedData.questions);
+            
             setPaper(currentPaper => {
-              if (!currentPaper) return null; // Should not happen if initial effect ran
-              return produce(currentPaper, draft => {
-                 draft.questions.push(...newQuestions);
-              });
+                if (!currentPaper) return null; // Should not happen
+                return produce(currentPaper, draft => {
+                    draft.questions.push(...newQuestions);
+                    
+                    // Only overwrite header if it's the default blank state
+                    if (draft.questions.length === newQuestions.length && defaultInitialQuestions.length === 0) {
+                        draft.schoolName = parsedData.schoolName || draft.schoolName;
+                        draft.examTitle = parsedData.examTitle || draft.examTitle;
+                        draft.subject = parsedData.subject || draft.subject;
+                        draft.grade = parsedData.grade || draft.grade;
+                        draft.timeAllowed = parsedData.timeAllowed || draft.timeAllowed;
+                        draft.totalMarks = parsedData.totalMarks || draft.totalMarks;
+                        draft.notes = parsedData.notes || draft.notes;
+                    }
+                });
             });
           }
 
@@ -171,7 +158,7 @@ export default function EditorPage() {
         }
       }
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, paper]);
 
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
@@ -776,7 +763,7 @@ export default function EditorPage() {
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
+          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादক</h1>
         </div>
         <div className="flex items-center gap-2">
             <Dialog>
@@ -932,3 +919,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
