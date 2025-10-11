@@ -45,29 +45,38 @@ const getNumbering = (format: NumberingFormat | undefined, index: number): strin
   }
 };
 
-const renderQuestionContent = (question: Question, questionIndex: number) => {
+const renderQuestionContent = (question: Question, questionIndex: number, allQuestions: Question[], showMainContent: boolean) => {
+    const originalQuestion = allQuestions.find(q => q.id === question.id);
+
     return (
       <div key={question.id} className="mb-4 question-item" data-question-id={question.id}>
-        <div className="flex justify-between font-semibold question-content">
-          <p className="flex-1">{questionIndex + 1}. {question.content}</p>
-        </div>
+        {showMainContent && (
+            <div className="flex justify-between font-semibold question-content">
+                <p className="flex-1">{questionIndex + 1}. {question.content}</p>
+            </div>
+        )}
   
         {question.subQuestions && question.subQuestions.length > 0 && (
           <div className="pl-6 mt-2 space-y-2">
-            {question.subQuestions.map((sq, sqIndex) => (
-              <div key={sq.id} className="subquestion-item" data-subquestion-id={sq.id}>
-                <div className="flex justify-between">
-                  <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
-                </div>
-                {sq.options && sq.options.length > 0 && (
-                  <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
-                    {sq.options.map((option, optIndex) => (
-                      <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
-                    ))}
+            {question.subQuestions.map((sq) => {
+              const sqIndex = originalQuestion?.subQuestions?.findIndex(osq => osq.id === sq.id) ?? -1;
+              if (sqIndex === -1) return null;
+
+              return (
+                <div key={sq.id} className="subquestion-item" data-subquestion-id={sq.id}>
+                  <div className="flex justify-between">
+                    <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
                   </div>
-                )}
-              </div>
-            ))}
+                  {sq.options && sq.options.length > 0 && (
+                    <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
+                      {sq.options.map((option, optIndex) => (
+                        <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
   
@@ -101,6 +110,8 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: 
         fontSize: `${settings.fontSize}pt`,
     };
 
+    const processedQuestionIds = new Set<string>();
+
     return (
         <div ref={ref} className="bg-white text-black font-serif max-w-none mx-auto border rounded-sm shadow-lg paper-page" style={pageStyle}>
             {isFirstPage && (
@@ -128,7 +139,9 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: 
                         ...content.mainQuestion,
                         subQuestions: content.subQuestions
                     };
-                    return renderQuestionContent(questionToRender, originalQuestionIndex);
+                    const showMainContent = !processedQuestionIds.has(questionToRender.id);
+                    processedQuestionIds.add(questionToRender.id);
+                    return renderQuestionContent(questionToRender, originalQuestionIndex, allQuestions, showMainContent);
                 })}
             </main>
         </div>
@@ -171,7 +184,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             setPages([]);
             return;
         }
-        
+
         const pageBreakThreshold = settings.height;
         const hiddenPage = hiddenRenderRef.current;
         const headerEl = hiddenPage.querySelector('.preview-header');
@@ -200,12 +213,13 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             
             const availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
 
-            if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
-                startNewPage();
-            }
-            
             let mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
+            
+            // If main question isn't on the page, check if it fits and add it
             if (!mainOnPage) {
+                if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
+                    startNewPage();
+                }
                 mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
                 currentPageContent.push(mainOnPage);
                 const currentHeightOnPage = isFirstPage ? headerHeight + mainContentHeight : mainContentHeight;
@@ -225,16 +239,20 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
 
                 if (currentPageHeight + subQuestionHeight > newAvailableHeight) {
                     startNewPage();
+                    // After starting a new page, check if a container for the main question is needed.
                     mainOnPage = currentPageContent.find(pc => pc.mainQuestion.id === question.id);
                     if (!mainOnPage) {
                        mainOnPage = { mainQuestion: { ...question, subQuestions: [] }, subQuestions: [] };
                        currentPageContent.push(mainOnPage);
-                       currentPageHeight += mainContentHeight;
+                       // Only add main content height if this is the first time this question appears on a page
+                       // On a new page, the main question header itself won't be rendered again, so don't add its height.
                     }
                 }
 
                 currentPageHeight += subQuestionHeight;
-                mainOnPage.subQuestions.push(sq);
+                if (!mainOnPage!.subQuestions.find(s => s.id === sq.id)) {
+                    mainOnPage!.subQuestions.push(sq);
+                }
             });
         });
 
@@ -279,7 +297,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                   </header>
                   <main>
                    {paper.questions.map((q, index) => {
-                       const rendered = renderQuestionContent(q, index);
+                       const rendered = renderQuestionContent(q, index, paper.questions, true);
                        return React.cloneElement(rendered, { key: q.id });
                    })}
                   </main>
@@ -341,5 +359,3 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
-
-    
