@@ -181,34 +181,12 @@ export default function EditorPage() {
 
   const handleDownloadPdf = async () => {
     if (!paper || pages.length === 0) return;
-    
+  
     const renderContainer = document.createElement('div');
     renderContainer.style.position = 'absolute';
     renderContainer.style.left = '-9999px';
-    // We need to append to body for html2canvas to work correctly.
     document.body.appendChild(renderContainer);
-
-    const pageNodesToRender = pages.map((pageContent, pageIndex) => (
-        <PaperPage
-            key={`render_${pageIndex}`}
-            paper={paper}
-            pageContent={pageContent}
-            isFirstPage={pageIndex === 0}
-            settings={settings}
-            allQuestions={paper.questions}
-        />
-    ));
-    
-    // Use the new createRoot API
-    await new Promise<void>((resolve) => {
-        const root = createRoot(renderContainer);
-        root.render(<div>{pageNodesToRender}</div>);
-        // Give it a moment to render to the hidden div
-        setTimeout(resolve, 500); 
-    });
-
-    const renderedPageNodes = Array.from(renderContainer.querySelectorAll('.paper-page')) as HTMLElement[];
-    
+  
     let n = pages.length;
     const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
     // For booklet printing, the number of pages should be a multiple of 4.
@@ -240,29 +218,39 @@ export default function EditorPage() {
       format: 'a4',
     });
   
-    const singlePageWidth = a4Width / 2;
-  
-    const captureNode = async (pageIndex: number | null): Promise<HTMLCanvasElement> => {
-      if (pageIndex === null) {
-        const blankCanvas = document.createElement('canvas');
-        const scale = 2; // Match the scale for consistency
-        blankCanvas.width = singlePageWidth * scale;
-        blankCanvas.height = a4Height * scale;
-        const ctx = blankCanvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = 'white';
-          ctx.fillRect(0, 0, blankCanvas.width, blankCanvas.height);
-        }
-        return blankCanvas;
+    const captureNode = async (pageIndex: number | null): Promise<HTMLCanvasElement | null> => {
+      if (pageIndex === null || !paper) {
+        return null;
       }
   
-      const nodeToCapture = renderedPageNodes[pageIndex];
-      if (!nodeToCapture) {
-        console.error(`Could not find node to capture for page index: ${pageIndex}`);
-        return captureNode(null); // Return a blank canvas as a fallback
-      }
+      const pageContent = pages[pageIndex];
+      if (!pageContent) return null;
       
-      return await html2canvas(nodeToCapture, { scale: 2 });
+      const nodeToRender = (
+          <PaperPage
+              paper={paper}
+              pageContent={pageContent}
+              isFirstPage={pageIndex === 0}
+              settings={settings}
+              allQuestions={paper.questions}
+          />
+      );
+
+      const pageContainer = document.createElement('div');
+      renderContainer.appendChild(pageContainer);
+
+      await new Promise<void>(resolve => {
+        const root = createRoot(pageContainer);
+        root.render(nodeToRender);
+        setTimeout(resolve, 300); // Give it a moment to render
+      });
+
+      const elementToCapture = pageContainer.firstChild as HTMLElement;
+      if (!elementToCapture) return null;
+
+      const canvas = await html2canvas(elementToCapture, { scale: 2 });
+      renderContainer.removeChild(pageContainer);
+      return canvas;
     };
   
     for (let i = 0; i < bookletOrderIndices.length; i += 2) {
@@ -277,13 +265,20 @@ export default function EditorPage() {
       if (i > 0) {
         pdf.addPage();
       }
+  
+      const addImageToPdf = (canvas: HTMLCanvasElement | null, x: number) => {
+        if (canvas) {
+          const canvasWidth = settings.width;
+          const canvasHeight = settings.height;
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, 0, canvasWidth, canvasHeight);
+        }
+      }
 
-      pdf.addImage(leftCanvas, 'PNG', 0, 0, singlePageWidth, a4Height);
-      pdf.addImage(rightCanvas, 'PNG', singlePageWidth, 0, singlePageWidth, a4Height);
+      addImageToPdf(leftCanvas, 0);
+      addImageToPdf(rightCanvas, a4Width / 2);
     }
   
     pdf.save('question-paper-booklet.pdf');
-
     document.body.removeChild(renderContainer);
   };
 
@@ -991,6 +986,19 @@ export default function EditorPage() {
                             min={8} max={18} step={1}
                          />
                       </div>
+                       <div className="space-y-2">
+                        <Label>Page Size (px)</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                             <div className="space-y-1">
+                                <Label htmlFor="page-width" className="text-xs">Width</Label>
+                                <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} />
+                            </div>
+                             <div className="space-y-1">
+                                <Label htmlFor="page-height" className="text-xs">Height</Label>
+                                <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} />
+                            </div>
+                        </div>
+                      </div>
                       <div className="space-y-2">
                         <Label>Margins (mm)</Label>
                         <div className="grid grid-cols-2 gap-2">
@@ -1022,17 +1030,10 @@ export default function EditorPage() {
       {/* Hidden div for calculations */}
       <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
           <div ref={hiddenRenderRef}>
-              {paper && (
-                   <PaperPage
-                        paper={paper} 
-                        pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
-                        isFirstPage={true} 
-                        settings={settings} 
-                        allQuestions={paper.questions}
-                    />
-              )}
+              {paper && paper.questions.map(q => renderQuestionContent(q, 0, paper.questions, true))}
           </div>
       </div>
     </div>
   );
 }
+
