@@ -53,6 +53,7 @@ const renderQuestionContent = (question: Question, questionIndex: number, allQue
         {showMainContent && (
             <div className="flex justify-between font-semibold question-content">
                 <p className="flex-1">{questionIndex + 1}. {question.content}</p>
+                {question.marks && question.marks > 0 && <p>{question.marks}</p>}
             </div>
         )}
   
@@ -66,6 +67,7 @@ const renderQuestionContent = (question: Question, questionIndex: number, allQue
                 <div key={sq.id} className="subquestion-item" data-subquestion-id={sq.id}>
                   <div className="flex justify-between">
                     <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
+                    {sq.marks && <p>{sq.marks}</p>}
                   </div>
                   {sq.options && sq.options.length > 0 && (
                     <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
@@ -369,3 +371,5 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
+
+    
