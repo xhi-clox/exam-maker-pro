@@ -22,13 +22,16 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import MathExpressions from './MathExpressions';
 import { produce } from 'immer';
+import { createRoot } from 'react-dom/client';
+import { Slider } from '@/components/ui/slider';
+
 
 let idCounter = 0;
 const generateId = (prefix: string) => {
-  idCounter++;
   // This is a simple counter-based ID for client-side uniqueness.
   // It's predictable and avoids hydration mismatches.
-  return `${prefix}${idCounter}`;
+  // A more robust solution might use a library like nanoid if needed for server-side generation.
+  return `${prefix}${Date.now()}_${++idCounter}`;
 };
 
 const ensureUniqueIds = (questions: Question[]): Question[] => {
@@ -37,7 +40,7 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
 
     return produce(questions, draft => {
       const processNode = (node: any, prefix: string) => {
-        let newId = node.id && !node.id.includes('undefined') ? node.id : generateId(prefix);
+        let newId = node.id && !node.id.includes('undefined') && !seenIds.has(node.id) ? node.id : generateId(prefix);
         while(seenIds.has(newId)) {
             newId = generateId(prefix);
         }
@@ -56,7 +59,7 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
     });
 };
 
-type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
+export type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
 export interface Question {
   id: string;
@@ -118,9 +121,9 @@ export default function EditorPage() {
   const [pages, setPages] = useState<PageContent[][]>([]);
   const hiddenRenderRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<PaperSettings>({ 
-    margins: { top: 10, bottom: 10, left: 10, right: 10 },
-    width: 421, // A4 landscape / 2
-    height: 595, // A4 landscape
+    margins: { top: 20, bottom: 20, left: 15, right: 15 },
+    width: 421, // A4 landscape / 2 (in points)
+    height: 595, // A4 landscape (in points)
     fontSize: 12,
   });
 
@@ -171,48 +174,46 @@ export default function EditorPage() {
     element.focus();
     element.setSelectionRange((selectionStart ?? 0) + expression.length, (selectionStart ?? 0) + expression.length);
 
-    if (id.startsWith('option')) {
-        const [_, qId, sqId, optId] = id.split('-');
-        handleOptionChange(qId, sqId, optId, newValue);
-    } else if (id.includes('-')) {
-        const [qId, sqId] = id.split('-');
-        handleSubQuestionChange(qId, sqId, 'content', newValue);
-    } else {
-        handleQuestionChange(id, 'content', newValue);
-    }
+    // Manually trigger the state update
+    const event = new Event('input', { bubbles: true });
+    element.dispatchEvent(event);
   };
 
   const handleDownloadPdf = async () => {
     if (!paper || pages.length === 0) return;
-  
-    const pageNodesToRender = pages.map((pageContent, pageIndex) => (
-      <PaperPage
-        key={`render_${pageIndex}`}
-        paper={paper}
-        pageContent={pageContent}
-        isFirstPage={pageIndex === 0}
-        settings={settings}
-        allQuestions={paper.questions}
-      />
-    ));
     
     const renderContainer = document.createElement('div');
     renderContainer.style.position = 'absolute';
     renderContainer.style.left = '-9999px';
+    // We need to append to body for html2canvas to work correctly.
     document.body.appendChild(renderContainer);
+
+    const pageNodesToRender = pages.map((pageContent, pageIndex) => (
+        <PaperPage
+            key={`render_${pageIndex}`}
+            paper={paper}
+            pageContent={pageContent}
+            isFirstPage={pageIndex === 0}
+            settings={settings}
+            allQuestions={paper.questions}
+        />
+    ));
     
-    const { createRoot } = await import('react-dom/client');
+    // Use the new createRoot API
     await new Promise<void>((resolve) => {
-        createRoot(renderContainer).render(<div>{pageNodesToRender}</div>);
+        const root = createRoot(renderContainer);
+        root.render(<div>{pageNodesToRender}</div>);
+        // Give it a moment to render to the hidden div
         setTimeout(resolve, 500); 
     });
 
     const renderedPageNodes = Array.from(renderContainer.querySelectorAll('.paper-page')) as HTMLElement[];
-
+    
     let n = pages.length;
     const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
+    // For booklet printing, the number of pages should be a multiple of 4.
     while (paddedPageIndices.length % 4 !== 0 && paddedPageIndices.length > 0) {
-      paddedPageIndices.push(null);
+      paddedPageIndices.push(null); // Add blank pages
     }
     n = paddedPageIndices.length;
   
@@ -220,9 +221,11 @@ export default function EditorPage() {
     if (n > 0) {
       for (let i = 0; i < n / 2; i++) {
         if (i % 2 === 0) {
+          // e.g., for 8 pages: 8, 1 | 6, 3
           bookletOrderIndices.push(paddedPageIndices[n - 1 - i]);
           bookletOrderIndices.push(paddedPageIndices[i]);
         } else {
+          // e.g., for 8 pages: 2, 7 | 4, 5
           bookletOrderIndices.push(paddedPageIndices[i]);
           bookletOrderIndices.push(paddedPageIndices[n - 1 - i]);
         }
@@ -239,10 +242,10 @@ export default function EditorPage() {
   
     const singlePageWidth = a4Width / 2;
   
-    const captureNode = async (pageIndex: number | null) => {
+    const captureNode = async (pageIndex: number | null): Promise<HTMLCanvasElement> => {
       if (pageIndex === null) {
         const blankCanvas = document.createElement('canvas');
-        const scale = 2;
+        const scale = 2; // Match the scale for consistency
         blankCanvas.width = singlePageWidth * scale;
         blankCanvas.height = a4Height * scale;
         const ctx = blankCanvas.getContext('2d');
@@ -255,7 +258,8 @@ export default function EditorPage() {
   
       const nodeToCapture = renderedPageNodes[pageIndex];
       if (!nodeToCapture) {
-        return captureNode(null);
+        console.error(`Could not find node to capture for page index: ${pageIndex}`);
+        return captureNode(null); // Return a blank canvas as a fallback
       }
       
       return await html2canvas(nodeToCapture, { scale: 2 });
@@ -265,8 +269,10 @@ export default function EditorPage() {
       const leftPageIndex = bookletOrderIndices[i];
       const rightPageIndex = bookletOrderIndices[i + 1];
   
-      const leftCanvas = await captureNode(leftPageIndex);
-      const rightCanvas = await captureNode(rightPageIndex);
+      const [leftCanvas, rightCanvas] = await Promise.all([
+          captureNode(leftPageIndex),
+          captureNode(rightPageIndex),
+      ]);
   
       if (i > 0) {
         pdf.addPage();
@@ -281,11 +287,12 @@ export default function EditorPage() {
     document.body.removeChild(renderContainer);
   };
 
+
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
     setPaper(prev => prev ? ({ ...prev, [field]: value }) : null);
   };
 
-  const handleQuestionChange = (id: string, field: keyof Question, value: string | number | NumberingFormat) => {
+  const handleQuestionChange = (id: string, field: keyof Question, value: any) => {
     if (!paper) return;
     setPaper(produce(paper, draft => {
         const question = draft.questions.find(q => q.id === id);
@@ -295,7 +302,7 @@ export default function EditorPage() {
     }));
   };
   
-    const handleSubQuestionChange = (parentId: string, subId: string, field: keyof Question, value: string | number) => {
+    const handleSubQuestionChange = (parentId: string, subId: string, field: keyof Question, value: any) => {
         if (!paper) return;
         setPaper(produce(paper, draft => {
             const parentQuestion = draft.questions.find(q => q.id === parentId);
@@ -314,17 +321,17 @@ export default function EditorPage() {
         const question = draft.questions.find(q => q.id === questionId);
         if (question) {
             const newSubQuestion: Question = {
-                id: generateId('sq_'),
+                id: generateId('sq'),
                 type: type,
                 content: 'নতুন প্রশ্ন...',
                 marks: 1,
             };
             if (type === 'mcq') {
                 newSubQuestion.options = [
-                    { id: generateId('opt_'), text: 'অপশন ১' },
-                    { id: generateId('opt_'), text: 'অপশন ২' },
-                    { id: generateId('opt_'), text: 'অপশন ৩' },
-                    { id: generateId('opt_'), text: 'অপশন ৪' },
+                    { id: generateId('opt'), text: 'অপশন ১' },
+                    { id: generateId('opt'), text: 'অপশন ২' },
+                    { id: generateId('opt'), text: 'অপশন ৩' },
+                    { id: generateId('opt'), text: 'অপশন ৪' },
                 ];
             }
             if (!question.subQuestions) {
@@ -352,7 +359,7 @@ export default function EditorPage() {
         if (q && q.subQuestions) {
             const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
             if (sq) {
-                const newOption = { id: generateId('opt_'), text: 'নতুন অপশন' };
+                const newOption = { id: generateId('opt'), text: 'নতুন অপশন' };
                  if (!sq.options) {
                     sq.options = [];
                 }
@@ -496,7 +503,7 @@ export default function EditorPage() {
     if (!paper) return;
 
     const newQuestion: Question = {
-      id: generateId('q_'),
+      id: generateId('q'),
       type: type,
       content: '',
       marks: 5,
@@ -515,45 +522,45 @@ export default function EditorPage() {
         case 'passage':
           newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          newQuestion.subQuestions.push({ id: generateId('sq'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'creative':
           newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           delete newQuestion.marks;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'জ্ঞানমূলক', marks: 1});
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'অনুধাবনমূলক', marks: 2});
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'প্রয়োগমূলক', marks: 3});
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
+          newQuestion.subQuestions.push({ id: generateId('sq'), type: 'short', content: 'জ্ঞানমূলক', marks: 1});
+          newQuestion.subQuestions.push({ id: generateId('sq'), type: 'short', content: 'অনুধাবনমূলক', marks: 2});
+          newQuestion.subQuestions.push({ id: generateId('sq'), type: 'short', content: 'প্রয়োগমূলক', marks: 3});
+          newQuestion.subQuestions.push({ id: generateId('sq'), type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
           break;
         case 'fill-in-the-blanks':
           newQuestion.content = 'খালি জায়গা পূরণ কর:';
           newQuestion.marks = 5;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
+          newQuestion.subQuestions.push({ id: generateId('sq'), type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
           break;
         case 'short':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          newQuestion.subQuestions.push({ id: generateId('sq'), type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'essay':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 20;
-          newQuestion.subQuestions.push({ id: generateId('sq_'), type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
+          newQuestion.subQuestions.push({ id: generateId('sq'), type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
           break;
         case 'mcq':
             newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
             newQuestion.marks = 10;
             newQuestion.numberingFormat = 'bangla-numeric';
             newQuestion.subQuestions.push({
-                id: generateId('sq_'),
+                id: generateId('sq'),
                 type: 'mcq',
                 content: 'নতুন MCQ প্রশ্ন...',
                 marks: 1,
                 options: [
-                    { id: generateId('opt_'), text: 'অপশন ১' },
-                    { id: generateId('opt_'), text: 'অপশন ২' },
-                    { id: generateId('opt_'), text: 'অপশন ৩' },
-                    { id: generateId('opt_'), text: 'অপশন ৪' },
+                    { id: generateId('opt'), text: 'অপশন ১' },
+                    { id: generateId('opt'), text: 'অপশন ২' },
+                    { id: generateId('opt'), text: 'অপশন ৩' },
+                    { id: generateId('opt'), text: 'অপশন ৪' },
                 ]
             });
             break;
@@ -622,7 +629,7 @@ export default function EditorPage() {
             <div className="flex-1 ml-2">
                 <Textarea
                     value={question.content}
-                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    onInput={(e) => handleQuestionChange(question.id, 'content', (e.target as HTMLTextAreaElement).value)}
                     onFocus={(e) => handleFocus(e, question.id)}
                     className="bg-white font-semibold"
                     rows={1}
@@ -636,7 +643,7 @@ export default function EditorPage() {
                     <Input 
                       id={`marks-${question.id}`}
                       type="number" 
-                      value={question.marks} 
+                      value={question.marks || ''} 
                       onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
                       className="w-20 h-8"
                       placeholder="Marks"
@@ -676,7 +683,7 @@ export default function EditorPage() {
                   <div className="flex items-center gap-2">
                     <Textarea 
                         value={sq.content} 
-                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
+                        onInput={(e) => handleSubQuestionChange(question.id, sq.id, 'content', (e.target as HTMLTextAreaElement).value)}
                         onFocus={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
                         className="flex-grow bg-white" />
                     { question.type === 'creative' && sq.marks !== undefined && (
@@ -685,7 +692,7 @@ export default function EditorPage() {
                          <Input 
                            id={`marks-${sq.id}`}
                            type="number" 
-                           value={sq.marks} 
+                           value={sq.marks || ''} 
                            onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
                            className="w-20 h-8"
                            placeholder="Marks"
@@ -704,7 +711,7 @@ export default function EditorPage() {
                                 <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)})</span>
                                 <Input 
                                     value={opt.text}
-                                    onChange={(e) => handleOptionChange(question.id, sq.id, opt.id, e.target.value)}
+                                    onInput={(e) => handleOptionChange(question.id, sq.id, opt.id, (e.target as HTMLInputElement).value)}
                                     onFocus={(e) => handleFocus(e, `option-${question.id}-${sq.id}-${opt.id}`)}
                                     className="bg-white"
                                 />
@@ -743,7 +750,7 @@ export default function EditorPage() {
                 <>
                   <Textarea
                     value={question.content}
-                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    onInput={(e) => handleQuestionChange(question.id, 'content', (e.target as HTMLTextAreaElement).value)}
                     onFocus={(e) => handleFocus(e, question.id)}
                     className="bg-white mb-4"
                     placeholder="সারণী সম্পর্কিত নির্দেশাবলী এখানে লিখুন..."
@@ -793,8 +800,12 @@ export default function EditorPage() {
         const pageBreakThreshold = settings.height - (settings.margins.top + settings.margins.bottom) * 3.78; // Convert mm to px
         const hiddenPage = hiddenRenderRef.current;
         const headerEl = hiddenPage.querySelector('.preview-header');
-        const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
-        
+        let headerHeight = 0;
+        if (headerEl) {
+          const style = window.getComputedStyle(headerEl);
+          headerHeight = headerEl.clientHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
+        }
+
         const newPages: PageContent[][] = [];
         let currentPageContent: PageContent[] = [];
         let currentPageHeight = 0;
@@ -813,52 +824,25 @@ export default function EditorPage() {
             const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
             if (!questionElement) return;
 
-            const mainContentEl = questionElement.querySelector('.question-content');
-            const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
+            const style = window.getComputedStyle(questionElement);
+            const questionHeight = questionElement.clientHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
 
             let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
-
-            let mainOnPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
-
-            if (!mainOnPage) {
-                if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
-                    startNewPage();
-                    availableHeight = pageBreakThreshold;
-                }
-                if (isFirstPage && currentPageHeight === 0) {
-                    currentPageHeight += headerHeight;
-                }
-                
-                const contentToAdd: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: true };
-                currentPageContent.push(contentToAdd);
-                mainOnPage = contentToAdd;
-                currentPageHeight += mainContentHeight;
+            
+            if (currentPageHeight + questionHeight > availableHeight && currentPageContent.length > 0) {
+                startNewPage();
+                availableHeight = pageBreakThreshold;
             }
 
-            question.subQuestions?.forEach((sq) => {
-                const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
-                if (!subQuestionEl) return;
-                
-                const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
-                let currentAvailableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+            if (isFirstPage && currentPageHeight === 0) {
+                currentPageHeight += headerHeight;
+            }
 
-                if (currentPageHeight + subQuestionHeight > currentAvailableHeight) {
-                    startNewPage();
-                    currentAvailableHeight = pageBreakThreshold;
-
-                    let existingMainOnNewPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
-                    if (!existingMainOnNewPage) {
-                        const newMainContent: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: false };
-                        currentPageContent.push(newMainContent);
-                         mainOnPage = newMainContent;
-                    } else {
-                        mainOnPage = existingMainOnNewPage;
-                    }
-                }
-
-                mainOnPage!.subQuestions.push(sq);
-                currentPageHeight += subQuestionHeight;
-            });
+            const mainQuestionContent: Question = {...question, subQuestions: []};
+            const contentToAdd: PageContent = { mainQuestion: mainQuestionContent, subQuestions: question.subQuestions || [], showMainContent: true };
+            
+            currentPageContent.push(contentToAdd);
+            currentPageHeight += questionHeight;
         });
 
         if (currentPageContent.length > 0) {
@@ -868,6 +852,7 @@ export default function EditorPage() {
         setPages(newPages);
     };
 
+    // Use a small timeout to ensure the DOM is updated before calculation
     const timer = setTimeout(calculatePages, 200);
     return () => clearTimeout(timer);
 
@@ -992,56 +977,44 @@ export default function EditorPage() {
 
                 <MathExpressions onInsert={handleInsertExpression} />
 
-                 {/* Paper Settings */}
+                {/* Paper Settings */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Paper Settings</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                      <div>
-                        <Label htmlFor="school-name">School Name</Label>
-                        <Input id="school-name" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+                      <div className="space-y-2">
+                        <Label>Font Size: {settings.fontSize}pt</Label>
+                        <Slider
+                            value={[settings.fontSize]}
+                            onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
+                            min={8} max={18} step={1}
+                         />
                       </div>
-                      <div>
-                        <Label htmlFor="exam-title">Exam Title</Label>
-                        <Input id="exam-title" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
-                      </div>
-                      <div>
-                        <Label htmlFor="subject">Subject</Label>
-                        <Select value={paper.subject} onValueChange={value => handlePaperDetailChange('subject', value)}>
-                          <SelectTrigger id="subject">
-                            <SelectValue placeholder="Select subject" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="bangla">বাংলা</SelectItem>
-                            <SelectItem value="english">English</SelectItem>
-                            <SelectItem value="math">গণিত</SelectItem>
-                            <SelectItem value="science">বিজ্ঞান</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="class">Class</Label>
-                         <Select value={paper.grade} onValueChange={value => handlePaperDetailChange('grade', value)}>
-                          <SelectTrigger id="class">
-                            <SelectValue placeholder="Select class" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="9">নবম শ্রেণি</SelectItem>
-                            <SelectItem value="10">দশম শ্রেণি</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                       <div>
-                        <Label htmlFor="time-allowed">Time Allowed</Label>
-                        <Input id="time-allowed" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)} />
-                      </div>
-                      <div>
-                        <Label htmlFor="total-marks">Total Marks</Label>
-                        <Input id="total-marks" type="number" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))} />
+                      <div className="space-y-2">
+                        <Label>Margins (mm)</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <Label htmlFor="margin-top" className="text-xs">Top</Label>
+                                <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} />
+                            </div>
+                             <div className="space-y-1">
+                                <Label htmlFor="margin-bottom" className="text-xs">Bottom</Label>
+                                <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} />
+                            </div>
+                             <div className="space-y-1">
+                                <Label htmlFor="margin-left" className="text-xs">Left</Label>
+                                <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} />
+                            </div>
+                             <div className="space-y-1">
+                                <Label htmlFor="margin-right" className="text-xs">Right</Label>
+                                <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} />
+                            </div>
+                        </div>
                       </div>
                   </CardContent>
                 </Card>
+
              </div>
           </div>
         </div>
@@ -1063,5 +1036,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    

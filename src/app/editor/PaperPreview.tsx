@@ -62,7 +62,7 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
     if (question.type === 'section-header') {
         return (
             <div key={question.id} className="text-center font-bold underline decoration-dotted text-lg my-4" data-question-id={question.id}>
-                {showMainContent ? question.content : ''}
+                {question.content}
             </div>
         );
     }
@@ -118,18 +118,20 @@ export const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageCo
     
     const pageStyle: React.CSSProperties = {
         width: `${settings.width}px`,
-        minHeight: `${settings.height}px`,
+        height: `${settings.height}px`,
         paddingTop: `${settings.margins.top}mm`,
         paddingBottom: `${settings.margins.bottom}mm`,
         paddingLeft: `${settings.margins.left}mm`,
         paddingRight: `${settings.margins.right}mm`,
         fontSize: `${settings.fontSize}pt`,
+        overflow: 'hidden',
+        boxSizing: 'border-box'
     };
 
     const allQuestionIds = allQuestions.filter(q => q.type !== 'section-header').map(q => q.id);
 
     return (
-        <div ref={ref} className="bg-white text-black font-serif max-w-none mx-auto border rounded-sm shadow-lg paper-page" style={pageStyle}>
+        <div ref={ref} className="bg-white text-black font-serif max-w-none mx-auto border-y border-gray-300 shadow-lg paper-page" style={pageStyle}>
             {isFirstPage && (
                 <>
                     <header className="text-center mb-6 preview-header">
@@ -206,7 +208,7 @@ export default function PaperPreview({ paper, pages, settings }: PaperPreviewPro
                         settings={settings} 
                         allQuestions={paper.questions}
                     />
-                ) : <p>Page {currentPage + 1} is empty or invalid.</p>
+                ) : <div className="bg-white" style={{width: `${settings.width}px`, height: `${settings.height}px`}}><p className="p-4 text-center">Page {currentPage + 1} is empty or invalid.</p></div>
             ) : (
                 <PaperPage paper={paper} pageContent={[]} isFirstPage={true} settings={settings} allQuestions={paper.questions} />
             )}
