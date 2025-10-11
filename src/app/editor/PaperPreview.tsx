@@ -183,9 +183,9 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     const [currentPage, setCurrentPage] = React.useState(0);
     const hiddenRenderRef = React.useRef<HTMLDivElement>(null);
     const [settings, setSettings] = React.useState<PaperSettings>({ 
-      margins: { top: 20, bottom: 20, left: 20, right: 20 },
-      width: 870,
-      height: 1122, // Approx A4 height in px at 96 DPI
+      margins: { top: 10, bottom: 10, left: 20, right: 20 },
+      width: 877,
+      height: 827,
       fontSize: 12,
     });
 
