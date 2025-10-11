@@ -23,6 +23,29 @@ import html2canvas from 'html2canvas';
 import MathExpressions from './MathExpressions';
 import { produce } from 'immer';
 
+let idCounter = 0;
+const generateId = (prefix: string) => {
+  idCounter++;
+  return `${prefix}${idCounter}`;
+};
+
+const ensureUniqueIds = (questions: Question[]): Question[] => {
+    return produce(questions, draft => {
+      const processNode = (node: any) => {
+        node.id = generateId(`${node.type || 'id_'}_`);
+  
+        if (node.options) {
+          node.options.forEach((option: any) => processNode(option));
+        }
+        if (node.subQuestions) {
+          node.subQuestions.forEach((sub: any) => processNode(sub));
+        }
+      };
+  
+      draft.forEach(q => processNode(q));
+    });
+};
+
 type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
 export interface Question {
@@ -61,31 +84,20 @@ const initialPaperData: Paper = {
   questions: [],
 };
 
-let idCounter = 0;
-const generateId = (prefix: string) => {
-  idCounter++;
-  return `${prefix}${idCounter}`;
-};
-
-const ensureUniqueIds = (questions: Question[]): Question[] => {
-    return produce(questions, draft => {
-      const processNode = (node: any) => {
-        node.id = generateId(`${node.type || 'id_'}_`);
-  
-        if (node.options) {
-          node.options.forEach((option: any) => processNode(option));
-        }
-        if (node.subQuestions) {
-          node.subQuestions.forEach((sub: any) => processNode(sub));
-        }
-      };
-  
-      draft.forEach(q => processNode(q));
-    });
-};
 
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
+  
+  useEffect(() => {
+    if (paper === null) {
+      setPaper({
+        ...initialPaperData,
+        questions: ensureUniqueIds(initialPaperData.questions),
+      });
+    }
+  }, [paper]);
+
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -100,16 +112,6 @@ export default function EditorPage() {
     fontSize: 12,
   });
 
-  // State initialization effect
-  useEffect(() => {
-    if (paper === null) {
-      setPaper({
-        ...initialPaperData,
-        questions: ensureUniqueIds(initialPaperData.questions),
-      });
-    }
-  }, [paper]);
-
   // Import effect
   useEffect(() => {
     const from = searchParams.get('from');
@@ -120,19 +122,12 @@ export default function EditorPage() {
           const parsedData = JSON.parse(data);
 
           setPaper(currentPaper => {
-            if (!currentPaper) return null; // Should not happen if init effect works
-
+            if (!currentPaper) return null; // Should not happen if effect order is right
+            
             const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
             
             return produce(currentPaper, draft => {
               draft.questions.push(...newQuestions);
-              // Optionally update header info if the paper is new/empty
-              if (currentPaper.questions.length === 0) {
-                 draft.schoolName = parsedData.schoolName || draft.schoolName;
-                 draft.examTitle = parsedData.examTitle || draft.examTitle;
-                 draft.subject = parsedData.subject || draft.subject;
-                 draft.grade = parsedData.grade || draft.grade;
-              }
             });
           });
 
@@ -177,21 +172,11 @@ export default function EditorPage() {
   };
 
   const handleDownloadPdf = async () => {
-    const container = previewContainerRef.current;
-    if (!container || !paper || pages.length === 0) return;
+    if (!hiddenRenderRef.current || !paper || pages.length === 0) return;
   
-    const allRenderedPages: React.ReactElement[] = pages.map((pageContent, index) => (
-      <PaperPreview
-        paper={paper}
-        pageContent={pageContent}
-        isFirstPage={index === 0}
-        settings={settings}
-        allQuestions={paper.questions}
-        isForPdf
-      />
-    ));
+    const pageNodes = Array.from(hiddenRenderRef.current.children) as HTMLElement[];
   
-    let n = allRenderedPages.length;
+    let n = pages.length;
     const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
     while (paddedPageIndices.length % 4 !== 0 && paddedPageIndices.length > 0) {
       paddedPageIndices.push(null);
@@ -223,50 +208,34 @@ export default function EditorPage() {
     const singlePageHeight = a4Height;
   
     const captureNode = async (pageIndex: number | null) => {
-        if (pageIndex === null) {
-          const blankCanvas = document.createElement('canvas');
-          blankCanvas.width = singlePageWidth * 2;
-          blankCanvas.height = singlePageHeight * 2;
-          const ctx = blankCanvas.getContext('2d');
-          if (ctx) {
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, blankCanvas.width, blankCanvas.height);
-          }
-          return blankCanvas;
+      if (pageIndex === null) {
+        const blankCanvas = document.createElement('canvas');
+        blankCanvas.width = singlePageWidth * 2;
+        blankCanvas.height = singlePageHeight * 2;
+        const ctx = blankCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, blankCanvas.width, blankCanvas.height);
         }
-
-        const pageElement = (
-            <div
-              style={{
-                width: `${settings.width}px`,
-                height: `${settings.height}px`,
-                position: 'absolute',
-                top: '0px',
-                left: '-9999px',
-              }}
-            >
-             {allRenderedPages[pageIndex]}
-            </div>
-        );
-
-        const tempContainer = document.createElement('div');
-        document.body.appendChild(tempContainer);
-        
-        // This is a bit of a hack, but we need to render the React element to an HTML element
-        // We'll use a temporary solution with react-dom/client
-        const ReactDOM = await import('react-dom/client');
-        const root = ReactDOM.createRoot(tempContainer);
-        await new Promise<void>((resolve) => {
-            root.render(pageElement, () => resolve());
-        });
-
-        const nodeToCapture = tempContainer.children[0].children[0] as HTMLElement;
-        const canvas = await html2canvas(nodeToCapture, { scale: 2 });
-        
-        root.unmount();
-        document.body.removeChild(tempContainer);
-
-        return canvas;
+        return blankCanvas;
+      }
+  
+      const nodeToCapture = pageNodes[pageIndex];
+      if (!nodeToCapture) {
+         // Return a blank canvas if the node isn't found for some reason
+        return captureNode(null);
+      }
+      
+      const clonedNode = nodeToCapture.cloneNode(true) as HTMLElement;
+      clonedNode.style.position = 'absolute';
+      clonedNode.style.left = '-9999px';
+      clonedNode.style.top = '0px';
+      document.body.appendChild(clonedNode);
+      
+      const canvas = await html2canvas(clonedNode, { scale: 2 });
+      
+      document.body.removeChild(clonedNode);
+      return canvas;
     };
   
     for (let i = 0; i < bookletOrderIndices.length; i += 2) {
@@ -787,7 +756,7 @@ export default function EditorPage() {
     }
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!paper) return;
 
     const calculatePages = () => {
@@ -910,17 +879,6 @@ export default function EditorPage() {
                     pages={pages}
                     settings={settings}
                   />
-                  {/* Hidden div for calculations */}
-                  <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
-                      <div ref={hiddenRenderRef}>
-                          <PaperPreview 
-                            paper={paper} 
-                            pages={pages}
-                            settings={settings}
-                            isForPdf={true}
-                          />
-                      </div>
-                  </div>
                 </div>
                 <DialogFooter>
                     <Button onClick={handleDownloadPdf}><Download className="mr-2 size-4" /> Download PDF</Button>
@@ -1058,8 +1016,21 @@ export default function EditorPage() {
           </div>
         </div>
       </main>
+      {/* Hidden div for calculations */}
+      <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
+          <div ref={hiddenRenderRef}>
+              {paper && pages.map((pageContent, pageIndex) => (
+                  <PaperPage
+                      key={pageIndex} 
+                      paper={paper} 
+                      pageContent={pageContent} 
+                      isFirstPage={pageIndex === 0} 
+                      settings={settings} 
+                      allQuestions={paper.questions}
+                  />
+              ))}
+          </div>
+      </div>
     </div>
   );
 }
-
-```

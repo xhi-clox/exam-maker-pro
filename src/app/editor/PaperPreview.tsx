@@ -179,10 +179,9 @@ interface PaperPreviewProps {
     paper: Paper;
     pages: PageContent[][];
     settings: PaperSettings;
-    isForPdf?: boolean;
 }
 
-export default function PaperPreview({ paper, pages, settings, isForPdf = false }: PaperPreviewProps) {
+export default function PaperPreview({ paper, pages, settings }: PaperPreviewProps) {
     const [currentPage, setCurrentPage] = React.useState(0);
 
     React.useEffect(() => {
@@ -191,16 +190,8 @@ export default function PaperPreview({ paper, pages, settings, isForPdf = false 
         }
     }, [pages, currentPage]);
 
-    if (isForPdf) {
-        return (
-            <>
-              {paper.questions.map((q, index) => {
-                  const actualIndex = paper.questions.filter(qu => qu.type !== 'section-header').findIndex(qu => qu.id === q.id) + 1;
-                  const rendered = renderQuestionContent(q, actualIndex, paper.questions, true);
-                  return React.cloneElement(rendered, { key: q.id });
-              })}
-            </>
-        );
+    if (!paper) {
+        return <p>Loading preview...</p>;
     }
 
   return (
