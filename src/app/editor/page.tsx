@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,33 +63,78 @@ const initialPaperData: Paper = {
 
 const defaultInitialQuestions: Question[] = [];
 
+// This counter should be outside the component to persist across re-renders.
+let idCounter = 0;
+const generateId = (prefix: string) => {
+  idCounter++;
+  return `${prefix}${idCounter}`;
+};
+
+
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
-  const idCounter = useRef(0);
+  const hasInitialized = useRef(false);
 
-  const generateId = (prefix: string) => {
-    idCounter.current += 1;
-    return `${prefix}${idCounter.current}`;
-  };
-  
   useEffect(() => {
-    if (!paper) {
-      setPaper({
-        ...initialPaperData,
-        questions: ensureUniqueIds(defaultInitialQuestions),
-      });
+    // This effect runs only once on initial mount to set the default questions.
+    if (!hasInitialized.current && !paper) {
+        setPaper({
+          ...initialPaperData,
+          questions: ensureUniqueIds(defaultInitialQuestions),
+        });
+        hasInitialized.current = true;
     }
-  }, []);
+  }, [paper]);
+
+
+  useEffect(() => {
+    // This effect handles importing data when the `from` search param is present.
+    const from = searchParams.get('from');
+    if ((from === 'image' || from === 'suggest') && paper) {
+      const data = localStorage.getItem('newImageData');
+      if (data) {
+        try {
+          const parsedData = JSON.parse(data);
+
+          setPaper(currentPaper => {
+            if (!currentPaper) return null;
+
+            const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
+
+            return produce(currentPaper, draft => {
+              draft.questions.push(...newQuestions);
+              // Optionally update header info if the paper is new/empty
+              if (currentPaper.questions.length === 0) {
+                 draft.schoolName = parsedData.schoolName || draft.schoolName;
+                 draft.examTitle = parsedData.examTitle || draft.examTitle;
+                 draft.subject = parsedData.subject || draft.subject;
+                 draft.grade = parsedData.grade || draft.grade;
+              }
+            });
+          });
+
+        } catch (e) {
+          console.error("Failed to parse or append paper data from localStorage", e);
+        } finally {
+          localStorage.removeItem('newImageData');
+          // Clean up URL without re-rendering
+          const url = new URL(window.location.href);
+          url.searchParams.delete('from');
+          router.replace(url.pathname, { scroll: false });
+        }
+      }
+    }
+  }, [searchParams, router, paper]);
 
   const ensureUniqueIds = (questions: Question[]): Question[] => {
     return produce(questions, draft => {
       const processNode = (node: any) => {
-        const newId = `${generateId('id_')}_${Math.random().toString(36).substring(2, 9)}`;
-        node.id = newId;
+        // Use a more robust unique ID generator
+        node.id = generateId(`${node.id || 'id_'}_`);
 
         if (node.options) {
           node.options.forEach((option: any) => processNode(option));
@@ -102,50 +147,6 @@ export default function EditorPage() {
       draft.forEach(q => processNode(q));
     });
   };
-
-  useLayoutEffect(() => {
-    const from = searchParams.get('from');
-    if ((from === 'image' || from === 'suggest') && paper) {
-      const data = localStorage.getItem('newImageData');
-      if (data) {
-        try {
-          const parsedData = JSON.parse(data);
-          if (parsedData.questions && parsedData.questions.length > 0) {
-            const newQuestions = ensureUniqueIds(parsedData.questions);
-            
-            setPaper(currentPaper => {
-                if (!currentPaper) return null;
-                
-                const isInitialPaper = currentPaper.questions.length === defaultInitialQuestions.length &&
-                  JSON.stringify(currentPaper.questions) === JSON.stringify(defaultInitialQuestions);
-
-                return produce(currentPaper, draft => {
-                    draft.questions.push(...newQuestions);
-                    
-                    if (isInitialPaper) {
-                        draft.schoolName = parsedData.schoolName || draft.schoolName;
-                        draft.examTitle = parsedData.examTitle || draft.examTitle;
-                        draft.subject = parsedData.subject || draft.subject;
-                        draft.grade = parsedData.grade || draft.grade;
-                        draft.timeAllowed = parsedData.timeAllowed || draft.timeAllowed;
-                        draft.totalMarks = parsedData.totalMarks || draft.totalMarks;
-                        draft.notes = parsedData.notes || draft.notes;
-                    }
-                });
-            });
-          }
-
-        } catch (e) {
-          console.error("Failed to parse or append paper data from localStorage", e);
-        } finally {
-          localStorage.removeItem('newImageData');
-          const url = new URL(window.location.href);
-          url.searchParams.delete('from');
-          router.replace(url.toString(), { scroll: false });
-        }
-      }
-    }
-  }, [searchParams, router, paper]);
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -178,59 +179,81 @@ export default function EditorPage() {
     const container = previewContainerRef.current;
     if (!container || !paper) return;
 
-    const previewPages = Array.from(container.querySelectorAll<HTMLDivElement>('.paper-page'));
-    if (previewPages.length === 0) return;
+    const originalPages = Array.from(container.querySelectorAll<HTMLDivElement>('.paper-page'));
+    if (originalPages.length === 0) return;
 
-    let n = previewPages.length;
-    // Pad with blank pages to make it a multiple of 4
-    const paddedPages = [...previewPages];
+    let n = originalPages.length;
+    const paddedPages = [...originalPages];
     while (paddedPages.length % 4 !== 0) {
-      const blankPage = document.createElement('div');
-      blankPage.className = 'paper-page bg-white';
-      blankPage.style.width = `${previewPages[0].offsetWidth}px`;
-      blankPage.style.height = `${previewPages[0].offsetHeight}px`;
-      paddedPages.push(blankPage);
+        // We create a placeholder for blank pages instead of a real element
+        paddedPages.push(null);
     }
     n = paddedPages.length;
 
-    const bookletOrder: (HTMLDivElement | null)[] = [];
+    const bookletOrderNodes: (HTMLDivElement | null)[] = [];
     for (let i = 0; i < n / 2; i++) {
         if (i % 2 === 0) {
-            bookletOrder.push(paddedPages[n - 1 - i]);
-            bookletOrder.push(paddedPages[i]);
+            bookletOrderNodes.push(paddedPages[n - 1 - i]);
+            bookletOrderNodes.push(paddedPages[i]);
         } else {
-            bookletOrder.push(paddedPages[i]);
-            bookletOrder.push(paddedPages[n - 1 - i]);
+            bookletOrderNodes.push(paddedPages[i]);
+            bookletOrderNodes.push(paddedPages[n - 1 - i]);
         }
     }
 
     const a4Width = 842; // A4 landscape width in points
     const a4Height = 595; // A4 landscape height in points
     const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'pt',
-      format: 'a4',
+        orientation: 'landscape',
+        unit: 'pt',
+        format: 'a4',
     });
 
-    for (let i = 0; i < bookletOrder.length; i += 2) {
-      const leftPageNode = bookletOrder[i];
-      const rightPageNode = bookletOrder[i + 1];
+    for (let i = 0; i < bookletOrderNodes.length; i += 2) {
+        const leftNodeOriginal = bookletOrderNodes[i];
+        const rightNodeOriginal = bookletOrderNodes[i + 1];
 
-      if (!leftPageNode || !rightPageNode) continue;
+        const singlePageWidth = a4Width / 2;
+        const singlePageHeight = a4Height;
 
-      const singlePageCanvas = await html2canvas(leftPageNode, { scale: 2 });
-      const singlePageWidth = a4Width / 2;
-      const singlePageHeight = a4Height;
+        // Helper function to capture a node or create a blank canvas
+        const captureNode = async (node: HTMLDivElement | null) => {
+            if (!node) {
+                 const blankCanvas = document.createElement('canvas');
+                 blankCanvas.width = singlePageWidth * 2; // Use higher resolution
+                 blankCanvas.height = singlePageHeight * 2;
+                 const ctx = blankCanvas.getContext('2d');
+                 if(ctx){
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, blankCanvas.width, blankCanvas.height);
+                 }
+                 return blankCanvas;
+            }
 
-      const leftCanvas = await html2canvas(leftPageNode, { scale: 2 });
-      const rightCanvas = await html2canvas(rightPageNode, { scale: 2 });
-      
-      pdf.addImage(leftCanvas.toDataURL('image/png'), 'PNG', 0, 0, singlePageWidth, singlePageHeight);
-      pdf.addImage(rightCanvas.toDataURL('image/png'), 'PNG', singlePageWidth, 0, singlePageWidth, singlePageHeight);
+            // Clone the node and append to body to ensure it's in the DOM for html2canvas
+            const clonedNode = node.cloneNode(true) as HTMLDivElement;
+            clonedNode.style.position = 'absolute';
+            clonedNode.style.left = '-9999px';
+            clonedNode.style.top = '0px';
+            document.body.appendChild(clonedNode);
+            
+            const canvas = await html2canvas(clonedNode, { scale: 2 });
+            
+            // Clean up by removing the cloned node
+            document.body.removeChild(clonedNode);
+            
+            return canvas;
+        };
 
-      if (i + 2 < bookletOrder.length) {
-        pdf.addPage();
-      }
+        const leftCanvas = await captureNode(leftNodeOriginal);
+        const rightCanvas = await captureNode(rightNodeOriginal);
+        
+        pdf.addImage(leftCanvas.toDataURL('image/png'), 'PNG', 0, 0, singlePageWidth, singlePageHeight);
+        pdf.addImage(rightCanvas.toDataURL('image/png'), 'PNG', singlePageWidth, 0, singlePageWidth, singlePageHeight);
+
+        if (i + 2 < bookletOrderNodes.length) {
+            pdf.addPage();
+        }
     }
 
     pdf.save('question-paper-booklet.pdf');
@@ -869,9 +892,6 @@ export default function EditorPage() {
                     <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
                     <Link href="/editor/image" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
-                    </Link>
-                     <Link href="/ai/suggest" passHref>
-                      <Button variant="outline" className="w-full border-purple-500 text-purple-500"><Sparkles className="mr-2 size-4" /> AI দিয়ে তৈরি করুন</Button>
                     </Link>
                   </CardContent>
                 </Card>
