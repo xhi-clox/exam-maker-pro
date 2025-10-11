@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import PaperPreview from './PaperPreview';
 import jsPDF from 'jspdf';
@@ -95,39 +96,46 @@ export default function EditorPage() {
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
   const hasLoadedFromStorage = useRef(false);
 
-  useEffect(() => {
-    if (hasLoadedFromStorage.current) return;
-    
-    const from = new URLSearchParams(window.location.search).get('from');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+
+  useLayoutEffect(() => {
+    const from = searchParams.get('from');
     if (from === 'image' || from === 'suggest') {
       const data = localStorage.getItem('newImageData');
       if (data) {
-        hasLoadedFromStorage.current = true;
         try {
           const parsedData = JSON.parse(data);
           
           setPaper(currentPaper => {
-            // Check if the current paper is the pristine initial data
-            const isPristine = currentPaper.questions.length === defaultInitialQuestions.length &&
-                               JSON.stringify(currentPaper.schoolName) === JSON.stringify(initialPaperData.schoolName);
+            // Check if the current paper is the pristine initial data (i.e., user hasn't made changes)
+            const isPristine = JSON.stringify(currentPaper) === JSON.stringify({
+                ...initialPaperData,
+                questions: defaultInitialQuestions
+            });
             
             const newQuestions = parsedData.questions || [];
 
             if (isPristine) {
-                // If it's the first import, replace everything
+                // If it's the first import and no changes made, replace everything
                  return { ...initialPaperData, ...parsedData, questions: newQuestions };
             } else {
                 // Otherwise, append questions and don't touch header data
-                return {
-                    ...currentPaper,
-                    questions: [...currentPaper.questions, ...newQuestions],
-                };
+                const updatedPaper = produce(currentPaper, draft => {
+                    draft.questions.push(...newQuestions);
+                    if (parsedData.totalMarks && typeof parsedData.totalMarks === 'number') {
+                        draft.totalMarks += parsedData.totalMarks;
+                    }
+                });
+                return updatedPaper;
             }
           });
 
         } catch (e) {
           console.error("Failed to parse paper data from localStorage", e);
         } finally {
+           // Clean up local storage and URL
            localStorage.removeItem('newImageData');
            const url = new URL(window.location.href);
            url.searchParams.delete('from');
@@ -135,7 +143,7 @@ export default function EditorPage() {
         }
       }
     }
-  }, []);
+  }, [searchParams]);
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -906,7 +914,5 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
 
     
