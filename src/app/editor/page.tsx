@@ -612,7 +612,7 @@ export default function EditorPage() {
           newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           // Marks are on sub-questions for creative, so we don't set it here.
           delete newQuestion.marks;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'ज्ञानমূলক', marks: 1});
+          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'জ্ঞানমূলক', marks: 1});
           newQuestion.subQuestions.push({ id: `sq${Date.now()+1}`, type: 'short', content: 'অনুধাবনমূলক', marks: 2});
           newQuestion.subQuestions.push({ id: `sq${Date.now()+2}`, type: 'short', content: 'প্রয়োগমূলক', marks: 3});
           newQuestion.subQuestions.push({ id: `sq${Date.now()+3}`, type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
@@ -824,5 +824,4 @@ export default function EditorPage() {
   );
 }
 
-
-
+    

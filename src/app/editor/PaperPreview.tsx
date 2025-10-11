@@ -62,7 +62,7 @@ const renderQuestionContent = (question: Question, questionIndex: number, allQue
         {showMainContent && (
             <div className="flex justify-between font-semibold question-content">
                 <p className="flex-1">{questionIndex + 1}. {question.content}</p>
-                {question.marks && question.marks > 0 && <p>{question.marks}</p>}
+                {question.type !== 'creative' && question.marks && question.marks > 0 && <p>{question.marks}</p>}
             </div>
         )}
   
@@ -76,6 +76,7 @@ const renderQuestionContent = (question: Question, questionIndex: number, allQue
                 <div key={sq.id} className="subquestion-item" data-subquestion-id={sq.id}>
                   <div className="flex justify-between">
                     <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
+                    {question.type === 'creative' && sq.marks && sq.marks > 0 && <p>{sq.marks}</p>}
                   </div>
                   {sq.options && sq.options.length > 0 && (
                     <div className="pl-6 mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
@@ -222,6 +223,8 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 
                 let mainQuestionOnPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
 
+                let showMainContent = true;
+
                 if (!mainQuestionOnPage) {
                     if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
                         startNewPage();
@@ -234,6 +237,8 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                     currentPageContent.push(contentToAdd);
                     mainQuestionOnPage = contentToAdd;
                     currentPageHeight += mainContentHeight;
+                } else {
+                  showMainContent = false;
                 }
 
                 question.subQuestions?.forEach((sq) => {
@@ -372,7 +377,5 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
-
-    
 
     
