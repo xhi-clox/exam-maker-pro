@@ -115,11 +115,13 @@ export default function EditorPage() {
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
   
   const [pages, setPages] = useState<PageContent[][]>([]);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [bookletPages, setBookletPages] = useState<any[]>([]);
   const hiddenRenderRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<PaperSettings>({ 
-    margins: { top: 20, bottom: 20, left: 15, right: 15 },
-    width: 421, 
-    height: 595,
+    margins: { top: 10, bottom: 10, left: 10, right: 10 },
+    width: 560, 
+    height: 794,
     fontSize: 12,
   });
 
@@ -174,8 +176,64 @@ export default function EditorPage() {
     element.dispatchEvent(event);
   };
 
-  const handleDownloadPdf = async () => {
+  const generatePdf = async () => {
+    if (!paper || bookletPages.length === 0) return;
+    
+    const a4Width = 842; 
+    const a4Height = 595;
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a4',
+    });
+
+    for (let i = 0; i < bookletPages.length; i++) {
+        if (i > 0) {
+            pdf.addPage();
+        }
+        const bookletPage = bookletPages[i];
+        
+        const addImageToPdf = (canvasDataUrl: string | null, x: number) => {
+            if (canvasDataUrl) {
+                const img = new Image();
+                img.src = canvasDataUrl;
+                
+                const targetWidth = a4Width / 2;
+                const targetHeight = a4Height;
+                
+                const imgAspectRatio = img.width / img.height;
+                const targetAspectRatio = targetWidth / targetHeight;
+
+                let drawWidth, drawHeight, drawX, drawY;
+
+                if (imgAspectRatio > targetAspectRatio) {
+                    drawWidth = targetWidth;
+                    drawHeight = drawWidth / imgAspectRatio;
+                } else {
+                    drawHeight = targetHeight;
+                    drawWidth = drawHeight * imgAspectRatio;
+                }
+                
+                drawX = x + (targetWidth - drawWidth) / 2;
+                drawY = (targetHeight - drawHeight) / 2;
+
+                pdf.addImage(img, 'PNG', drawX, drawY, drawWidth, drawHeight);
+            }
+        }
+        addImageToPdf(bookletPage.left, 0);
+        addImageToPdf(bookletPage.right, a4Width / 2);
+    }
+    
+    pdf.save('question-paper-booklet.pdf');
+    setIsDownloading(false);
+    setBookletPages([]);
+  };
+
+  const preparePdfDownload = async () => {
     if (!paper || pages.length === 0) return;
+    
+    setIsDownloading(true);
+    setBookletPages([]);
   
     const renderContainer = document.createElement('div');
     renderContainer.style.position = 'absolute';
@@ -202,15 +260,7 @@ export default function EditorPage() {
       }
     }
   
-    const a4Width = 842; 
-    const a4Height = 595; 
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'pt',
-      format: 'a4',
-    });
-  
-    const captureNode = async (pageIndex: number | null): Promise<HTMLCanvasElement | null> => {
+    const captureNode = async (pageIndex: number | null): Promise<string | null> => {
       if (pageIndex === null || !paper) {
         return null;
       }
@@ -234,7 +284,7 @@ export default function EditorPage() {
       const root = createRoot(pageContainer);
       await new Promise<void>(resolve => {
         root.render(nodeToRender);
-        setTimeout(resolve, 300); // Give it a moment to render
+        setTimeout(resolve, 300);
       });
 
       const elementToCapture = pageContainer.firstChild as HTMLElement;
@@ -242,35 +292,23 @@ export default function EditorPage() {
 
       const canvas = await html2canvas(elementToCapture, { scale: 2 });
       renderContainer.removeChild(pageContainer);
-      return canvas;
+      return canvas.toDataURL('image/png');
     };
   
+    const finalBookletPages = [];
     for (let i = 0; i < bookletOrderIndices.length; i += 2) {
-      if (i > 0) {
-        pdf.addPage();
-      }
-  
       const leftPageIndex = bookletOrderIndices[i];
       const rightPageIndex = bookletOrderIndices[i + 1];
   
-      const [leftCanvas, rightCanvas] = await Promise.all([
+      const [leftCanvasUrl, rightCanvasUrl] = await Promise.all([
           captureNode(leftPageIndex),
           captureNode(rightPageIndex),
       ]);
-  
-      const addImageToPdf = (canvas: HTMLCanvasElement | null, x: number) => {
-        if (canvas) {
-          const canvasWidth = settings.width;
-          const canvasHeight = settings.height;
-          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, 0, canvasWidth, canvasHeight);
-        }
-      }
-
-      addImageToPdf(leftCanvas, 0);
-      addImageToPdf(rightCanvas, a4Width / 2);
+      
+      finalBookletPages.push({ left: leftCanvasUrl, right: rightCanvasUrl });
     }
   
-    pdf.save('question-paper-booklet.pdf');
+    setBookletPages(finalBookletPages);
     document.body.removeChild(renderContainer);
   };
 
@@ -901,8 +939,38 @@ export default function EditorPage() {
                     settings={settings}
                   />
                 </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setIsDownloading(false); setBookletPages([]); }}}>
+              <DialogTrigger asChild>
+                <Button onClick={preparePdfDownload}><Download className="mr-2 size-4" /> Download</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-5xl">
+                <DialogHeader>
+                  <DialogTitle>Booklet Download Preview</DialogTitle>
+                </DialogHeader>
+                <div className="my-4 overflow-x-auto">
+                    {bookletPages.length > 0 ? (
+                        <div className="flex gap-4 p-4 bg-gray-200">
+                            {bookletPages.map((page, index) => (
+                                <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
+                                    <div className="w-1/2 h-full border-r border-gray-300">
+                                        {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
+                                    </div>
+                                    <div className="w-1/2 h-full">
+                                         {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center h-64">
+                            <p>Generating PDF preview...</p>
+                        </div>
+                    )}
+                </div>
                 <DialogFooter>
-                    <Button onClick={handleDownloadPdf}><Download className="mr-2 size-4" /> Download PDF</Button>
+                    <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
