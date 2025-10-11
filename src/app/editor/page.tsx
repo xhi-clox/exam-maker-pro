@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,7 +87,6 @@ const defaultInitialQuestions: Question[] = [
   }
 ];
 
-
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const router = useRouter();
@@ -102,32 +101,38 @@ export default function EditorPage() {
   };
 
   const ensureUniqueIds = (questions: Question[]): Question[] => {
-      const processQuestion = (q: Question): Question => {
-          const newQuestion: Question = { ...q, id: generateId('q_') };
-          
-          if (newQuestion.subQuestions) {
-              newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
-                  const newSq: Question = { ...sq, id: generateId('sq_') };
-                  if (newSq.options) {
-                      newSq.options = newSq.options.map(opt => ({ ...opt, id: generateId('opt_') }));
-                  }
-                  if (newSq.subQuestions) {
-                      newSq.subQuestions = newSq.subQuestions.map(processQuestion);
-                  }
-                  return newSq;
-              });
-          }
-          
-          if (newQuestion.options) {
-              newQuestion.options = newQuestion.options.map(opt => ({ ...opt, id: generateId('opt_') }));
-          }
+    const newIdCounter = Date.now();
+    let questionIndex = 0;
 
-          return newQuestion;
-      };
+    const processQuestion = (q: Question): Question => {
+      const newQuestionId = `${generateId('q_')}_${newIdCounter}_${questionIndex++}`;
+      const newQuestion: Question = { ...q, id: newQuestionId };
+      
+      if (newQuestion.subQuestions) {
+        newQuestion.subQuestions = newQuestion.subQuestions.map(sq => {
+          const newSqId = `${generateId('sq_')}_${newIdCounter}_${questionIndex++}`;
+          const newSq: Question = { ...sq, id: newSqId };
+          if (newSq.options) {
+            newSq.options = newSq.options.map((opt, optIndex) => ({ ...opt, id: `${generateId('opt_')}_${newSqId}_${optIndex}` }));
+          }
+          if (newSq.subQuestions) {
+            newSq.subQuestions = newSq.subQuestions.map(processQuestion);
+          }
+          return newSq;
+        });
+      }
+      
+      if (newQuestion.options) {
+        newQuestion.options = newQuestion.options.map((opt, optIndex) => ({ ...opt, id: `${generateId('opt_')}_${newQuestionId}_${optIndex}` }));
+      }
 
-      return questions.map(processQuestion);
+      return newQuestion;
+    };
+
+    return questions.map(processQuestion);
   };
-
+  
+  // Effect for initial loading of default paper
   useEffect(() => {
     if (!paper) {
       setPaper({
@@ -135,8 +140,9 @@ export default function EditorPage() {
         questions: ensureUniqueIds(defaultInitialQuestions),
       });
     }
-  }, [paper]);
-  
+  }, []);
+
+  // Effect for handling imported data from image or AI suggestion
   useEffect(() => {
     const from = searchParams.get('from');
     if ((from === 'image' || from === 'suggest') && paper) {
@@ -145,14 +151,14 @@ export default function EditorPage() {
         try {
           const parsedData = JSON.parse(data);
           const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
-          
+
           if (newQuestions.length > 0) {
-              setPaper(currentPaper => {
-                if (!currentPaper) return null;
-                return produce(currentPaper, draft => {
-                   draft.questions.push(...newQuestions);
-                });
+            setPaper(currentPaper => {
+              if (!currentPaper) return null; // Should not happen if initial effect ran
+              return produce(currentPaper, draft => {
+                 draft.questions.push(...newQuestions);
               });
+            });
           }
 
         } catch (e) {
@@ -165,7 +171,7 @@ export default function EditorPage() {
         }
       }
     }
-  }, [searchParams, router, paper]);
+  }, [searchParams, router]);
 
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
@@ -564,7 +570,7 @@ export default function EditorPage() {
                         onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
                         onFocus={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
                         className="flex-grow bg-white" />
-                    { question.type === 'creative' && (
+                    { question.type === 'creative' && sq.marks !== undefined && (
                        <div className="flex items-center gap-2 shrink-0">
                          <Label htmlFor={`marks-${sq.id}`} className="text-sm">Marks:</Label>
                          <Input 
@@ -926,5 +932,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
