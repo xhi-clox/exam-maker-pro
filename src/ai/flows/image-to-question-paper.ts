@@ -43,13 +43,6 @@ const RecursiveQuestionSchema: z.ZodType<Question> = QuestionSchema.extend({
 });
 
 const ImageToQuestionPaperOutputSchema = z.object({
-    schoolName: z.string().describe("The name of the school.").default(""),
-    examTitle: z.string().describe("The title of the exam.").default(""),
-    subject: z.string().describe("The subject of the exam.").default(""),
-    grade: z.string().describe("The grade/class for the exam.").default(""),
-    timeAllowed: z.string().describe("The time allowed for the exam.").default(""),
-    totalMarks: z.number().describe("The total marks for the exam.").default(0),
-    notes: z.string().optional().describe("General notes or instructions for the exam."),
     questions: z.array(RecursiveQuestionSchema).describe('The array of questions extracted from the image.'),
 });
 
@@ -65,7 +58,7 @@ const prompt = ai.definePrompt({
   output: {schema: ImageToQuestionPaperOutputSchema},
   prompt: `You are an expert in processing exam papers from images, especially for the Bangladeshi education system. Your task is to analyze the provided image, which could be anything from a polished document to a rough, unorganized, or handwritten draft of questions.
 
-You must interpret the content and structure it into a valid JSON object that matches the output schema.
+You must interpret the content and structure it into a valid JSON object that matches the output schema. Your SOLE FOCUS is on the questions themselves. DO NOT extract header information like School Name, Exam Title, Subject, etc.
 
 Key Instructions:
 1.  **Analyze and Structure**: Carefully analyze the image to identify all questions, passages (উদ্দীপক), section headers (e.g., ক-বিভাগ), and instructions. Infer the structure, including nested sub-questions (like ক, খ, গ, ঘ under a creative question).
@@ -74,11 +67,10 @@ Key Instructions:
 4.  **Handle Handwriting and Poor Quality**: The image may be handwritten or messy. Do your best to decipher the text.
 5.  **Generate IDs**: Create a unique 'id' for every single question, sub-question, and option (e.g., 'q1', 'sq1a', 'opt1a1').
 6.  **Language**: The content is likely in Bengali. Ensure your output maintains the correct language.
-7.  **Header Information**: Extract header details like School Name, Exam Title, Subject, Grade, Time, and Total Marks if they are present in the image. If they are not present, provide sensible defaults or empty strings.
 
 Image: {{media url=photoDataUri}}
 
-Return a single, valid JSON object representing the entire structured question paper.`,
+Return a single, valid JSON object containing ONLY the 'questions' array.`,
 });
 
 const imageToQuestionPaperFlow = ai.defineFlow(

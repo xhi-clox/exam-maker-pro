@@ -94,7 +94,6 @@ export default function EditorPage() {
   }));
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
-  const hasLoadedFromStorage = useRef(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -109,27 +108,17 @@ export default function EditorPage() {
           const parsedData = JSON.parse(data);
           
           setPaper(currentPaper => {
-            // Check if the current paper is the pristine initial data (i.e., user hasn't made changes)
-            const isPristine = JSON.stringify(currentPaper) === JSON.stringify({
-                ...initialPaperData,
-                questions: defaultInitialQuestions
-            });
-            
             const newQuestions = parsedData.questions || [];
 
-            if (isPristine) {
-                // If it's the first import and no changes made, replace everything
-                 return { ...initialPaperData, ...parsedData, questions: newQuestions };
-            } else {
-                // Otherwise, append questions and don't touch header data
-                const updatedPaper = produce(currentPaper, draft => {
-                    draft.questions.push(...newQuestions);
-                    if (parsedData.totalMarks && typeof parsedData.totalMarks === 'number') {
-                        draft.totalMarks += parsedData.totalMarks;
-                    }
-                });
-                return updatedPaper;
-            }
+            // Always append questions, don't touch header data
+            const updatedPaper = produce(currentPaper, draft => {
+                draft.questions.push(...newQuestions);
+                // Optionally update total marks if present in parsed data
+                if (parsedData.totalMarks && typeof parsedData.totalMarks === 'number') {
+                    draft.totalMarks += parsedData.totalMarks;
+                }
+            });
+            return updatedPaper;
           });
 
         } catch (e) {
