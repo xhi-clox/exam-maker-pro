@@ -1,3 +1,4 @@
+
 'use client';
 import type { LucideIcon } from 'lucide-react';
 import Link from 'next/link';
@@ -28,23 +29,8 @@ export function AiActionCard({ Icon, title, description, href }: AiActionCardPro
             এখনই শুরু করুন <ArrowRight className="ml-2 size-4" />
           </Button>
         </CardHeader>
-        <div className="absolute inset-0 bg-grid-white/[0.05]"></div>
+        <div className="absolute inset-0 bg-[image:linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
       </Link>
     </Card>
   );
-}
-
-const styles = `
-.bg-grid-white\\/\\[0\\.05\\] {
-    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-    background-size: 20px 20px;
-}
-`;
-
-// Inject styles into the document head
-if (typeof window !== 'undefined') {
-    const styleSheet = document.createElement("style");
-    styleSheet.type = "text/css";
-    styleSheet.innerText = styles;
-    document.head.appendChild(styleSheet);
 }
