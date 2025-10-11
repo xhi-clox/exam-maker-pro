@@ -141,6 +141,11 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: 
                         <p>শ্রেণি: {getGradeName(paper.grade)}</p>        
                         <p>সময়: {paper.timeAllowed}</p>
                     </div>
+                    {paper.notes && (
+                        <div className="text-center text-sm font-semibold mb-6">
+                            <p>{paper.notes}</p>
+                        </div>
+                    )}
                 </>
             )}
 
@@ -312,6 +317,11 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                           <p>শ্রেণি: {gradeMap[paper.grade] || paper.grade}</p>
                           <p>সময়: {paper.timeAllowed}</p>
                       </div>
+                      {paper.notes && (
+                        <div className="text-center text-sm font-semibold mb-6">
+                            <p>{paper.notes}</p>
+                        </div>
+                     )}
                   </header>
                   <main>
                    {paper.questions.map((q, index) => {

@@ -45,6 +45,7 @@ export interface Paper {
   timeAllowed: string;
   totalMarks: number;
   questions: Question[];
+  notes?: string;
 }
 
 const initialPaperData: Paper = {
@@ -713,6 +714,10 @@ export default function EditorPage() {
     }))
   };
 
+  const addNote = () => {
+    handlePaperDetailChange('notes', '(ক ও খ বিভাগ থেকে দুটি এবং গ ও ঘ বিভাগ থেকে ১টি সহ মোট ৭ টি প্রশ্নের উত্তর দাও)');
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50 text-foreground">
       {/* Header */}
@@ -759,6 +764,20 @@ export default function EditorPage() {
                <div className="flex justify-between text-sm">
                 <p>শ্রেণি: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} /></p>
                 <p>সময়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/></p>
+              </div>
+              <div className="pt-2">
+                {paper.notes === undefined ? (
+                    <Button variant="outline" size="sm" onClick={addNote}>
+                        <Plus className="mr-2 size-4" /> নোট যোগ করুন
+                    </Button>
+                ) : (
+                    <Textarea 
+                        value={paper.notes}
+                        onChange={e => handlePaperDetailChange('notes', e.target.value)}
+                        placeholder="নোট লিখুন..."
+                        className="bg-slate-50 text-sm text-center"
+                    />
+                )}
               </div>
               <hr className="my-6" />
 
@@ -857,8 +876,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
-    
-
-    
