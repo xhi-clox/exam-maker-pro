@@ -51,17 +51,16 @@ const renderQuestionContent = (question: Question, questionIndex: number, allQue
     if (question.type === 'section-header') {
         return (
             <div key={question.id} className="text-center font-bold underline decoration-dotted text-lg my-4" data-question-id={question.id}>
-                {question.content}
+                {showMainContent ? question.content : ''}
             </div>
         );
     }
-
 
     return (
       <div key={question.id} className="mb-4 question-item" data-question-id={question.id}>
         {showMainContent && (
             <div className="flex justify-between font-semibold question-content">
-                <p className="flex-1">{questionIndex + 1}. {question.content}</p>
+                <p className="flex-1">{questionIndex}. {question.content}</p>
                 {question.type !== 'creative' && question.marks && question.marks > 0 && <p>{question.marks}</p>}
             </div>
         )}
@@ -122,6 +121,9 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: 
         fontSize: `${settings.fontSize}pt`,
     };
 
+    let questionCounter = 0;
+    const allQuestionIds = allQuestions.filter(q => q.type !== 'section-header').map(q => q.id);
+
     return (
         <div ref={ref} className="bg-white text-black font-serif max-w-none mx-auto border rounded-sm shadow-lg paper-page" style={pageStyle}>
             {isFirstPage && (
@@ -144,12 +146,19 @@ const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageContent: 
 
             <main className={!isFirstPage ? 'pt-8' : ''}>
                 {pageContent.map(content => {
-                    const originalQuestionIndex = allQuestions.findIndex(q => q.id === content.mainQuestion.id);
+                    let questionNumber = 0;
+                    if (content.mainQuestion.type !== 'section-header') {
+                      const idx = allQuestionIds.indexOf(content.mainQuestion.id);
+                      if (idx !== -1) {
+                          questionNumber = idx + 1;
+                      }
+                    }
+
                     const questionToRender: Question = {
                         ...content.mainQuestion,
                         subQuestions: content.subQuestions
                     };
-                    return renderQuestionContent(questionToRender, originalQuestionIndex, allQuestions, content.showMainContent);
+                    return renderQuestionContent(questionToRender, questionNumber, allQuestions, content.showMainContent);
                 })}
             </main>
         </div>
@@ -192,7 +201,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 setPages([]);
                 return;
             }
-
+    
             const pageBreakThreshold = settings.height - (settings.margins.top + settings.margins.bottom) * 3.78; // Convert mm to px
             const hiddenPage = hiddenRenderRef.current;
             const headerEl = hiddenPage.querySelector('.preview-header');
@@ -202,7 +211,7 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
             let currentPageContent: PageContent[] = [];
             let currentPageHeight = 0;
             let isFirstPage = true;
-
+    
             const startNewPage = () => {
                 if (currentPageContent.length > 0) {
                     newPages.push(currentPageContent);
@@ -211,61 +220,59 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 currentPageHeight = 0;
                 isFirstPage = false;
             };
-            
+    
             paper.questions.forEach((question) => {
                 const questionElement = hiddenPage.querySelector(`[data-question-id="${question.id}"]`);
                 if (!questionElement) return;
-
+    
                 const mainContentEl = questionElement.querySelector('.question-content');
                 const mainContentHeight = mainContentEl?.getBoundingClientRect().height || 0;
-                
-                const availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
-                
-                let mainQuestionOnPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
-
-                let showMainContent = true;
-
-                if (!mainQuestionOnPage) {
+    
+                let availableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+    
+                let mainOnPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
+    
+                if (!mainOnPage) {
                     if (currentPageHeight + mainContentHeight > availableHeight && currentPageContent.length > 0) {
                         startNewPage();
+                        availableHeight = pageBreakThreshold;
                     }
                     if (isFirstPage && currentPageHeight === 0) {
-                        currentPageHeight = headerHeight;
+                        currentPageHeight += headerHeight;
                     }
                     
                     const contentToAdd: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: true };
                     currentPageContent.push(contentToAdd);
-                    mainQuestionOnPage = contentToAdd;
+                    mainOnPage = contentToAdd;
                     currentPageHeight += mainContentHeight;
-                } else {
-                  showMainContent = false;
                 }
-
+    
                 question.subQuestions?.forEach((sq) => {
                     const subQuestionEl = questionElement.querySelector(`[data-subquestion-id="${sq.id}"]`);
                     if (!subQuestionEl) return;
                     
                     const subQuestionHeight = subQuestionEl.getBoundingClientRect().height;
-                    const currentAvailableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
-                    
+                    let currentAvailableHeight = isFirstPage ? pageBreakThreshold - headerHeight : pageBreakThreshold;
+    
                     if (currentPageHeight + subQuestionHeight > currentAvailableHeight) {
                         startNewPage();
-                        
+                        currentAvailableHeight = pageBreakThreshold;
+    
                         let existingMainOnNewPage = currentPageContent.find(p => p.mainQuestion.id === question.id);
                         if (!existingMainOnNewPage) {
                             const newMainContent: PageContent = { mainQuestion: {...question, subQuestions: []}, subQuestions: [], showMainContent: false };
                             currentPageContent.push(newMainContent);
-                            mainQuestionOnPage = newMainContent;
+                            mainOnPage = newMainContent;
                         } else {
-                            mainQuestionOnPage = existingMainOnNewPage;
+                            mainOnPage = existingMainOnNewPage;
                         }
                     }
-
-                    mainQuestionOnPage!.subQuestions.push(sq);
+    
+                    mainOnPage!.subQuestions.push(sq);
                     currentPageHeight += subQuestionHeight;
                 });
             });
-
+    
             if (currentPageContent.length > 0) {
                 newPages.push(currentPageContent);
             }
@@ -275,11 +282,12 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                 setCurrentPage(Math.max(0, newPages.length - 1));
             }
         };
-
+    
         const timer = setTimeout(calculatePages, 200);
         return () => clearTimeout(timer);
-
+    
     }, [paper, settings]);
+
 
   return (
     <>
@@ -307,7 +315,8 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
                   </header>
                   <main>
                    {paper.questions.map((q, index) => {
-                       const rendered = renderQuestionContent(q, index, paper.questions, true);
+                       const actualIndex = paper.questions.filter(qu => qu.type !== 'section-header').findIndex(qu => qu.id === q.id) + 1;
+                       const rendered = renderQuestionContent(q, actualIndex, paper.questions, true);
                        return React.cloneElement(rendered, { key: q.id });
                    })}
                   </main>
@@ -377,5 +386,3 @@ export default function PaperPreview({ paper }: { paper: Paper }) {
     </>
   );
 }
-
-    

@@ -86,7 +86,28 @@ export default function EditorPage() {
   const [paper, setPaper] = useState<Paper>(initialPaperData);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
-  let questionCounter = 0;
+  
+  useEffect(() => {
+    const from = new URLSearchParams(window.location.search).get('from');
+    if (from === 'image') {
+      const data = localStorage.getItem('newImageData');
+      if (data) {
+        try {
+          const parsedData = JSON.parse(data);
+          // A very basic merge. A real app would have a more robust system.
+          setPaper(prev => ({
+            ...prev,
+            ...parsedData,
+            questions: parsedData.questions || prev.questions
+          }));
+        } catch (e) {
+          console.error("Failed to parse paper data from localStorage", e);
+        } finally {
+          localStorage.removeItem('newImageData');
+        }
+      }
+    }
+  }, []);
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
@@ -399,11 +420,7 @@ export default function EditorPage() {
     </div>
   );
 
-  const renderQuestion = (question: Question, index: number) => {
-    if (question.type !== 'section-header') {
-      questionCounter++;
-    }
-
+  const renderQuestion = (question: Question, questionNumber: number) => {
     const handleRemove = () => removeQuestion(question.id);
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
 
@@ -425,7 +442,7 @@ export default function EditorPage() {
           <QuestionActions onRemove={handleRemove} />
           <div className="flex items-center justify-between">
             <div className='flex items-center gap-2'>
-              <Label className="font-bold">{`${questionCounter}. ${title}`}</Label>
+              <Label className="font-bold">{`${questionNumber}. ${title}`}</Label>
             </div>
             <div className="flex items-center gap-4">
               { question.type !== 'creative' && (
@@ -531,17 +548,17 @@ export default function EditorPage() {
 
     switch (question.type) {
         case 'passage':
-            return questionCard('অনুচ্ছেদ', subQuestionRenderer('short'));
+            return questionCard(question.content, subQuestionRenderer('short'));
         case 'creative':
-            return questionCard('সৃজনশীল প্রশ্ন', subQuestionRenderer('short'));
+            return questionCard(question.content, subQuestionRenderer('short'));
         case 'fill-in-the-blanks':
-             return questionCard('শূন্যস্থান পূরণ', subQuestionRenderer('fill-in-the-blanks'));
+             return questionCard(question.content, subQuestionRenderer('fill-in-the-blanks'));
         case 'short':
-          return questionCard('সংক্ষিপ্ত প্রশ্ন', subQuestionRenderer('short'));
+          return questionCard(question.content, subQuestionRenderer('short'));
         case 'essay':
-          return questionCard('রচনামূলক প্রশ্ন', subQuestionRenderer('essay'));
+          return questionCard(question.content, subQuestionRenderer('essay'));
         case 'mcq':
-             return questionCard('বহুনির্বাচনি প্রশ্ন (MCQ)', subQuestionRenderer('mcq'));
+             return questionCard(question.content, subQuestionRenderer('mcq'));
         case 'table':
             return questionCard('সারণী প্রশ্ন', (
                 <>
@@ -677,7 +694,7 @@ export default function EditorPage() {
     }))
   };
 
-  questionCounter = 0;
+  let questionCounter = 0;
   
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50 text-foreground">
@@ -735,7 +752,12 @@ export default function EditorPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {paper.questions.map((q, index) => renderQuestion(q, index))}
+                  {paper.questions.map((q) => {
+                    if (q.type !== 'section-header') {
+                      questionCounter++;
+                    }
+                    return renderQuestion(q, questionCounter)
+                  })}
                 </div>
               )}
             </div>
@@ -751,14 +773,14 @@ export default function EditorPage() {
                   </CardHeader>
                   <CardContent className="flex flex-col gap-2">
                     <Button variant="outline" onClick={() => addQuestion('section-header')}><Minus className="mr-2 size-4" /> বিভাগ যোগ করুন</Button>
-                    <Button variant="outline" onClick={() => addQuestion('passage')}><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
                     <Button variant="outline" onClick={() => addQuestion('creative')}><BookMarked className="mr-2 size-4" /> সৃজনশীল প্রশ্ন</Button>
+                    <Button variant="outline" onClick={() => addQuestion('passage')}><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
                     <Button variant="outline" onClick={() => addQuestion('mcq')}><ListOrdered className="mr-2 size-4" /> MCQ</Button>
                     <Button variant="outline" onClick={() => addQuestion('short')}><Type className="mr-2 size-4" /> সংক্ষিপ্ত প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')}><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
                     <Button variant="outline" onClick={() => addQuestion('essay')}><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
                     <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
-                    <Link href="/editor/image" passHref>
+                    <Link href="/editor/image?from=editor" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
                   </CardContent>
@@ -823,5 +845,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
