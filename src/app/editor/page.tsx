@@ -89,7 +89,6 @@ const defaultInitialQuestions: Question[] = [
 
 // Function to ensure all question/sub-question/option IDs are unique
 const ensureUniqueIds = (questions: Question[]): Question[] => {
-    // Use a non-date-based counter to avoid hydration issues.
     let counter = Math.floor(Math.random() * 10000);
     const generateId = (prefix: string) => `${prefix}${counter++}`;
 
@@ -118,17 +117,20 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
 
 
 export default function EditorPage() {
-  const [paper, setPaper] = useState<Paper>(() => ({
-    ...initialPaperData,
-    questions: ensureUniqueIds(defaultInitialQuestions)
-  }));
+  const [paper, setPaper] = useState<Paper>(initialPaperData);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
 
   const searchParams = useSearchParams();
-  const router = useRouter();
 
+  // Initialize with default questions only on the client-side to avoid hydration errors
+  useEffect(() => {
+    setPaper(prev => ({
+        ...prev,
+        questions: ensureUniqueIds(defaultInitialQuestions)
+    }));
+  }, []);
 
   useLayoutEffect(() => {
     const from = searchParams.get('from');
@@ -139,15 +141,11 @@ export default function EditorPage() {
           const parsedData = JSON.parse(data);
           
           setPaper(currentPaper => {
-            // Ensure incoming questions have unique IDs before appending
             const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
+            const isInitialState = currentPaper.questions.length === 0 || (currentPaper.questions.length === 2 && currentPaper.schoolName === initialPaperData.schoolName);
 
-            // If the editor is still in its initial state, replace everything.
-            // Otherwise, just append questions.
-            const isInitialState = currentPaper.questions.length === 2 && currentPaper.schoolName === initialPaperData.schoolName;
-
-            if (isInitialState) {
-                return {
+            if (isInitialState && parsedData.questions) {
+                 return {
                     schoolName: parsedData.schoolName || initialPaperData.schoolName,
                     examTitle: parsedData.examTitle || initialPaperData.examTitle,
                     subject: parsedData.subject || initialPaperData.subject,
@@ -155,7 +153,7 @@ export default function EditorPage() {
                     board: parsedData.board || initialPaperData.board,
                     timeAllowed: parsedData.timeAllowed || initialPaperData.timeAllowed,
                     totalMarks: parsedData.totalMarks || initialPaperData.totalMarks,
-                    notes: parsedData.notes,
+                    notes: parsedData.notes || initialPaperData.notes,
                     questions: newQuestions,
                 };
             } else {
@@ -171,7 +169,6 @@ export default function EditorPage() {
         } catch (e) {
           console.error("Failed to parse paper data from localStorage", e);
         } finally {
-           // Clean up local storage and URL
            localStorage.removeItem('newImageData');
            const url = new URL(window.location.href);
            url.searchParams.delete('from');
@@ -794,7 +791,7 @@ export default function EditorPage() {
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
+          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादক</h1>
         </div>
         <div className="flex items-center gap-2">
             <Dialog>
