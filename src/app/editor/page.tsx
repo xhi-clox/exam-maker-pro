@@ -20,6 +20,7 @@ import PaperPreview from './PaperPreview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import MathExpressions from './MathExpressions';
+import { produce } from 'immer';
 
 type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
 
@@ -56,55 +57,81 @@ const initialPaperData: Paper = {
   board: 'dhaka',
   timeAllowed: '৩ ঘন্টা',
   totalMarks: 100,
-  questions: [
-    {
-      id: 'q1',
-      type: 'passage',
-      content: 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:',
-      numberingFormat: 'bangla-alpha',
-      marks: 10,
-      subQuestions: [
-        { id: 'q1a', type: 'short', content: 'রউফ কেন নিজে দায়িত্ব নিলেন?', marks: 2 },
-        { id: 'q1b', type: 'short', content: 'কীভাবে তিনি শহিদ হলেন?', marks: 3 },
-        { id: 'q1c', type: 'essay', content: 'দেশের জন্য তার আত্মত্যাগের মহিমা বর্ণনা কর।', marks: 5 },
-      ]
-    },
-    {
-      id: 'q2',
-      type: 'fill-in-the-blanks',
-      content: 'খালি জায়গা পূরণ কর:',
-      numberingFormat: 'bangla-alpha',
-      marks: 5,
-      subQuestions: [
-        { id: 'q2a', type: 'fill-in-the-blanks', content: '_____ দেশের গৌরব।', marks: 2.5 },
-        { id: 'q2b', type: 'fill-in-the-blanks', content: 'তিনি ____ রক্ষা করার জন্য জীবন দিলেন।', marks: 2.5 },
-      ]
-    }
-  ],
+  questions: [],
 };
 
+const defaultInitialQuestions: Question[] = [
+  {
+    id: 'q1',
+    type: 'passage',
+    content: 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:',
+    numberingFormat: 'bangla-alpha',
+    marks: 10,
+    subQuestions: [
+      { id: 'q1a', type: 'short', content: 'রউফ কেন নিজে দায়িত্ব নিলেন?', marks: 2 },
+      { id: 'q1b', type: 'short', content: 'কীভাবে তিনি শহিদ হলেন?', marks: 3 },
+      { id: 'q1c', type: 'essay', content: 'দেশের জন্য তার আত্মত্যাগের মহিমা বর্ণনা কর।', marks: 5 },
+    ]
+  },
+  {
+    id: 'q2',
+    type: 'fill-in-the-blanks',
+    content: 'খালি জায়গা পূরণ কর:',
+    numberingFormat: 'bangla-alpha',
+    marks: 5,
+    subQuestions: [
+      { id: 'q2a', type: 'fill-in-the-blanks', content: '_____ দেশের গৌরব।', marks: 2.5 },
+      { id: 'q2b', type: 'fill-in-the-blanks', content: 'তিনি ____ রক্ষা করার জন্য জীবন দিলেন।', marks: 2.5 },
+    ]
+  }
+];
+
 export default function EditorPage() {
-  const [paper, setPaper] = useState<Paper>(initialPaperData);
+  const [paper, setPaper] = useState<Paper>(() => ({
+    ...initialPaperData,
+    questions: defaultInitialQuestions
+  }));
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
-  
+  const hasLoadedFromStorage = useRef(false);
+
   useEffect(() => {
+    if (hasLoadedFromStorage.current) return;
+    
     const from = new URLSearchParams(window.location.search).get('from');
-    if (from === 'image') {
+    if (from === 'image' || from === 'suggest') {
       const data = localStorage.getItem('newImageData');
       if (data) {
+        hasLoadedFromStorage.current = true;
         try {
           const parsedData = JSON.parse(data);
-          // A very basic merge. A real app would have a more robust system.
-          setPaper(prev => ({
-            ...prev,
-            ...parsedData,
-            questions: parsedData.questions || prev.questions
-          }));
+          
+          setPaper(currentPaper => {
+            // Check if the current paper is the pristine initial data
+            const isPristine = currentPaper.questions.length === defaultInitialQuestions.length &&
+                               JSON.stringify(currentPaper.schoolName) === JSON.stringify(initialPaperData.schoolName);
+            
+            const newQuestions = parsedData.questions || [];
+
+            if (isPristine) {
+                // If it's the first import, replace everything
+                 return { ...initialPaperData, ...parsedData, questions: newQuestions };
+            } else {
+                // Otherwise, append questions and don't touch header data
+                return {
+                    ...currentPaper,
+                    questions: [...currentPaper.questions, ...newQuestions],
+                };
+            }
+          });
+
         } catch (e) {
           console.error("Failed to parse paper data from localStorage", e);
         } finally {
-          localStorage.removeItem('newImageData');
+           localStorage.removeItem('newImageData');
+           const url = new URL(window.location.href);
+           url.searchParams.delete('from');
+           window.history.replaceState({}, '', url.toString());
         }
       }
     }
@@ -814,6 +841,9 @@ export default function EditorPage() {
                     <Link href="/editor/image?from=editor" passHref>
                         <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                     </Link>
+                     <Link href="/ai/suggest?from=editor" passHref>
+                        <Button variant="outline" className="w-full border-purple-500 text-purple-500"><Sparkles className="mr-2 size-4" /> AI দিয়ে তৈরি করুন</Button>
+                    </Link>
                   </CardContent>
                 </Card>
 
@@ -876,3 +906,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    

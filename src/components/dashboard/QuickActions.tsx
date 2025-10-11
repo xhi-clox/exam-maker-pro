@@ -7,7 +7,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
-import { Card, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 
@@ -42,7 +41,7 @@ export function QuickActions() {
   return (
     <div>
       <h2 className="text-xl font-semibold font-headline text-foreground mb-4">Quick Actions</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {actions.map((action) => (
              <Link href={action.href} key={action.title}>
                 <div className={cn("group relative p-6 rounded-lg overflow-hidden transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 bg-gradient-to-br", action.className)}>
@@ -62,3 +61,5 @@ export function QuickActions() {
     </div>
   );
 }
+
+    

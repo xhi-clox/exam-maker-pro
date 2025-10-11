@@ -42,7 +42,7 @@ export default function AiSuggestPage() {
     if (!suggestedJson) return;
     try {
       localStorage.setItem('newImageData', JSON.stringify(suggestedJson));
-      router.push('/editor?from=image');
+      router.push('/editor?from=suggest');
     } catch (e) {
       console.error("Invalid JSON format");
       // Show error toast
@@ -114,3 +114,5 @@ export default function AiSuggestPage() {
     </div>
   );
 }
+
+    
