@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import PaperPreview from './PaperPreview';
 import jsPDF from 'jspdf';
@@ -90,7 +90,7 @@ const defaultInitialQuestions: Question[] = [
 // Function to ensure all question/sub-question/option IDs are unique
 const ensureUniqueIds = (questions: Question[]): Question[] => {
     let counter = Math.floor(Math.random() * 10000);
-    const generateId = (prefix: string) => `${prefix}${counter++}`;
+    const generateId = (prefix: string) => `${prefix}${counter++}_${Date.now()}`;
 
     const processQuestion = (q: Question): Question => {
         const newQuestion: Question = { ...q, id: generateId('q_') };
@@ -947,3 +947,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
