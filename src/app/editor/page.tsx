@@ -118,23 +118,29 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
     return questions.map(processQuestion);
 };
 
+const getInitialPaper = (): Paper => {
+    return {
+        ...initialPaperData,
+        questions: ensureUniqueIds(defaultInitialQuestions),
+    }
+};
+
 
 export default function EditorPage() {
-  const [paper, setPaper] = useState<Paper>(initialPaperData);
+  const [paper, setPaper] = useState<Paper | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const hasInitialized = useRef(false);
-
+  
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
 
+  // Effect for initial state loading (default questions)
   useEffect(() => {
-    // This effect runs only once on the client side after hydration.
-    // It handles both initializing default questions and importing from localStorage.
-    if (hasInitialized.current) {
-        return;
-    }
-    
+    setPaper(getInitialPaper());
+  }, []);
+
+  // Effect for handling imported data from image/suggest
+  useEffect(() => {
     const from = searchParams.get('from');
     const data = localStorage.getItem('newImageData');
 
@@ -144,42 +150,25 @@ export default function EditorPage() {
             const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
 
             setPaper(currentPaper => {
-                const isInitialState = currentPaper.questions.length === 0;
-
-                if (isInitialState) {
-                    // If the paper is empty, replace the whole paper data
-                    return {
-                        ...initialPaperData,
-                        ...parsedData,
-                        questions: newQuestions,
-                    };
-                } else {
-                    // Otherwise, append questions and update marks
-                    return produce(currentPaper, draft => {
-                        draft.questions.push(...newQuestions);
-                        if (parsedData.totalMarks && typeof parsedData.totalMarks === 'number') {
-                            draft.totalMarks += parsedData.totalMarks;
-                        }
-                    });
-                }
+                if (!currentPaper) return null; // Should not happen if initial state is set
+                
+                // Append questions to the existing paper
+                return produce(currentPaper, draft => {
+                    draft.questions.push(...newQuestions);
+                    // You might want to adjust total marks here as well
+                });
             });
 
         } catch (e) {
             console.error("Failed to parse paper data from localStorage", e);
-            // Fallback to default questions if parsing fails
-            setPaper(prev => ({...prev, questions: ensureUniqueIds(defaultInitialQuestions)}));
         } finally {
+            // Clean up localStorage and URL to prevent re-triggering
             localStorage.removeItem('newImageData');
             const url = new URL(window.location.href);
             url.searchParams.delete('from');
             router.replace(url.toString(), { scroll: false });
         }
-    } else {
-        // If not importing, set the default questions
-        setPaper(prev => ({...prev, questions: ensureUniqueIds(defaultInitialQuestions)}));
     }
-    
-    hasInitialized.current = true;
   }, [searchParams, router]);
 
 
@@ -188,10 +177,9 @@ export default function EditorPage() {
   };
 
   const handleInsertExpression = (expression: string) => {
-    if (!focusedInput) return;
+    if (!focusedInput || !paper) return;
 
     const { element, id } = focusedInput;
-    const [qId, sqId] = id.split('-');
     const { selectionStart, selectionEnd } = element;
     const currentValue = element.value;
     const newValue = currentValue.substring(0, selectionStart ?? 0) + expression + currentValue.substring(selectionEnd ?? 0);
@@ -201,22 +189,21 @@ export default function EditorPage() {
     element.setSelectionRange((selectionStart ?? 0) + expression.length, (selectionStart ?? 0) + expression.length);
 
     // Manually trigger change to update state
-    if (sqId) {
-        if (id.startsWith('option')) {
-            const [_, qId, sqId, optId] = id.split('-');
-            handleOptionChange(qId, sqId, optId, newValue);
-        } else {
-            handleSubQuestionChange(qId, sqId, 'content', newValue);
-        }
+    if (id.startsWith('option')) {
+        const [_, qId, sqId, optId] = id.split('-');
+        handleOptionChange(qId, sqId, optId, newValue);
+    } else if (id.includes('-')) {
+        const [qId, sqId] = id.split('-');
+        handleSubQuestionChange(qId, sqId, 'content', newValue);
     } else {
-        handleQuestionChange(qId, 'content', newValue);
+        handleQuestionChange(id, 'content', newValue);
     }
   };
 
 
   const handleDownloadPdf = async () => {
     const container = previewContainerRef.current;
-    if (!container) return;
+    if (!container || !paper) return;
 
     const pages = container.querySelectorAll<HTMLDivElement>('.paper-page');
     if (pages.length === 0) return;
@@ -246,216 +233,194 @@ export default function EditorPage() {
   };
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
-    setPaper(prev => ({ ...prev, [field]: value }));
+    setPaper(prev => prev ? ({ ...prev, [field]: value }) : null);
   };
 
   const handleQuestionChange = (id: string, field: keyof Question, value: string | number | NumberingFormat) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === id) {
-          return { ...q, [field]: value };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const question = draft.questions.find(q => q.id === id);
+            if (question) {
+                (question as any)[field] = value;
+            }
+        });
+    });
   };
   
     const handleSubQuestionChange = (parentId: string, subId: string, field: keyof Question, value: string | number) => {
-        setPaper(prev => ({
-          ...prev,
-          questions: prev.questions.map(q =>
-            q.id === parentId ? {
-              ...q,
-              subQuestions: q.subQuestions?.map(sq =>
-                sq.id === subId ? { ...sq, [field]: value } : sq
-              )
-            } : q
-          )
-        }));
+        setPaper(prev => {
+            if (!prev) return null;
+            return produce(prev, draft => {
+                const parentQuestion = draft.questions.find(q => q.id === parentId);
+                if (parentQuestion && parentQuestion.subQuestions) {
+                    const subQuestion = parentQuestion.subQuestions.find(sq => sq.id === subId);
+                    if (subQuestion) {
+                        (subQuestion as any)[field] = value;
+                    }
+                }
+            });
+        });
       };
   
   const addSubQuestion = (questionId: string, type: Question['type'] = 'short') => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          const newSubQuestion: Question = {
-            id: `sq${Date.now()}`,
-            type: type,
-            content: 'নতুন প্রশ্ন...',
-            marks: 1,
-          };
-          if (type === 'mcq') {
-            newSubQuestion.options = [
-              { id: `opt${Date.now()}-1`, text: 'অপশন ১' },
-              { id: `opt${Date.now()}-2`, text: 'অপশন ২' },
-              { id: `opt${Date.now()}-3`, text: 'অপশন ৩' },
-              { id: `opt${Date.now()}-4`, text: 'অপশন ৪' },
-            ];
-          }
-          return {
-            ...q,
-            subQuestions: [...(q.subQuestions || []), newSubQuestion]
-          };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const question = draft.questions.find(q => q.id === questionId);
+            if (question) {
+                const newSubQuestion: Question = {
+                    id: `sq${Math.random()}${Date.now()}`,
+                    type: type,
+                    content: 'নতুন প্রশ্ন...',
+                    marks: 1,
+                };
+                if (type === 'mcq') {
+                    newSubQuestion.options = [
+                        { id: `opt${Math.random()}${Date.now()}-1`, text: 'অপশন ১' },
+                        { id: `opt${Math.random()}${Date.now()}-2`, text: 'অপশন ২' },
+                        { id: `opt${Math.random()}${Date.now()}-3`, text: 'অপশন ৩' },
+                        { id: `opt${Math.random()}${Date.now()}-4`, text: 'অপশন ৪' },
+                    ];
+                }
+                if (!question.subQuestions) {
+                    question.subQuestions = [];
+                }
+                question.subQuestions.push(newSubQuestion);
+            }
+        });
+    });
   };
   
   const removeSubQuestion = (questionId: string, subQuestionId: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          return {
-            ...q,
-            subQuestions: q.subQuestions?.filter(sq => sq.id !== subQuestionId)
-          };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const question = draft.questions.find(q => q.id === questionId);
+            if (question && question.subQuestions) {
+                question.subQuestions = question.subQuestions.filter(sq => sq.id !== subQuestionId);
+            }
+        });
+    });
   };
 
   const addOption = (questionId: string, subQuestionId: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          return {
-            ...q,
-            subQuestions: q.subQuestions?.map(sq => {
-              if (sq.id === subQuestionId) {
-                const newOption = { id: `opt${Date.now()}`, text: 'নতুন অপশন' };
-                return {
-                  ...sq,
-                  options: [...(sq.options || []), newOption]
-                };
-              }
-              return sq;
-            })
-          };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const q = draft.questions.find(q => q.id === questionId);
+            if (q && q.subQuestions) {
+                const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
+                if (sq) {
+                    const newOption = { id: `opt${Math.random()}${Date.now()}`, text: 'নতুন অপশন' };
+                     if (!sq.options) {
+                        sq.options = [];
+                    }
+                    sq.options.push(newOption);
+                }
+            }
+        });
+    });
   };
 
   const removeOption = (questionId: string, subQuestionId: string, optionId: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          return {
-            ...q,
-            subQuestions: q.subQuestions?.map(sq => {
-              if (sq.id === subQuestionId) {
-                return {
-                  ...sq,
-                  options: sq.options?.filter(opt => opt.id !== optionId)
-                };
-              }
-              return sq;
-            })
-          };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const q = draft.questions.find(q => q.id === questionId);
+             if (q && q.subQuestions) {
+                const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
+                if (sq && sq.options) {
+                    sq.options = sq.options.filter(opt => opt.id !== optionId);
+                }
+            }
+        });
+    });
   };
 
   const handleOptionChange = (questionId: string, subQuestionId: string, optionId: string, text: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          return {
-            ...q,
-            subQuestions: q.subQuestions?.map(sq => {
-                if (sq.id === subQuestionId) {
-                    return {
-                        ...sq,
-                        options: sq.options?.map(opt =>
-                            opt.id === optionId ? { ...opt, text } : opt
-                        )
-                    };
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const q = draft.questions.find(q => q.id === questionId);
+            if (q && q.subQuestions) {
+                const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
+                if (sq && sq.options) {
+                    const opt = sq.options.find(opt => opt.id === optionId);
+                    if (opt) {
+                        opt.text = text;
+                    }
                 }
-                return sq;
-            })
-          };
-        }
-        return q;
-      })
-    }));
+            }
+        });
+    });
   };
 
   const handleTableCellChange = (questionId: string, rowIndex: number, colIndex: number, value: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          const newTableData = q.tableData?.map((row, rIdx) => 
-            rIdx === rowIndex ? row.map((cell, cIdx) => cIdx === colIndex ? value : cell) : row
-          );
-          return { ...q, tableData: newTableData };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const q = draft.questions.find(q => q.id === questionId);
+            if (q && q.tableData) {
+                q.tableData[rowIndex][colIndex] = value;
+            }
+        });
+    });
   };
   
   const addRow = (questionId: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          const newRow = Array(q.cols || 1).fill('');
-          return { ...q, tableData: [...(q.tableData || []), newRow], rows: (q.rows || 0) + 1 };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const q = draft.questions.find(q => q.id === questionId);
+            if (q) {
+                const newRow = Array(q.cols || 1).fill('');
+                if (!q.tableData) q.tableData = [];
+                q.tableData.push(newRow);
+                q.rows = (q.rows || 0) + 1;
+            }
+        });
+    });
   };
   
   const removeRow = (questionId: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId && q.rows && q.rows > 1) {
-          const newTableData = q.tableData?.slice(0, -1);
-          return { ...q, tableData: newTableData, rows: q.rows - 1 };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const q = draft.questions.find(q => q.id === questionId);
+            if (q && q.tableData && q.rows && q.rows > 1) {
+                q.tableData.pop();
+                q.rows -= 1;
+            }
+        });
+    });
   };
   
   const addCol = (questionId: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          const newTableData = q.tableData?.map(row => [...row, '']);
-          return { ...q, tableData: newTableData, cols: (q.cols || 0) + 1 };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const q = draft.questions.find(q => q.id === questionId);
+            if (q) {
+                if (!q.tableData) q.tableData = [[]];
+                q.tableData.forEach(row => row.push(''));
+                q.cols = (q.cols || 0) + 1;
+            }
+        });
+    });
   };
   
   const removeCol = (questionId: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId && q.cols && q.cols > 1) {
-          const newTableData = q.tableData?.map(row => row.slice(0, -1));
-          return { ...q, tableData: newTableData, cols: q.cols - 1 };
-        }
-        return q;
-      })
-    }));
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const q = draft.questions.find(q => q.id === questionId);
+            if (q && q.tableData && q.cols && q.cols > 1) {
+                q.tableData.forEach(row => row.pop());
+                q.cols -= 1;
+            }
+        });
+    });
   };
 
   const getNumbering = (format: NumberingFormat | undefined, index: number): string => {
@@ -485,14 +450,24 @@ export default function EditorPage() {
 
   const moveQuestion = (index: number, direction: 'up' | 'down') => {
     setPaper(prev => {
-      const newQuestions = [...prev.questions];
-      const newIndex = direction === 'up' ? index - 1 : index + 1;
-      if (newIndex < 0 || newIndex >= newQuestions.length) {
-        return prev;
-      }
-      const [movedQuestion] = newQuestions.splice(index, 1);
-      newQuestions.splice(newIndex, 0, movedQuestion);
-      return { ...prev, questions: newQuestions };
+        if (!prev) return null;
+        return produce(prev, draft => {
+            const newIndex = direction === 'up' ? index - 1 : index + 1;
+            if (newIndex < 0 || newIndex >= draft.questions.length) {
+                return;
+            }
+            const [movedQuestion] = draft.questions.splice(index, 1);
+            draft.questions.splice(newIndex, 0, movedQuestion);
+        });
+    });
+  };
+
+  const removeQuestion = (id: string) => {
+    setPaper(prev => {
+        if (!prev) return null;
+        return produce(prev, draft => {
+            draft.questions = draft.questions.filter(q => q.id !== id);
+        });
     });
   };
 
@@ -501,16 +476,17 @@ export default function EditorPage() {
        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveQuestion(index, 'up')} disabled={index === 0}>
         <ArrowUp className="size-4" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveQuestion(index, 'down')} disabled={index === paper.questions.length - 1}>
+      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveQuestion(index, 'down')} disabled={!paper || index === paper.questions.length - 1}>
         <ArrowDown className="size-4" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeQuestion(paper.questions[index].id)}>
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => paper && removeQuestion(paper.questions[index].id)}>
         <Trash2 className="size-4" />
       </Button>
     </div>
   );
 
   const renderQuestion = (question: Question, index: number) => {
+    if (!paper) return null;
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
     
     const questionNumber = paper.questions.slice(0, index + 1).filter(q => q.type !== 'section-header').length;
@@ -697,7 +673,7 @@ export default function EditorPage() {
 
   const addQuestion = (type: Question['type']) => {
     const newQuestion: Question = {
-      id: `q${Date.now()}`,
+      id: `q${Math.random()}${Date.now()}`,
       type: type,
       content: '',
       marks: 5,
@@ -716,46 +692,45 @@ export default function EditorPage() {
         case 'passage':
           newQuestion.content = 'নিচের অনুচ্ছেদটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'creative':
           newQuestion.content = 'নিচের উদ্দীপকটি পড় এবং প্রশ্নগুলোর উত্তর দাও:';
-          // Marks are on sub-questions for creative, so we don't set it here.
           delete newQuestion.marks;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'জ্ঞানমূলক', marks: 1});
-          newQuestion.subQuestions.push({ id: `sq${Date.now()+1}`, type: 'short', content: 'অনুধাবনমূলক', marks: 2});
-          newQuestion.subQuestions.push({ id: `sq${Date.now()+2}`, type: 'short', content: 'প্রয়োগমূলক', marks: 3});
-          newQuestion.subQuestions.push({ id: `sq${Date.now()+3}`, type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'short', content: 'জ্ঞানমূলক', marks: 1});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()+1}`, type: 'short', content: 'অনুধাবনমূলক', marks: 2});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()+2}`, type: 'short', content: 'প্রয়োগমূলক', marks: 3});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()+3}`, type: 'short', content: 'উচ্চতর দক্ষতামূলক', marks: 4});
           break;
         case 'fill-in-the-blanks':
           newQuestion.content = 'খালি জায়গা পূরণ কর:';
           newQuestion.marks = 5;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'fill-in-the-blanks', content: 'নতুন লাইন...', marks: 1});
           break;
         case 'short':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 10;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'short', content: 'নতুন প্রশ্ন...', marks: 2});
           break;
         case 'essay':
           newQuestion.content = 'নিচের প্রশ্নগুলোর উত্তর দাও:';
           newQuestion.marks = 20;
-          newQuestion.subQuestions.push({ id: `sq${Date.now()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
+          newQuestion.subQuestions.push({ id: `sq${Math.random()}${Date.now()}`, type: 'essay', content: 'নতুন রচনামূলক প্রশ্ন...', marks: 10});
           break;
         case 'mcq':
             newQuestion.content = 'সঠিক উত্তরটি বেছে নাও:';
             newQuestion.marks = 10;
             newQuestion.numberingFormat = 'bangla-numeric';
             newQuestion.subQuestions.push({
-                id: `sq${Date.now()}`,
+                id: `sq${Math.random()}${Date.now()}`,
                 type: 'mcq',
                 content: 'নতুন MCQ প্রশ্ন...',
                 marks: 1,
                 options: [
-                    { id: `opt${Date.now()}-1`, text: 'অপশন ১' },
-                    { id: `opt${Date.now()}-2`, text: 'অপশন ২' },
-                    { id: `opt${Date.now()}-3`, text: 'অপশন ৩' },
-                    { id: `opt${Date.now()}-4`, text: 'অপশন ৪' },
+                    { id: `opt${Math.random()}${Date.now()}-1`, text: 'অপশন ১' },
+                    { id: `opt${Math.random()}${Date.now()}-2`, text: 'অপশন ২' },
+                    { id: `opt${Math.random()}${Date.now()}-3`, text: 'অপশন ৩' },
+                    { id: `opt${Math.random()}${Date.now()}-4`, text: 'অপশন ৪' },
                 ]
             });
             break;
@@ -774,29 +749,31 @@ export default function EditorPage() {
         ];
     }
 
-    setPaper(prev => ({
+    setPaper(prev => prev ? ({
       ...prev,
       questions: [...prev.questions, newQuestion]
-    }));
+    }) : null);
   };
 
-  const removeQuestion = (id: string) => {
-    setPaper(prev => ({
-      ...prev,
-      questions: prev.questions.filter(q => q.id !== id),
-    }))
-  };
 
   const addNote = () => {
-    handlePaperDetailChange('notes', '(ক ও খ বিভাগ থেকে দুটি এবং গ ও ঘ বিভাগ থেকে ১টি সহ মোট ৭ টি প্রশ্নের উত্তর দাও)');
+    if(paper) handlePaperDetailChange('notes', '(ক ও খ বিভাগ থেকে দুটি এবং গ ও ঘ বিভাগ থেকে ১টি সহ মোট ৭ টি প্রশ্নের উত্তর দাও)');
   };
+  
+  if (!paper) {
+      return (
+          <div className="flex h-screen items-center justify-center">
+              <p>Loading paper...</p>
+          </div>
+      );
+  }
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50 text-foreground">
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादক</h1>
+          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
         </div>
         <div className="flex items-center gap-2">
             <Dialog>
