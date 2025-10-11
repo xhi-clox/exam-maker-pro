@@ -96,18 +96,17 @@ const initialPaperData: Paper = {
 
 
 export default function EditorPage() {
-    const [paper, setPaper] = useState<Paper | null>(null);
-  
-    useEffect(() => {
-        if (paper === null) {
-          const initialQuestions = ensureUniqueIds(initialPaperData.questions);
-          setPaper({
-            ...initialPaperData,
-            questions: initialQuestions,
-          });
-        }
-      }, []);
+  const [paper, setPaper] = useState<Paper | null>(null);
 
+  useEffect(() => {
+    if (paper === null) {
+      const initialQuestions = ensureUniqueIds(initialPaperData.questions);
+      setPaper({
+        ...initialPaperData,
+        questions: initialQuestions,
+      });
+    }
+  }, []);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -123,7 +122,7 @@ export default function EditorPage() {
     width: 560, 
     height: 794,
     fontSize: 12,
-    lineHeight: 1.5,
+    lineHeight: 1.4,
   });
 
   // Import effect
@@ -1090,7 +1089,7 @@ export default function EditorPage() {
                         <Slider
                             value={[settings.lineHeight]}
                             onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
-                            min={1.2} max={2.5} step={0.1}
+                            min={1.0} max={2.5} step={0.1}
                          />
                       </div>
                        <div className="space-y-2">
