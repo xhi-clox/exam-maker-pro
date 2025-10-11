@@ -423,7 +423,7 @@ export default function EditorPage() {
   };
 
   const QuestionActions = ({ index }: { index: number }) => (
-    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+    <div className="absolute top-0 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveQuestion(index, 'up')} disabled={index === 0}>
         <ArrowUp className="size-4" />
       </Button>
@@ -439,10 +439,7 @@ export default function EditorPage() {
   const renderQuestion = (question: Question, index: number) => {
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
     
-    let questionNumber = 0;
-    if (question.type !== 'section-header') {
-      questionNumber = paper.questions.slice(0, index + 1).filter(q => q.type !== 'section-header').length;
-    }
+    const questionNumber = paper.questions.slice(0, index + 1).filter(q => q.type !== 'section-header').length;
 
     if (question.type === 'section-header') {
         return (
@@ -457,14 +454,14 @@ export default function EditorPage() {
         )
     }
 
-    const questionCard = (title: string, children: React.ReactNode) => (
+    const questionCard = (children: React.ReactNode) => (
         <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
           <QuestionActions index={index} />
           <div className="flex items-start justify-between">
             <Label className="font-bold pt-1.5">{`${questionNumber}.`}</Label>
             <div className="flex-1 ml-2">
                 <Textarea
-                    value={title}
+                    value={question.content}
                     onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
                     onFocus={(e) => handleFocus(e, question.id)}
                     className="bg-white font-semibold"
@@ -570,19 +567,19 @@ export default function EditorPage() {
 
     switch (question.type) {
         case 'passage':
-            return questionCard(question.content, subQuestionRenderer('short'));
+            return questionCard(subQuestionRenderer('short'));
         case 'creative':
-            return questionCard(question.content, subQuestionRenderer('short'));
+            return questionCard(subQuestionRenderer('short'));
         case 'fill-in-the-blanks':
-             return questionCard(question.content, subQuestionRenderer('fill-in-the-blanks'));
+             return questionCard(subQuestionRenderer('fill-in-the-blanks'));
         case 'short':
-          return questionCard(question.content, subQuestionRenderer('short'));
+          return questionCard(subQuestionRenderer('short'));
         case 'essay':
-          return questionCard(question.content, subQuestionRenderer('essay'));
+          return questionCard(subQuestionRenderer('essay'));
         case 'mcq':
-             return questionCard(question.content, subQuestionRenderer('mcq'));
+             return questionCard(subQuestionRenderer('mcq'));
         case 'table':
-            return questionCard('সারণী প্রশ্ন', (
+            return questionCard((
                 <>
                   <Textarea
                     value={question.content}
@@ -862,4 +859,6 @@ export default function EditorPage() {
 }
 
     
+    
+
     
