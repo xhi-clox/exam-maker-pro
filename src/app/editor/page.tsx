@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -24,6 +24,7 @@ import MathExpressions from './MathExpressions';
 import { produce } from 'immer';
 import { createRoot } from 'react-dom/client';
 import { Slider } from '@/components/ui/slider';
+import { useToast } from '@/hooks/use-toast';
 
 let idCounter = 0;
 const generateId = (prefix: string) => {
@@ -97,14 +98,26 @@ const initialPaperData: Paper = {
 
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (paper === null) {
-      const initialQuestions = ensureUniqueIds(initialPaperData.questions);
-      setPaper({
-        ...initialPaperData,
-        questions: initialQuestions,
-      });
+      // Try to load from localStorage first
+      const savedPaper = localStorage.getItem('currentPaper');
+      if (savedPaper) {
+        try {
+          const parsedPaper = JSON.parse(savedPaper);
+          const questionsWithUniqueIds = ensureUniqueIds(parsedPaper.questions);
+          setPaper({ ...parsedPaper, questions: questionsWithUniqueIds });
+        } catch (e) {
+          console.error("Failed to parse saved paper from localStorage", e);
+          const initialQuestions = ensureUniqueIds(initialPaperData.questions);
+          setPaper({ ...initialPaperData, questions: initialQuestions });
+        }
+      } else {
+        const initialQuestions = ensureUniqueIds(initialPaperData.questions);
+        setPaper({ ...initialPaperData, questions: initialQuestions });
+      }
     }
   }, []);
 
@@ -124,6 +137,26 @@ export default function EditorPage() {
     fontSize: 12,
     lineHeight: 1.4,
   });
+
+  const handleSaveAndExit = () => {
+    if (paper) {
+      try {
+        localStorage.setItem('currentPaper', JSON.stringify(paper));
+        toast({
+          title: "Progress Saved",
+          description: "Your question paper has been saved locally.",
+        });
+        router.push('/');
+      } catch (e) {
+        console.error("Failed to save paper to localStorage", e);
+        toast({
+          variant: "destructive",
+          title: "Save Failed",
+          description: "Could not save your paper. Please try again.",
+        });
+      }
+    }
+  };
 
   // Import effect
   useEffect(() => {
@@ -931,12 +964,14 @@ export default function EditorPage() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
-        {/* This space can be used for breadcrumbs or other actions in the future */}
+       <header className="flex h-auto min-h-14 items-center gap-4 border-b bg-muted/40 px-4 sm:px-6 flex-wrap py-2">
         <div className="flex-1">
           <h1 className="text-lg font-semibold">Paper Editor</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+            <Button onClick={handleSaveAndExit} variant="outline">
+                <Save className="mr-2 size-4" /> Save & Exit
+            </Button>
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
@@ -989,7 +1024,7 @@ export default function EditorPage() {
             </Dialog>
         </div>
       </header>
-
+      
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 p-4">
         {/* Left Column: Main Editor */}
         <div className="overflow-y-auto pr-4 space-y-4">
@@ -1133,3 +1168,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
