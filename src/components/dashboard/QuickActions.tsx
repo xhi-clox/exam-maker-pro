@@ -2,62 +2,54 @@
 'use client';
 
 import {
-  BrainCircuit,
   FilePlus,
   Sparkles,
+  Banknote, // Placeholder, assuming 'Store #21' is about a question bank
 } from 'lucide-react';
 import Link from 'next/link';
+import { Card } from '@/components/ui/card';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
 
 const actions = [
     {
-      Icon: BrainCircuit,
-      title: "ছবি থেকে প্রশ্ন",
-      description: "AI দিয়ে প্রশ্ন তৈরি করুন",
-      href: "/editor/image",
-      color: "bg-purple-500",
-      className: "from-purple-500/10 to-purple-500/5",
+      title: "Question Bank",
+      description: "Access and manage your question bank.",
+      href: "/question-bank",
+      borderColor: "border-purple-500",
+      textColor: "text-purple-500"
     },
     {
-      Icon: FilePlus,
       title: "New Blank Paper",
-      description: "Start from scratch",
+      description: "Start creating an exam paper from scratch with our editor.",
       href: "/editor",
-      color: "bg-blue-500",
-      className: "from-blue-500/10 to-blue-500/5",
+      borderColor: "border-primary",
+      textColor: "text-primary"
     },
     {
-      Icon: Sparkles,
-      title: "AI দিয়ে তৈরি করুন",
-      description: "Generate a paper from a topic",
+      title: "Generate from Topic",
+      description: "AI-powered paper generation from a topic.",
       href: "/ai/suggest",
-      color: "bg-green-500",
-      className: "from-green-500/10 to-green-500/5",
+      borderColor: "border-green-500",
+      textColor: "text-green-500"
     },
 ]
 
 export function QuickActions() {
   return (
-    <div>
-      <h2 className="text-xl font-semibold font-headline text-foreground mb-4">Quick Actions</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {actions.map((action) => (
-             <Link href={action.href} key={action.title}>
-                <div className={cn("group relative p-6 rounded-lg overflow-hidden transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 bg-gradient-to-br", action.className)}>
-                    <div className="flex items-start gap-4">
-                        <div className={cn("flex-shrink-0 p-2 rounded-full", action.color)}>
-                            <action.Icon className="size-5 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-foreground">{action.title}</h3>
-                            <p className="text-sm text-muted-foreground">{action.description}</p>
-                        </div>
+             <Link href={action.href} key={action.title} className="block group">
+                <Card className={cn("p-5 shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 border-l-4", action.borderColor)}>
+                    <h3 className="font-semibold text-foreground mb-2">{action.title}</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{action.description}</p>
+                    <div className={cn("inline-flex items-center gap-2 font-medium text-sm", action.textColor)}>
+                        <span>{action.title === 'New Blank Paper' ? 'Create Paper' : 'Open'}</span>
+                        <ArrowRight className="size-4" />
                     </div>
-                </div>
+                </Card>
             </Link>
         ))}
       </div>
-    </div>
   );
 }

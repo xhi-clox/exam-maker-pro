@@ -1,5 +1,5 @@
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { FileText, BrainCircuit, Users } from 'lucide-react';
 
 const stats = [
@@ -22,7 +22,7 @@ const stats = [
 
 export function Statistics() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-5">
         {stats.map((stat) => (
           <Card key={stat.name} className="shadow-lg text-center p-5">
               <stat.Icon className="size-7 text-primary mx-auto mb-2" />

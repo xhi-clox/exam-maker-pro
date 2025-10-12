@@ -19,16 +19,16 @@ import {
   FolderKanban,
   Settings,
   LifeBuoy,
+  FileSignature,
 } from 'lucide-react';
-import { Logo } from '../icons/Logo';
+
 
 const menuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/editor', label: 'Editor', icon: FileText },
+  { href: '/editor', label: 'Editor', icon: FileSignature },
   { href: '/templates', label: 'Templates', icon: BookCopy },
   { href: '/question-bank', label: 'Question Bank', icon: FolderKanban },
   { href: '/settings', label: 'Settings', icon: Settings },
-  { href: '/help', label: 'Help', icon: LifeBuoy },
 ];
 
 export function AppSidebar() {
@@ -38,7 +38,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <Link href="/" className="flex items-center gap-2">
-          <Logo className="h-8 w-8 text-primary" />
+          <FileText className="h-7 w-7 text-primary" />
           <span className="text-lg font-semibold font-headline text-foreground">
             Exam Maker Pro
           </span>
@@ -50,7 +50,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === item.href}
+                isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))}
                 tooltip={{ children: item.label, side: 'right' }}
               >
                 <Link href={item.href}>
@@ -63,8 +63,21 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarSeparator />
-      <SidebarFooter>
-         {/* Can add user profile here */}
+      <SidebarFooter className="p-2">
+         <SidebarMenu>
+            <SidebarMenuItem>
+                <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/help'}
+                    tooltip={{ children: 'Help & Support', side: 'right' }}
+                >
+                    <Link href="/help">
+                        <LifeBuoy />
+                        <span>Help & Support</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

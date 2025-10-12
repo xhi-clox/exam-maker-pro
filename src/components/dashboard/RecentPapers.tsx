@@ -9,83 +9,65 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Paper } from '@/types';
-import { MoreHorizontal, FilePlus, ChevronRight } from 'lucide-react';
+import { ArrowRight, CheckCircle, Edit, MoreHorizontal } from 'lucide-react';
 import { Button } from '../ui/button';
 import Link from 'next/link';
 
-const recentPapers: Paper[] = [
+const recentPapers = [
   {
     id: 'paper-1',
-    title: 'বার্ষিক পরীক্ষা ২০২২',
-    subject: 'গণিত',
-    grade: '10ম',
-    lastUpdated: '2 দিন আগে',
+    title: 'Advanced Calculus Midterm',
+    status: 'Completed',
+    lastUpdated: '2 days ago',
   },
   {
     id: 'paper-2',
-    title: 'Mid-term Test',
-    subject: 'English',
-    grade: '12th',
-    lastUpdated: '5 দিন আগে',
+    title: 'Organic Chemistry Final',
+    status: 'Draft',
+    lastUpdated: '5 hours ago',
   },
   {
     id: 'paper-3',
-    title: 'সাপ্তাহিক পরীক্ষা',
-    subject: 'বিজ্ঞান',
-    grade: '8ম',
-    lastUpdated: '1 সপ্তাহ আগে',
-  },
-  {
-    id: 'paper-4',
-    title: 'বাংলা ১ম পত্র মডেল টেস্ট',
-    subject: 'বাংলা',
-    grade: '9ম',
-    lastUpdated: '2 সপ্তাহ আগে',
+    title: 'English Literature Quiz',
+    status: 'Completed',
+    lastUpdated: '1 week ago',
   },
 ];
 
 export function RecentPapers() {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="font-headline">Recent Papers</CardTitle>
-          <CardDescription>Here are the papers you've recently worked on.</CardDescription>
-        </div>
-        <Button variant="outline" asChild>
-            <Link href="#">
-                View All <ChevronRight className="ml-2 size-4" />
-            </Link>
-        </Button>
-      </CardHeader>
-      <CardContent>
+    <Card className="shadow-lg">
+      <CardContent className="p-6">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>শিরোনাম</TableHead>
-              <TableHead>বিষয়</TableHead>
-              <TableHead> শ্রেি</TableHead>
-              <TableHead>Last Updated</TableHead>
+              <TableHead className="text-muted-foreground font-medium">Paper Name</TableHead>
+              <TableHead className="text-muted-foreground font-medium">Status</TableHead>
+              <TableHead className="text-muted-foreground font-medium">Last Updated</TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {recentPapers.map((paper) => (
-              <TableRow key={paper.id} className="cursor-pointer hover:bg-muted/50">
-                <TableCell className="font-medium">
-                  <Link href={`/editor/${paper.id}`} className="hover:underline">
-                    {paper.title}
-                  </Link>
-                </TableCell>
+              <TableRow key={paper.id} className="hover:bg-muted/50">
+                <TableCell className="font-semibold text-foreground">{paper.title}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{paper.subject}</Badge>
+                  {paper.status === 'Completed' ? (
+                    <Badge variant="secondary" className="bg-cyan-100 text-cyan-800 hover:bg-cyan-100/80">
+                        <CheckCircle className="mr-1.5 size-3.5" />
+                        Completed
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80">
+                        <Edit className="mr-1.5 size-3.5" />
+                        Draft
+                    </Badge>
+                  )}
                 </TableCell>
-                <TableCell>{paper.grade}</TableCell>
                 <TableCell className="text-muted-foreground">{paper.lastUpdated}</TableCell>
-                <TableCell>
+                <TableCell className="text-right">
                   <Button variant="ghost" size="icon">
                     <MoreHorizontal className="h-4 w-4" />
                     <span className="sr-only">More options</span>
@@ -95,6 +77,12 @@ export function RecentPapers() {
             ))}
           </TableBody>
         </Table>
+        <div className="flex justify-end mt-4">
+            <Link href="#" className="inline-flex items-center gap-2 text-primary font-medium text-sm">
+                <span>View All Papers</span>
+                <ArrowRight className="size-4" />
+            </Link>
+        </div>
       </CardContent>
     </Card>
   );
