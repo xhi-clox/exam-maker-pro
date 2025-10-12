@@ -963,7 +963,7 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background dark">
+    <div className="flex flex-col h-screen bg-background">
       <header className="flex h-auto min-h-14 items-center gap-4 border-b bg-muted/40 px-4 sm:px-6 flex-wrap py-2">
         <div className="flex-1">
           <h1 className="text-lg font-semibold">Paper Editor</h1>
@@ -1083,8 +1083,8 @@ export default function EditorPage() {
       
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 p-4 overflow-hidden">
         {/* Left Column: Main Editor */}
-        <div className="flex flex-col gap-4 overflow-y-auto">
-            <div className="rounded-lg bg-white text-black p-6 border space-y-4 flex-1">
+        <div className="flex flex-col gap-4 overflow-hidden">
+            <div className="rounded-lg bg-white text-black p-6 border space-y-4 flex-1 overflow-y-auto">
                 <div className="text-center space-y-2 mb-8">
                     <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
                     <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
@@ -1099,7 +1099,7 @@ export default function EditorPage() {
                 </div>
                 <div className="pt-2">
                   {paper.notes === undefined ? (
-                      <Button variant="outline" size="sm" onClick={addNote}>
+                      <Button variant="outline" size="sm" onClick={addNote} className="text-black border-gray-300 hover:bg-gray-100">
                           <Plus className="mr-2 size-4" /> নোট যোগ করুন
                       </Button>
                   ) : (
