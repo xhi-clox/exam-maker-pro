@@ -17,11 +17,13 @@ export function AppHeader() {
         </span>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
-        {actions}
+      <div className="flex-1 flex justify-center">
+        <div className="flex items-center gap-2">
+          {actions}
+        </div>
       </div>
 
-      <div className="ml-4 flex items-center gap-2">
+      <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notifications</span>
