@@ -965,9 +965,10 @@ export default function EditorPage() {
 
   return (
     <div className="flex h-screen bg-background dark:bg-slate-900">
-      {/* Main Content */}
+      
+      {/* Left Column: Main Editor */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex h-auto min-h-14 items-center justify-between gap-4 border-b bg-slate-800 px-4 sm:px-6 flex-wrap py-2">
+        <header className="flex h-14 items-center justify-between gap-4 border-b bg-slate-800 px-4 sm:px-6 z-10">
             <div/>
             <div className="flex items-center gap-2 flex-wrap justify-end">
                 <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
@@ -982,7 +983,7 @@ export default function EditorPage() {
                         <DialogTitle>Paper Settings</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-6 py-4">
-                            <div className="grid grid-cols-2 gap-4">
+                           <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Font Size: {settings.fontSize}pt</Label>
                                     <Slider
@@ -1083,65 +1084,67 @@ export default function EditorPage() {
             </div>
         </header>
 
-        {/* Left Column: Main Editor */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-background">
             <div className="max-w-4xl mx-auto">
-                <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow-xl space-y-6">
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                          <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400">School Name</Label>
-                          <Input 
-                              id="schoolName" 
-                              className={`${headerInputStyle} text-center text-lg`}
-                              value={paper.schoolName} 
-                              onChange={e => handlePaperDetailChange('schoolName', e.target.value)} 
-                          />
-                      </div>
-                      <div className="space-y-1">
-                          <Label htmlFor="examTitle" className="text-xs text-slate-500 dark:text-slate-400">Exam Title</Label>
-                          <Input 
-                              id="examTitle" 
-                              className={`${headerInputStyle} text-center`}
-                              value={paper.examTitle} 
-                              onChange={e => handlePaperDetailChange('examTitle', e.target.value)} 
-                          />
-                      </div>
+                 <div className="rounded-lg bg-white p-6 space-y-4">
+                    <div className="space-y-4 text-center">
+                        <div className="space-y-1">
+                            <Label htmlFor="schoolName" className="text-xs text-slate-500">School Name</Label>
+                            <Input 
+                                id="schoolName" 
+                                className="h-10 text-lg text-center bg-slate-100 border-slate-200 focus-visible:bg-white"
+                                value={paper.schoolName} 
+                                onChange={e => handlePaperDetailChange('schoolName', e.target.value)} 
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="examTitle" className="text-xs text-slate-500">Exam Title</Label>
+                            <Input 
+                                id="examTitle" 
+                                className="h-9 text-center bg-slate-100 border-slate-200 focus-visible:bg-white"
+                                value={paper.examTitle} 
+                                onChange={e => handlePaperDetailChange('examTitle', e.target.value)} 
+                            />
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm pt-4">
                         <div className="space-y-1">
-                            <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400">Subject</Label>
-                            <Input id="subject" className={headerInputStyle} value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
+                            <Label htmlFor="subject" className="text-xs text-slate-500">বিষয়</Label>
+                            <Input id="subject" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="grade" className="text-xs text-slate-500 dark:text-slate-400">Class</Label>
-                            <Input id="grade" className={headerInputStyle} value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
+                            <Label htmlFor="grade" className="text-xs text-slate-500">শ্রেণি</Label>
+                            <Input id="grade" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="totalMarks" className="text-xs text-slate-500 dark:text-slate-400">Marks</Label>
-                            <Input id="totalMarks" type="number" className={headerInputStyle} value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
+                            <Label htmlFor="totalMarks" className="text-xs text-slate-500">পূর্ণমান</Label>
+                            <Input id="totalMarks" type="number" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="timeAllowed" className="text-xs text-slate-500 dark:text-slate-400">Time</Label>
-                            <Input id="timeAllowed" className={headerInputStyle} value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
+                            <Label htmlFor="timeAllowed" className="text-xs text-slate-500">সময়</Label>
+                            <Input id="timeAllowed" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
                         </div>
                     </div>
                     
-                    <div className="pt-2">
+                    <div className="pt-2 text-center">
                     {paper.notes === undefined ? (
-                            <Button 
-                                variant="outline" 
-                                onClick={addNote}
-                                className={`w-full ${headerInputStyle} hover:bg-slate-300 dark:hover:bg-slate-600`}
-                            >
-                                <Plus className="mr-2 size-4" /> Add Note
-                            </Button>
+                           <div className="text-center">
+                             <Button 
+                                 variant="outline" 
+                                 onClick={addNote}
+                                 className="h-9 bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-600 hover:text-slate-800"
+                             >
+                                 <Plus className="mr-2 size-4" /> নোট যোগ করুন
+                             </Button>
+                           </div>
                     ) : (
                         <Textarea 
                             value={paper.notes}
                             onChange={e => handlePaperDetailChange('notes', e.target.value)}
                             placeholder="নোট লিখুন..."
-                            className={`${headerInputStyle} text-sm text-center py-2 min-h-[40px] h-auto`}
+                            className="bg-slate-100 border-slate-200 focus-visible:bg-white text-sm text-center py-2 min-h-[40px] h-auto"
                             rows={1}
                         />
                     )}
@@ -1150,8 +1153,8 @@ export default function EditorPage() {
 
                 <div className="mt-6 space-y-4">
                     {paper.questions.length === 0 ? (
-                    <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed border-slate-600">
-                        <p className="font-semibold text-white">আপনার প্রশ্নপত্রটি খালি</p>
+                    <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700">
+                        <p className="font-semibold text-foreground">আপনার প্রশ্নপত্রটি খালি</p>
                         <p className="text-sm">ডানদিকের প্যানেল থেকে প্রশ্ন যোগ করুন।</p>
                     </div>
                     ) : (
@@ -1165,7 +1168,7 @@ export default function EditorPage() {
       </div>
 
       {/* Right Column (Toolbar) */}
-      <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4">
+      <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4 pt-14">
           {/* Add Questions */}
           <Card className="bg-slate-900 border-slate-700">
             <CardHeader>
@@ -1203,4 +1206,3 @@ export default function EditorPage() {
   );
 }
 
-    
