@@ -962,13 +962,13 @@ export default function EditorPage() {
       );
   }
   
-  const headerInputStyle = "rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2";
+  const headerInputStyle = "h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2";
 
 
   return (
-    <div className="flex h-screen bg-background dark:bg-slate-900">
+    <div className="flex h-screen bg-slate-100 dark:bg-slate-900">
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex h-14 items-center justify-between gap-4 border-b bg-slate-800 px-4 sm:px-6 z-10">
+        <header className="sticky top-0 flex h-14 items-center justify-between gap-4 border-b bg-slate-800 px-4 sm:px-6 z-30">
             <div/>
             <div className="flex items-center gap-2 flex-wrap justify-end">
                 <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
@@ -1090,9 +1090,11 @@ export default function EditorPage() {
                  <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-1">
+                            <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400">School Name</Label>
                             <Input id="schoolName" className="h-10 text-lg text-center bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} placeholder="School Name" />
                         </div>
                         <div className="space-y-1">
+                            <Label htmlFor="examTitle" className="text-xs text-slate-500 dark:text-slate-400">Exam Title</Label>
                             <Input id="examTitle" className="h-9 text-center bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} placeholder="Exam Title" />
                         </div>
                     </div>
@@ -1100,39 +1102,39 @@ export default function EditorPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
                         <div className="space-y-1">
                             <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400">Subject</Label>
-                            <Input id="subject" className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
+                            <Input id="subject" className={headerInputStyle} value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="grade" className="text-xs text-slate-500 dark:text-slate-400">Class</Label>
-                            <Input id="grade" className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
+                            <Input id="grade" className={headerInputStyle} value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="totalMarks" className="text-xs text-slate-500 dark:text-slate-400">Marks</Label>
-                            <Input id="totalMarks" type="number" className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
+                            <Input id="totalMarks" type="number" className={headerInputStyle} value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="timeAllowed" className="text-xs text-slate-500 dark:text-slate-400">Time</Label>
-                            <Input id="timeAllowed" className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
+                            <Input id="timeAllowed" className={headerInputStyle} value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
                         </div>
                     </div>
                     
                     <div className="pt-2 text-center">
                     {paper.notes === undefined ? (
-                           <div className="text-center">
-                             <Button 
-                                 variant="outline" 
-                                 onClick={addNote}
-                                 className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 hover:text-slate-800 dark:hover:text-white"
-                             >
-                                 <Plus className="mr-2 size-4" /> Add Note
-                             </Button>
-                           </div>
+                        <div className="text-center">
+                            <Button 
+                                variant="outline" 
+                                onClick={addNote}
+                                className="h-9 w-full bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white"
+                            >
+                                <Plus className="mr-2 size-4" /> Add Note
+                            </Button>
+                        </div>
                     ) : (
                         <Textarea 
                             value={paper.notes}
                             onChange={e => handlePaperDetailChange('notes', e.target.value)}
                             placeholder="Add instructional notes here..."
-                            className="bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-sm text-center py-2 min-h-[40px] h-auto text-black dark:text-white"
+                            className="bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-sm text-center py-2 min-h-[40px] h-auto text-black dark:text-white"
                             rows={1}
                         />
                     )}
@@ -1192,3 +1194,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
