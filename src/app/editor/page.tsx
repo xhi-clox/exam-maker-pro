@@ -963,8 +963,8 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      <header className="flex h-auto min-h-14 items-center justify-between gap-4 border-b bg-muted/40 px-4 sm:px-6 flex-wrap py-2">
+    <div className="flex flex-col h-screen bg-muted/40">
+      <header className="flex h-auto min-h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6 flex-wrap py-2">
         <div className="flex items-center gap-2 flex-wrap">
           <Button onClick={handleSaveAndExit} variant="outline">
               <Save className="mr-2 size-4" /> Save & Exit
@@ -1085,25 +1085,25 @@ export default function EditorPage() {
         <div className="flex flex-col gap-4 overflow-y-auto">
             <div className="rounded-lg bg-white text-black p-6 border space-y-4">
                 <div className="text-center space-y-2 mb-8">
-                    <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none h-auto p-1 bg-transparent hover:bg-slate-100 focus-visible:bg-slate-100" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
-                    <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none h-auto p-1 bg-transparent hover:bg-slate-100 focus-visible:bg-slate-100" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
+                    <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none h-auto p-1 bg-transparent hover:bg-slate-100 focus-visible:bg-slate-100 text-black" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+                    <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none h-auto p-1 bg-transparent hover:bg-slate-100 focus-visible:bg-slate-100 text-black" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                     <div className="flex items-center justify-end gap-2">
                         <Label htmlFor="subject" className="text-right">বিষয়:</Label>
-                        <Input id="subject" className="h-8" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
+                        <Input id="subject" className="h-8 bg-transparent text-black" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
                     </div>
                      <div className="flex items-center gap-2">
                         <Label htmlFor="totalMarks" className="text-right">পূর্ণমান:</Label>
-                        <Input id="totalMarks" type="number" className="h-8" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
+                        <Input id="totalMarks" type="number" className="h-8 bg-transparent text-black" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
                     </div>
                     <div className="flex items-center justify-end gap-2">
                         <Label htmlFor="grade" className="text-right">শ্রেণি:</Label>
-                        <Input id="grade" className="h-8" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
+                        <Input id="grade" className="h-8 bg-transparent text-black" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
                     </div>
                     <div className="flex items-center gap-2">
                         <Label htmlFor="timeAllowed" className="text-right">সময়:</Label>
-                        <Input id="timeAllowed" className="h-8" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
+                        <Input id="timeAllowed" className="h-8 bg-transparent text-black" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
                     </div>
                 </div>
                 <div className="pt-2">
@@ -1173,5 +1173,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
