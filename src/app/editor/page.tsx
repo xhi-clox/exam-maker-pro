@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, Save } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, Save, Settings } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -963,7 +963,7 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background dark">
       <header className="flex h-auto min-h-14 items-center gap-4 border-b bg-muted/40 px-4 sm:px-6 flex-wrap py-2">
         <div className="flex-1">
           <h1 className="text-lg font-semibold">Paper Editor</h1>
@@ -972,6 +972,62 @@ export default function EditorPage() {
             <Button onClick={handleSaveAndExit} variant="outline">
                 <Save className="mr-2 size-4" /> Save & Exit
             </Button>
+             <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline"><Settings className="mr-2 size-4" /> Paper Settings</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                    <DialogTitle>Paper Settings</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                            <div className="space-y-2">
+                                <Label>Font Size: {settings.fontSize}pt</Label>
+                                <Slider
+                                    value={[settings.fontSize]}
+                                    onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
+                                    min={8} max={18} step={1}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
+                                <Slider
+                                    value={[settings.lineHeight]}
+                                    onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
+                                    min={1.0} max={2.5} step={0.1}
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
+                            <div className="space-y-1 col-span-1">
+                                <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
+                                <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-8" />
+                            </div>
+                            <div className="space-y-1 col-span-1">
+                                <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
+                                <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-8" />
+                            </div>
+                            <div className="space-y-1 col-span-1">
+                                <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
+                                <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-8"/>
+                            </div>
+                            <div className="space-y-1 col-span-1">
+                                <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
+                                <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-8"/>
+                            </div>
+                            <div className="space-y-1 col-span-1">
+                                <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
+                                <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-8"/>
+                            </div>
+                            <div className="space-y-1 col-span-1">
+                                <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
+                                <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-8"/>
+                            </div>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
@@ -1027,60 +1083,8 @@ export default function EditorPage() {
       
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 p-4 overflow-hidden">
         {/* Left Column: Main Editor */}
-        <div className="flex flex-col gap-4 overflow-hidden">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Paper Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-                        <div className="space-y-2">
-                            <Label>Font Size: {settings.fontSize}pt</Label>
-                            <Slider
-                                value={[settings.fontSize]}
-                                onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
-                                min={8} max={18} step={1}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
-                            <Slider
-                                value={[settings.lineHeight]}
-                                onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
-                                min={1.0} max={2.5} step={0.1}
-                            />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
-                        <div className="space-y-1 col-span-1">
-                            <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
-                            <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-8" />
-                        </div>
-                        <div className="space-y-1 col-span-1">
-                            <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
-                            <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-8" />
-                        </div>
-                        <div className="space-y-1 col-span-1">
-                            <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
-                            <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-8"/>
-                        </div>
-                        <div className="space-y-1 col-span-1">
-                            <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
-                            <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-8"/>
-                        </div>
-                        <div className="space-y-1 col-span-1">
-                            <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
-                            <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-8"/>
-                        </div>
-                        <div className="space-y-1 col-span-1">
-                            <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
-                            <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-8"/>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="rounded-lg bg-white text-black p-6 border space-y-4 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-4 overflow-y-auto">
+            <div className="rounded-lg bg-white text-black p-6 border space-y-4 flex-1">
                 <div className="text-center space-y-2 mb-8">
                     <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
                     <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
@@ -1160,3 +1164,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
