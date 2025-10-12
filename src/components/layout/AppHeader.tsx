@@ -2,14 +2,16 @@
 
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell, FileText } from 'lucide-react';
-import Link from 'next/link';
+import { Bell } from 'lucide-react';
+import { SidebarTrigger } from '../ui/sidebar';
+import { Logo } from '../icons/Logo';
 
 export function AppHeader() {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-white px-6">
       <div className="flex items-center gap-2">
-         <FileText className="h-7 w-7 text-primary" />
+         <SidebarTrigger className="md:hidden" />
+         <Logo className="h-7 w-7 text-primary" />
           <span className="text-xl font-semibold text-foreground">
             ExamPaper Pro
           </span>
@@ -20,7 +22,7 @@ export function AppHeader() {
             <span className="sr-only">Notifications</span>
         </Button>
         <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-gradient-to-br from-blue-400 to-cyan-400 text-white font-bold">
+            <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white font-bold">
             JS
             </AvatarFallback>
         </Avatar>

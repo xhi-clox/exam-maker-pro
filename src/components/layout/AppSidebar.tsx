@@ -39,7 +39,7 @@ export function AppSidebar() {
       <SidebarHeader>
         {/* The header content is now in AppHeader.tsx */}
       </SidebarHeader>
-      <SidebarContent className="p-2 mt-4">
+      <SidebarContent className="p-2 mt-16">
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
