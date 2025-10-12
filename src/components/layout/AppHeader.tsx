@@ -10,6 +10,7 @@ import { EditorHeaderContext } from '@/app/editor/EditorHeader';
 
 export function AppHeader() {
   const editorHeaderContext = useContext(EditorHeaderContext);
+  const actions = editorHeaderContext?.actions;
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
@@ -21,7 +22,7 @@ export function AppHeader() {
       </div>
 
       <div className="flex-1 flex justify-center">
-        {/* This area is intentionally left blank for now, can be used for global actions later */}
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
 
       <div className="flex items-center gap-2">

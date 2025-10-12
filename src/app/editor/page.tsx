@@ -189,7 +189,7 @@ const EditorHeaderActions = () => {
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { context.setBookletPages([]); }}}>
+      <Dialog open={isDownloading} onOpenChange={(open) => { if(!open && context?.setBookletPages) { context.setBookletPages([]); }}}>
         <DialogTrigger asChild>
           <Button onClick={preparePdfDownload} className="bg-primary hover:bg-primary/90 text-primary-foreground"><Download className="mr-2 size-4" /> Download</Button>
         </DialogTrigger>
@@ -266,12 +266,6 @@ export default function EditorPage() {
     fontSize: 12,
     lineHeight: 1.4,
   });
-
-  const { setHeaderActions } = useContext(EditorHeaderContext);
-
-  useEffect(() => {
-    // This effect can be removed or repurposed if EditorHeader is no longer used for buttons
-  }, [paper, settings, isDownloading, bookletPages, pages]);
 
   const handleSaveAndExit = () => {
     if (paper) {
@@ -1105,12 +1099,12 @@ export default function EditorPage() {
   return (
     <div className="flex flex-col flex-1 h-full">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <EditorHeaderContext.Provider value={{ paper, preparePdfDownload, handleSaveAndExit, settings, setSettings, bookletPages, setBookletPages, generatePdf, isDownloading, pages, setHeaderActions: () => {} }}>
-              <EditorHeaderActions />
-            </EditorHeaderContext.Provider>
-          </div>
+        <div className="flex-1 flex justify-center">
+            <div className="flex items-center gap-2">
+              <EditorHeaderContext.Provider value={{ paper, preparePdfDownload, handleSaveAndExit, settings, setSettings, bookletPages, setBookletPages, generatePdf, isDownloading, pages, setHeaderActions: () => {} }}>
+                <EditorHeaderActions />
+              </EditorHeaderContext.Provider>
+            </div>
         </div>
       </header>
 

@@ -6,7 +6,6 @@ import type { Paper, PaperSettings, PageContent } from './page';
 
 type EditorHeaderContextType = {
     actions: React.ReactNode;
-    setHeaderActions: (actions: React.ReactNode) => void;
     paper: Paper;
     preparePdfDownload: () => void;
     handleSaveAndExit: () => void;
@@ -31,7 +30,6 @@ export const EditorHeader: React.FC<{ children?: React.ReactNode }> = ({ childre
 
   const value = {
       actions,
-      setHeaderActions: setActions,
       // Pass down dummy state for now, page will provide real state
       ...dummyState
   } as EditorHeaderContextType;
