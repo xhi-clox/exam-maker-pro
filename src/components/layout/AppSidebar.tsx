@@ -21,6 +21,9 @@ import {
   LifeBuoy,
   FileSignature,
 } from 'lucide-react';
+import { Logo } from '../icons/Logo';
+import { useSidebar } from '../ui/sidebar';
+import { cn } from '@/lib/utils';
 
 
 const menuItems = [
@@ -33,13 +36,19 @@ const menuItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { isMobile } = useSidebar();
 
   return (
     <Sidebar>
-      <SidebarHeader>
-        {/* The header content is now in AppHeader.tsx */}
+      <SidebarHeader className={cn(isMobile && "hidden")}>
+        <div className="flex items-center gap-2">
+            <Logo className="h-7 w-7 text-primary" />
+            <span className="text-xl font-semibold text-foreground">
+                ExamPaper Pro
+            </span>
+        </div>
       </SidebarHeader>
-      <SidebarContent className="p-2 mt-16">
+      <SidebarContent className="p-2">
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
