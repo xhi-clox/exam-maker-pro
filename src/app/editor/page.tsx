@@ -337,7 +337,9 @@ export default function EditorPage() {
 
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
-    setPaper(prev => prev ? ({ ...prev, [field]: value }) : null);
+    setPaper(produce(paper, draft => {
+        if(draft) (draft as any)[field] = value
+    }));
   };
 
   const handleQuestionChange = (id: string, field: keyof Question, value: any) => {
@@ -1083,36 +1085,34 @@ export default function EditorPage() {
         </header>
 
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-background">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900">
             <div className="max-w-4xl mx-auto">
-                 <div className="rounded-lg bg-white p-6 space-y-6">
+                 <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-1">
-                            <Label htmlFor="schoolName" className="text-xs text-slate-500">School Name</Label>
-                            <Input id="schoolName" className="h-10 text-lg text-center bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+                            <Input id="schoolName" className="h-10 text-lg text-center bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} placeholder="School Name" />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="examTitle" className="text-xs text-slate-500">Exam Title</Label>
-                            <Input id="examTitle" className="h-9 text-center bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
+                            <Input id="examTitle" className="h-9 text-center bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} placeholder="Exam Title" />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
                         <div className="space-y-1">
-                            <Label htmlFor="subject" className="text-xs text-slate-500">বিষয়</Label>
-                            <Input id="subject" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
+                            <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400">Subject</Label>
+                            <Input id="subject" className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="grade" className="text-xs text-slate-500">শ্রেণি</Label>
-                            <Input id="grade" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
+                            <Label htmlFor="grade" className="text-xs text-slate-500 dark:text-slate-400">Class</Label>
+                            <Input id="grade" className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="totalMarks" className="text-xs text-slate-500">পূর্ণমান</Label>
-                            <Input id="totalMarks" type="number" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
+                            <Label htmlFor="totalMarks" className="text-xs text-slate-500 dark:text-slate-400">Marks</Label>
+                            <Input id="totalMarks" type="number" className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="timeAllowed" className="text-xs text-slate-500">সময়</Label>
-                            <Input id="timeAllowed" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
+                            <Label htmlFor="timeAllowed" className="text-xs text-slate-500 dark:text-slate-400">Time</Label>
+                            <Input id="timeAllowed" className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
                         </div>
                     </div>
                     
@@ -1122,17 +1122,17 @@ export default function EditorPage() {
                              <Button 
                                  variant="outline" 
                                  onClick={addNote}
-                                 className="h-9 bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-600 hover:text-slate-800"
+                                 className="h-9 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 hover:text-slate-800 dark:hover:text-white"
                              >
-                                 <Plus className="mr-2 size-4" /> নোট যোগ করুন
+                                 <Plus className="mr-2 size-4" /> Add Note
                              </Button>
                            </div>
                     ) : (
                         <Textarea 
                             value={paper.notes}
                             onChange={e => handlePaperDetailChange('notes', e.target.value)}
-                            placeholder="নোট লিখুন..."
-                            className="bg-slate-100 border-slate-200 focus-visible:bg-white text-sm text-center py-2 min-h-[40px] h-auto text-black dark:text-black"
+                            placeholder="Add instructional notes here..."
+                            className="bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-sm text-center py-2 min-h-[40px] h-auto text-black dark:text-white"
                             rows={1}
                         />
                     )}
@@ -1142,8 +1142,8 @@ export default function EditorPage() {
                 <div className="mt-6 space-y-4">
                     {paper.questions.length === 0 ? (
                     <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700">
-                        <p className="font-semibold text-foreground">আপনার প্রশ্নপত্রটি খালি</p>
-                        <p className="text-sm">ডানদিকের প্যানেল থেকে প্রশ্ন যোগ করুন।</p>
+                        <p className="font-semibold text-foreground">Your paper is empty</p>
+                        <p className="text-sm">Add questions from the panel on the right.</p>
                     </div>
                     ) : (
                     <div className="space-y-4">
