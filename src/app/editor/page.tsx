@@ -82,17 +82,19 @@ export interface Paper {
   totalMarks: number;
   questions: Question[];
   notes?: string;
+  roll?: string;
 }
 
 const initialPaperData: Paper = {
-  schoolName: 'এবিসি বিদ্যালয়, ঢাকা',
-  examTitle: 'বার্ষিক পরীক্ষা - ২০২৪',
-  subject: 'bangla',
+  schoolName: 'ABC GOVT. School and College',
+  examTitle: 'Annual Examination-2025',
+  subject: 'Bangla',
   grade: '9',
   board: 'dhaka',
-  timeAllowed: '৩ ঘন্টা',
+  timeAllowed: '3 Hours',
   totalMarks: 100,
   questions: [],
+  roll: '',
 };
 
 
@@ -956,14 +958,17 @@ export default function EditorPage() {
   
   if (!paper) {
       return (
-          <div className="flex h-screen items-center justify-center">
+          <div className="flex h-screen items-center justify-center bg-background">
               <p>Loading paper...</p>
           </div>
       );
   }
+  
+  const headerInputStyle = "bg-slate-700 text-white placeholder:text-gray-400 border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2 rounded-lg";
+
 
   return (
-    <div className="flex flex-col h-screen bg-muted/40">
+    <div className="flex flex-col h-screen bg-background">
       <header className="flex h-auto min-h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6 flex-wrap py-2">
         <div className="flex items-center gap-2 flex-wrap">
           <Button onClick={handleSaveAndExit} variant="outline">
@@ -978,46 +983,44 @@ export default function EditorPage() {
                 <DialogTitle>Paper Settings</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-                        <div className="space-y-2">
-                            <Label>Font Size: {settings.fontSize}pt</Label>
-                            <Slider
-                                value={[settings.fontSize]}
-                                onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
-                                min={8} max={18} step={1}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
-                            <Slider
-                                value={[settings.lineHeight]}
-                                onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
-                                min={1.0} max={2.5} step={0.1}
-                            />
-                        </div>
+                    <div className="space-y-2">
+                        <Label>Font Size: {settings.fontSize}pt</Label>
+                        <Slider
+                            value={[settings.fontSize]}
+                            onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
+                            min={8} max={18} step={1}
+                        />
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
-                        <div className="space-y-1 col-span-1">
+                    <div className="space-y-2">
+                        <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
+                        <Slider
+                            value={[settings.lineHeight]}
+                            onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
+                            min={1.0} max={2.5} step={0.1}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                        <div className="space-y-1">
                             <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
                             <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-8" />
                         </div>
-                        <div className="space-y-1 col-span-1">
+                        <div className="space-y-1">
                             <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
                             <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-8" />
                         </div>
-                        <div className="space-y-1 col-span-1">
+                        <div className="space-y-1">
                             <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
                             <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-8"/>
                         </div>
-                        <div className="space-y-1 col-span-1">
+                        <div className="space-y-1">
                             <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
                             <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-8"/>
                         </div>
-                        <div className="space-y-1 col-span-1">
+                        <div className="space-y-1">
                             <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
                             <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-8"/>
                         </div>
-                        <div className="space-y-1 col-span-1">
+                        <div className="space-y-1">
                             <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
                             <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-8"/>
                         </div>
@@ -1083,49 +1086,61 @@ export default function EditorPage() {
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 p-4 overflow-hidden">
         {/* Left Column: Main Editor */}
         <div className="flex flex-col gap-4 overflow-y-auto pr-2">
-            <div className="rounded-lg bg-white p-6 border space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm mb-8">
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="schoolName" className="text-right text-black w-24">School Name:</Label>
-                        <Input id="schoolName" className="h-8 bg-slate-100 text-black font-bold" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+            <div className="rounded-lg bg-white dark:bg-slate-800 p-6 border dark:border-slate-700 space-y-4">
+                <div className="space-y-4">
+                    <Input 
+                        id="schoolName" 
+                        className={`text-center text-lg ${headerInputStyle}`}
+                        value={paper.schoolName} 
+                        onChange={e => handlePaperDetailChange('schoolName', e.target.value)} 
+                    />
+                    <Input 
+                        id="examTitle" 
+                        className={`text-center ${headerInputStyle}`}
+                        value={paper.examTitle} 
+                        onChange={e => handlePaperDetailChange('examTitle', e.target.value)} 
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                    <div className="space-y-1">
+                        <Label htmlFor="subject" className="text-white">Subject:</Label>
+                        <Input id="subject" className={headerInputStyle} value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
                     </div>
-                     <div className="flex items-center gap-2">
-                        <Label htmlFor="examTitle" className="text-right text-black w-24">Exam Title:</Label>
-                        <Input id="examTitle" className="h-8 bg-slate-100 text-black" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
+                     <div className="space-y-1">
+                        <Label htmlFor="totalMarks" className="text-white">Marks:</Label>
+                        <Input id="totalMarks" type="number" className={headerInputStyle} value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="subject" className="text-right text-black w-24">বিষয়:</Label>
-                        <Input id="subject" className="h-8 bg-slate-100 text-black" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
+                    <div className="space-y-1">
+                        <Label htmlFor="grade" className="text-white">Class:</Label>
+                        <Input id="grade" className={headerInputStyle} value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
                     </div>
-                     <div className="flex items-center gap-2">
-                        <Label htmlFor="totalMarks" className="text-right text-black w-24">পূর্ণমান:</Label>
-                        <Input id="totalMarks" type="number" className="h-8 bg-slate-100 text-black" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="grade" className="text-right text-black w-24">শ্রেণি:</Label>
-                        <Input id="grade" className="h-8 bg-slate-100 text-black" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="timeAllowed" className="text-right text-black w-24">সময়:</Label>
-                        <Input id="timeAllowed" className="h-8 bg-slate-100 text-black" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
+                    <div className="space-y-1">
+                        <Label htmlFor="roll" className="text-white">Roll:</Label>
+                        <Input id="roll" className={headerInputStyle} value={paper.roll || ''} onChange={e => handlePaperDetailChange('roll', e.target.value)}/>
                     </div>
                 </div>
                 <div className="pt-2 text-center">
                   {paper.notes === undefined ? (
-                        <Button variant="outline" size="sm" onClick={addNote} className="text-black border-gray-400 hover:bg-gray-100 hover:text-black">
-                            <Plus className="mr-2 size-4" /> নোট যোগ করুন
+                        <Button 
+                            variant="outline" 
+                            onClick={addNote}
+                            className={`w-full ${headerInputStyle} hover:bg-slate-600`}
+                        >
+                            <Plus className="mr-2 size-4" /> Add Note
                         </Button>
                   ) : (
                       <Textarea 
                           value={paper.notes}
                           onChange={e => handlePaperDetailChange('notes', e.target.value)}
                           placeholder="নোট লিখুন..."
-                          className="bg-slate-50 dark:bg-slate-800 text-sm text-center dark:text-white h-10 py-2"
+                          className={`${headerInputStyle} text-sm text-center py-2 h-auto`}
+                          rows={1}
                       />
                   )}
                 </div>
-                <hr className="my-6" />
+            </div>
 
+            <div className="rounded-lg bg-white p-6 border space-y-4">
                 {paper.questions.length === 0 ? (
                   <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed">
                     <p className="font-semibold text-black">আপনার প্রশ্নপত্রটি খালি</p>
@@ -1177,3 +1192,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
