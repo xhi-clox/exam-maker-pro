@@ -1084,25 +1084,29 @@ export default function EditorPage() {
         {/* Left Column: Main Editor */}
         <div className="flex flex-col gap-4 overflow-y-auto pr-2">
             <div className="rounded-lg bg-white p-6 border space-y-4">
-                <div className="text-center space-y-2 mb-8">
-                    <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none h-auto p-1 bg-transparent hover:bg-slate-100 focus-visible:bg-slate-100 text-black" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
-                    <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none h-auto p-1 bg-transparent hover:bg-slate-100 focus-visible:bg-slate-100 text-black" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
-                </div>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                    <div className="flex items-center justify-end gap-2">
-                        <Label htmlFor="subject" className="text-right text-black">বিষয়:</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm mb-8">
+                    <div className="flex items-center gap-2 md:col-span-2">
+                        <Label htmlFor="schoolName" className="text-right text-black w-24">School Name:</Label>
+                        <Input id="schoolName" className="h-8 bg-slate-100 text-black font-bold" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+                    </div>
+                     <div className="flex items-center gap-2 md:col-span-2">
+                        <Label htmlFor="examTitle" className="text-right text-black w-24">Exam Title:</Label>
+                        <Input id="examTitle" className="h-8 bg-slate-100 text-black" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="subject" className="text-right text-black w-24">বিষয়:</Label>
                         <Input id="subject" className="h-8 bg-slate-100 text-black" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
                     </div>
                      <div className="flex items-center gap-2">
-                        <Label htmlFor="totalMarks" className="text-right text-black">পূর্ণমান:</Label>
+                        <Label htmlFor="totalMarks" className="text-right text-black w-24">পূর্ণমান:</Label>
                         <Input id="totalMarks" type="number" className="h-8 bg-slate-100 text-black" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
                     </div>
-                    <div className="flex items-center justify-end gap-2">
-                        <Label htmlFor="grade" className="text-right text-black">শ্রেণি:</Label>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="grade" className="text-right text-black w-24">শ্রেণি:</Label>
                         <Input id="grade" className="h-8 bg-slate-100 text-black" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
                     </div>
                     <div className="flex items-center gap-2">
-                        <Label htmlFor="timeAllowed" className="text-right text-black">সময়:</Label>
+                        <Label htmlFor="timeAllowed" className="text-right text-black w-24">সময়:</Label>
                         <Input id="timeAllowed" className="h-8 bg-slate-100 text-black" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
                     </div>
                 </div>
@@ -1173,3 +1177,5 @@ export default function EditorPage() {
     </div>
   );
 }
+
+    
