@@ -965,8 +965,6 @@ export default function EditorPage() {
 
   return (
     <div className="flex h-screen bg-background dark:bg-slate-900">
-      
-      {/* Left Column: Main Editor */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex h-14 items-center justify-between gap-4 border-b bg-slate-800 px-4 sm:px-6 z-10">
             <div/>
@@ -1087,29 +1085,19 @@ export default function EditorPage() {
         
         <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-background">
             <div className="max-w-4xl mx-auto">
-                 <div className="rounded-lg bg-white p-6 space-y-4">
-                    <div className="space-y-4 text-center">
+                 <div className="rounded-lg bg-white p-6 space-y-6">
+                    <div className="space-y-4">
                         <div className="space-y-1">
                             <Label htmlFor="schoolName" className="text-xs text-slate-500">School Name</Label>
-                            <Input 
-                                id="schoolName" 
-                                className="h-10 text-lg text-center bg-slate-100 border-slate-200 focus-visible:bg-white"
-                                value={paper.schoolName} 
-                                onChange={e => handlePaperDetailChange('schoolName', e.target.value)} 
-                            />
+                            <Input id="schoolName" className="h-10 text-lg text-center bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="examTitle" className="text-xs text-slate-500">Exam Title</Label>
-                            <Input 
-                                id="examTitle" 
-                                className="h-9 text-center bg-slate-100 border-slate-200 focus-visible:bg-white"
-                                value={paper.examTitle} 
-                                onChange={e => handlePaperDetailChange('examTitle', e.target.value)} 
-                            />
+                            <Input id="examTitle" className="h-9 text-center bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm pt-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
                         <div className="space-y-1">
                             <Label htmlFor="subject" className="text-xs text-slate-500">বিষয়</Label>
                             <Input id="subject" className="h-9 bg-slate-100 border-slate-200 focus-visible:bg-white" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
@@ -1144,7 +1132,7 @@ export default function EditorPage() {
                             value={paper.notes}
                             onChange={e => handlePaperDetailChange('notes', e.target.value)}
                             placeholder="নোট লিখুন..."
-                            className="bg-slate-100 border-slate-200 focus-visible:bg-white text-sm text-center py-2 min-h-[40px] h-auto"
+                            className="bg-slate-100 border-slate-200 focus-visible:bg-white text-sm text-center py-2 min-h-[40px] h-auto text-black dark:text-black"
                             rows={1}
                         />
                     )}
@@ -1167,8 +1155,7 @@ export default function EditorPage() {
         </main>
       </div>
 
-      {/* Right Column (Toolbar) */}
-      <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4 pt-14">
+      <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto p-4 bg-slate-800 pt-14">
           {/* Add Questions */}
           <Card className="bg-slate-900 border-slate-700">
             <CardHeader>
@@ -1205,4 +1192,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
