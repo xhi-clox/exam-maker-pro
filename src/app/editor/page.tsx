@@ -231,24 +231,18 @@ export default function EditorPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (paper === null) {
-      // Try to load from localStorage first
-      const savedPaper = localStorage.getItem('currentPaper');
-      if (savedPaper) {
+    // This effect runs once on mount to initialize the paper state.
+    const savedPaper = localStorage.getItem('currentPaper');
+    let initialData = initialPaperData;
+    if (savedPaper) {
         try {
-          const parsedPaper = JSON.parse(savedPaper);
-          const questionsWithUniqueIds = ensureUniqueIds(parsedPaper.questions);
-          setPaper({ ...parsedPaper, questions: questionsWithUniqueIds });
+            initialData = JSON.parse(savedPaper);
         } catch (e) {
-          console.error("Failed to parse saved paper from localStorage", e);
-          const initialQuestions = ensureUniqueIds(initialPaperData.questions);
-          setPaper({ ...initialPaperData, questions: initialQuestions });
+            console.error("Failed to parse saved paper from localStorage", e);
         }
-      } else {
-        const initialQuestions = ensureUniqueIds(initialPaperData.questions);
-        setPaper({ ...initialPaperData, questions: initialQuestions });
-      }
     }
+    const questionsWithUniqueIds = ensureUniqueIds(initialData.questions || []);
+    setPaper({ ...initialData, questions: questionsWithUniqueIds });
   }, []);
 
   const router = useRouter();
@@ -1097,13 +1091,15 @@ export default function EditorPage() {
 
 
   return (
-    <div className="flex flex-col flex-1 h-full">
+    <>
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
-        <div className="flex-1 flex justify-center">
+        <div className="flex flex-1 justify-center">
             <div className="flex items-center gap-2">
-              <EditorHeaderContext.Provider value={{ paper, preparePdfDownload, handleSaveAndExit, settings, setSettings, bookletPages, setBookletPages, generatePdf, isDownloading, pages, setHeaderActions: () => {} }}>
-                <EditorHeaderActions />
-              </EditorHeaderContext.Provider>
+              <EditorHeader>
+                <EditorHeaderContext.Provider value={{ paper, preparePdfDownload, handleSaveAndExit, settings, setSettings, bookletPages, setBookletPages, generatePdf, isDownloading, pages } as any}>
+                  <EditorHeaderActions />
+                </EditorHeaderContext.Provider>
+              </EditorHeader>
             </div>
         </div>
       </header>
@@ -1215,6 +1211,6 @@ export default function EditorPage() {
             <div ref={hiddenRenderRef}></div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
