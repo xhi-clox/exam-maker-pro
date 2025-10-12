@@ -21,9 +21,7 @@ export function AppHeader() {
       </div>
 
       <div className="flex-1 flex justify-center">
-        <div className="flex items-center gap-2">
-            {editorHeaderContext?.actions}
-        </div>
+        {/* This area is intentionally left blank for now, can be used for global actions later */}
       </div>
 
       <div className="flex items-center gap-2">
