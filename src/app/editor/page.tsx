@@ -930,205 +930,200 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="h-full">
-      <main className="h-full">
-        <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_400px]">
-          {/* Left Column */}
-          <div className="flex flex-col gap-6 overflow-y-auto p-6 bg-slate-100">
-            
-            {/* Question Area */}
-            <div className="flex-1 rounded-lg bg-white p-6 border space-y-4">
-              <div className="text-center space-y-2 mb-8">
-                 <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
-                 <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
-              </div>
-              <div className="flex justify-between text-sm">
-                 <p>বিষয়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} /></p>
-                 <p>পূর্ণমান: <Input type="number" className="inline-block w-20 border-0 focus-visible:ring-0 shadow-none" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/></p>
-              </div>
-               <div className="flex justify-between text-sm">
-                <p>শ্রেণি: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} /></p>
-                <p>সময়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/></p>
-              </div>
-              <div className="pt-2">
-                {paper.notes === undefined ? (
-                    <Button variant="outline" size="sm" onClick={addNote}>
-                        <Plus className="mr-2 size-4" /> নোট যোগ করুন
-                    </Button>
-                ) : (
-                    <Textarea 
-                        value={paper.notes}
-                        onChange={e => handlePaperDetailChange('notes', e.target.value)}
-                        placeholder="নোট লিখুন..."
-                        className="bg-slate-50 text-sm text-center"
+    <div className="flex flex-col h-full bg-background">
+      <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
+        {/* This space can be used for breadcrumbs or other actions in the future */}
+        <div className="flex-1">
+          <h1 className="text-lg font-semibold">Paper Editor</h1>
+        </div>
+        <div className="flex items-center gap-2">
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+                    <DialogHeader>
+                    <DialogTitle>Question Paper Preview</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-auto bg-gray-100 p-4" ref={previewContainerRef}>
+                    <PaperPreview 
+                        paper={paper} 
+                        pages={pages}
+                        settings={settings}
                     />
-                )}
-              </div>
-              <hr className="my-6" />
+                    </div>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setIsDownloading(false); setBookletPages([]); }}}>
+                <DialogTrigger asChild>
+                    <Button onClick={preparePdfDownload}><Download className="mr-2 size-4" /> Download</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-5xl">
+                    <DialogHeader>
+                    <DialogTitle>Booklet Download Preview</DialogTitle>
+                    </DialogHeader>
+                    <div className="my-4 overflow-x-auto">
+                        {bookletPages.length > 0 ? (
+                            <div className="flex gap-4 p-4 bg-gray-200">
+                                {bookletPages.map((page, index) => (
+                                    <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
+                                        <div className="w-1/2 h-full border-r border-gray-300">
+                                            {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
+                                        </div>
+                                        <div className="w-1/2 h-full">
+                                             {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center h-64">
+                                <p>Generating PDF preview...</p>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+      </header>
 
-              {paper.questions.length === 0 ? (
-                <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed">
-                  <p className="font-semibold">আপনার প্রশ্নপত্রটি খালি</p>
-                  <p className="text-sm">ডানদিকের প্যানেল থেকে প্রশ্ন যোগ করুন।</p>
-                </div>
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 p-4">
+        {/* Left Column: Main Editor */}
+        <div className="overflow-y-auto pr-4 space-y-4">
+          <div className="rounded-lg bg-white p-6 border space-y-4">
+            <div className="text-center space-y-2 mb-8">
+                <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+                <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
+            </div>
+            <div className="flex justify-between text-sm">
+                <p>বিষয়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} /></p>
+                <p>পূর্ণমান: <Input type="number" className="inline-block w-20 border-0 focus-visible:ring-0 shadow-none" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/></p>
+            </div>
+            <div className="flex justify-between text-sm">
+              <p>শ্রেণি: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} /></p>
+              <p>সময়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/></p>
+            </div>
+            <div className="pt-2">
+              {paper.notes === undefined ? (
+                  <Button variant="outline" size="sm" onClick={addNote}>
+                      <Plus className="mr-2 size-4" /> নোট যোগ করুন
+                  </Button>
               ) : (
-                <div className="space-y-4">
-                  {paper.questions.map((q, index) => renderQuestion(q, index))}
-                </div>
+                  <Textarea 
+                      value={paper.notes}
+                      onChange={e => handlePaperDetailChange('notes', e.target.value)}
+                      placeholder="নোট লিখুন..."
+                      className="bg-slate-50 text-sm text-center"
+                  />
               )}
             </div>
+            <hr className="my-6" />
+
+            {paper.questions.length === 0 ? (
+              <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed">
+                <p className="font-semibold">আপনার প্রশ্নপত্রটি খালি</p>
+                <p className="text-sm">ডানদিকের প্যানেল থেকে প্রশ্ন যোগ করুন।</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paper.questions.map((q, index) => renderQuestion(q, index))}
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Right Column (Toolbar) */}
-          <div className="flex flex-col border-l bg-white overflow-y-auto">
-             <div className="p-6 space-y-6">
-                {/* Add Questions */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>প্রশ্ন যোগ করুন</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-2">
-                    <Button variant="outline" onClick={() => addQuestion('section-header')}><Minus className="mr-2 size-4" /> বিভাগ যোগ করুন</Button>
-                    <Button variant="outline" onClick={() => addQuestion('creative')}><BookMarked className="mr-2 size-4" /> সৃজনশীল প্রশ্ন</Button>
-                    <Button variant="outline" onClick={() => addQuestion('passage')}><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
-                    <Button variant="outline" onClick={() => addQuestion('mcq')}><ListOrdered className="mr-2 size-4" /> MCQ</Button>
-                    <Button variant="outline" onClick={() => addQuestion('short')}><Type className="mr-2 size-4" /> সংক্ষিপ্ত প্রশ্ন</Button>
-                    <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')}><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
-                    <Button variant="outline" onClick={() => addQuestion('essay')}><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
-                    <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
-                    <Link href="/editor/image" passHref>
-                        <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
-                    </Link>
-                     <Link href="/ai/suggest" passHref>
-                      <Button variant="outline" className="w-full border-purple-500 text-purple-500">
-                        <Sparkles className="mr-2 size-4" />
-                        AI দিয়ে তৈরি করুন
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
+        {/* Right Column (Toolbar) */}
+        <div className="flex flex-col gap-6 overflow-y-auto">
+            {/* Add Questions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>প্রশ্ন যোগ করুন</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                <Button variant="outline" onClick={() => addQuestion('section-header')}><Minus className="mr-2 size-4" /> বিভাগ যোগ করুন</Button>
+                <Button variant="outline" onClick={() => addQuestion('creative')}><BookMarked className="mr-2 size-4" /> সৃজনশীল প্রশ্ন</Button>
+                <Button variant="outline" onClick={() => addQuestion('passage')}><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
+                <Button variant="outline" onClick={() => addQuestion('mcq')}><ListOrdered className="mr-2 size-4" /> MCQ</Button>
+                <Button variant="outline" onClick={() => addQuestion('short')}><Type className="mr-2 size-4" /> সংক্ষিপ্ত প্রশ্ন</Button>
+                <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')}><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
+                <Button variant="outline" onClick={() => addQuestion('essay')}><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
+                <Button variant="outline" onClick={() => addQuestion('table')}><TableIcon className="mr-2 size-4" /> সারণী</Button>
+                <Link href="/editor/image" passHref>
+                    <Button variant="outline" className="w-full border-primary text-primary"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
+                </Link>
+                  <Link href="/ai/suggest" passHref>
+                  <Button variant="outline" className="w-full border-purple-500 text-purple-500">
+                    <Sparkles className="mr-2 size-4" />
+                    AI দিয়ে তৈরি করুন
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
 
-                 <Card>
-                  <CardHeader>
-                    <CardTitle>Controls</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap gap-2">
-                     <Dialog>
-                        <DialogTrigger asChild>
-                            <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-                            <DialogHeader>
-                            <DialogTitle>Question Paper Preview</DialogTitle>
-                            </DialogHeader>
-                            <div className="flex-1 overflow-auto bg-gray-100 p-4" ref={previewContainerRef}>
-                            <PaperPreview 
-                                paper={paper} 
-                                pages={pages}
-                                settings={settings}
-                            />
-                            </div>
-                        </DialogContent>
-                        </Dialog>
-                        <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setIsDownloading(false); setBookletPages([]); }}}>
-                        <DialogTrigger asChild>
-                            <Button onClick={preparePdfDownload}><Download className="mr-2 size-4" /> Download</Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-5xl">
-                            <DialogHeader>
-                            <DialogTitle>Booklet Download Preview</DialogTitle>
-                            </DialogHeader>
-                            <div className="my-4 overflow-x-auto">
-                                {bookletPages.length > 0 ? (
-                                    <div className="flex gap-4 p-4 bg-gray-200">
-                                        {bookletPages.map((page, index) => (
-                                            <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
-                                                <div className="w-1/2 h-full border-r border-gray-300">
-                                                    {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
-                                                </div>
-                                                <div className="w-1/2 h-full">
-                                                     {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-center h-64">
-                                        <p>Generating PDF preview...</p>
-                                    </div>
-                                )}
-                            </div>
-                            <DialogFooter>
-                                <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                  </CardContent>
-                </Card>
+            <MathExpressions onInsert={handleInsertExpression} />
 
-                <MathExpressions onInsert={handleInsertExpression} />
-
-                {/* Paper Settings */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Paper Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Font Size: {settings.fontSize}pt</Label>
-                        <Slider
-                            value={[settings.fontSize]}
-                            onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
-                            min={8} max={18} step={1}
-                         />
-                      </div>
-                       <div className="space-y-2">
-                        <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
-                        <Slider
-                            value={[settings.lineHeight]}
-                            onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
-                            min={1.0} max={2.5} step={0.1}
-                         />
-                      </div>
-                       <div className="space-y-2">
-                        <Label>Page Size (px)</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                             <div className="space-y-1">
-                                <Label htmlFor="page-width" className="text-xs">Width</Label>
-                                <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} />
-                            </div>
-                             <div className="space-y-1">
-                                <Label htmlFor="page-height" className="text-xs">Height</Label>
-                                <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} />
-                            </div>
+            {/* Paper Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Paper Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Font Size: {settings.fontSize}pt</Label>
+                    <Slider
+                        value={[settings.fontSize]}
+                        onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
+                        min={8} max={18} step={1}
+                      />
+                  </div>
+                    <div className="space-y-2">
+                    <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
+                    <Slider
+                        value={[settings.lineHeight]}
+                        onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
+                        min={1.0} max={2.5} step={0.1}
+                      />
+                  </div>
+                    <div className="space-y-2">
+                    <Label>Page Size (px)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="page-width" className="text-xs">Width</Label>
+                            <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} />
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Margins (mm)</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                                <Label htmlFor="margin-top" className="text-xs">Top</Label>
-                                <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} />
-                            </div>
-                             <div className="space-y-1">
-                                <Label htmlFor="margin-bottom" className="text-xs">Bottom</Label>
-                                <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} />
-                            </div>
-                             <div className="space-y-1">
-                                <Label htmlFor="margin-left" className="text-xs">Left</Label>
-                                <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} />
-                            </div>
-                             <div className="space-y-1">
-                                <Label htmlFor="margin-right" className="text-xs">Right</Label>
-                                <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} />
-                            </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="page-height" className="text-xs">Height</Label>
+                            <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} />
                         </div>
-                      </div>
-                  </CardContent>
-                </Card>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Margins (mm)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                            <Label htmlFor="margin-top" className="text-xs">Top</Label>
+                            <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} />
+                        </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="margin-bottom" className="text-xs">Bottom</Label>
+                            <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} />
+                        </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="margin-left" className="text-xs">Left</Label>
+                            <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} />
+                        </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="margin-right" className="text-xs">Right</Label>
+                            <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} />
+                        </div>
+                    </div>
+                  </div>
+              </CardContent>
+            </Card>
 
-             </div>
-          </div>
         </div>
       </main>
       {/* Hidden div for calculations */}
@@ -1138,5 +1133,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
