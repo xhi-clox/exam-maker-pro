@@ -21,22 +21,14 @@ type EditorHeaderContextType = {
 export const EditorHeaderContext = createContext<EditorHeaderContextType | null>(null);
 
 export const EditorHeader: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const [actions, setActions] = useState<React.ReactNode>(null);
-  
-  // This component will now manage the state that the child page needs
-  // We'll pass down the state and setters via context provider props in the page
-  // This is a placeholder for the actual state which will be lifted up from the page
   const [dummyState, setDummyState] = useState({});
 
   const value = {
-      actions,
-      // Pass down dummy state for now, page will provide real state
       ...dummyState
   } as EditorHeaderContextType;
 
   return (
     <EditorHeaderContext.Provider value={value}>
-        {/* The actual header UI is now in AppHeader, this is just a provider */}
         {children}
     </EditorHeaderContext.Provider>
   );

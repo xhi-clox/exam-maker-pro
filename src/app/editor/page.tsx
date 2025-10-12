@@ -1095,11 +1095,9 @@ export default function EditorPage() {
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
         <div className="flex flex-1 justify-center">
             <div className="flex items-center gap-2">
-              <EditorHeader>
-                <EditorHeaderContext.Provider value={{ paper, preparePdfDownload, handleSaveAndExit, settings, setSettings, bookletPages, setBookletPages, generatePdf, isDownloading, pages } as any}>
-                  <EditorHeaderActions />
-                </EditorHeaderContext.Provider>
-              </EditorHeader>
+              <EditorHeaderContext.Provider value={{ paper, preparePdfDownload, handleSaveAndExit, settings, setSettings, bookletPages, setBookletPages, generatePdf, isDownloading, pages } as any}>
+                <EditorHeaderActions />
+              </EditorHeaderContext.Provider>
             </div>
         </div>
       </header>
