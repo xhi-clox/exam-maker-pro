@@ -1085,11 +1085,11 @@ export default function EditorPage() {
         <div className="flex flex-col gap-4 overflow-y-auto pr-2">
             <div className="rounded-lg bg-white p-6 border space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm mb-8">
-                    <div className="flex items-center gap-2 md:col-span-2">
+                    <div className="flex items-center gap-2">
                         <Label htmlFor="schoolName" className="text-right text-black w-24">School Name:</Label>
                         <Input id="schoolName" className="h-8 bg-slate-100 text-black font-bold" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
                     </div>
-                     <div className="flex items-center gap-2 md:col-span-2">
+                     <div className="flex items-center gap-2">
                         <Label htmlFor="examTitle" className="text-right text-black w-24">Exam Title:</Label>
                         <Input id="examTitle" className="h-8 bg-slate-100 text-black" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
                     </div>
@@ -1110,9 +1110,9 @@ export default function EditorPage() {
                         <Input id="timeAllowed" className="h-8 bg-slate-100 text-black" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
                     </div>
                 </div>
-                <div className="pt-2">
+                <div className="pt-2 text-center">
                   {paper.notes === undefined ? (
-                      <Button variant="outline" size="sm" onClick={addNote} className="text-black border-gray-400 hover:bg-gray-100 hover:text-black">
+                      <Button variant="outline" size="sm" onClick={addNote} className="bg-slate-100 text-black border-gray-300 hover:bg-gray-200">
                           <Plus className="mr-2 size-4" /> নোট যোগ করুন
                       </Button>
                   ) : (
@@ -1120,7 +1120,7 @@ export default function EditorPage() {
                           value={paper.notes}
                           onChange={e => handlePaperDetailChange('notes', e.target.value)}
                           placeholder="নোট লিখুন..."
-                          className="bg-slate-50 dark:bg-slate-800 text-sm text-center"
+                          className="bg-slate-50 dark:bg-slate-800 text-sm text-center text-black"
                       />
                   )}
                 </div>
