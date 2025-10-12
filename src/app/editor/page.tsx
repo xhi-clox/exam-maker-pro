@@ -77,7 +77,6 @@ export interface Paper {
   examTitle: string;
   subject: string;
   grade: string;
-  board: string;
   timeAllowed: string;
   totalMarks: number;
   questions: Question[];
@@ -89,7 +88,6 @@ const initialPaperData: Paper = {
   examTitle: 'Annual Examination-2025',
   subject: 'Bangla',
   grade: '9',
-  board: 'dhaka',
   timeAllowed: '3 Hours',
   totalMarks: 100,
   questions: [],
@@ -962,42 +960,11 @@ export default function EditorPage() {
       );
   }
   
-  const headerInputStyle = "bg-slate-700 text-white placeholder:text-gray-400 border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2 rounded-lg";
+  const headerInputStyle = "rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2";
 
 
   return (
     <div className="flex h-screen bg-background dark:bg-slate-900">
-      {/* Right Column (Toolbar) */}
-      <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4">
-          {/* Add Questions */}
-          <Card className="bg-slate-900 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white">প্রশ্ন যোগ করুন</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <Button variant="outline" onClick={() => addQuestion('section-header')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Minus className="mr-2 size-4" /> বিভাগ যোগ করুন</Button>
-              <Button variant="outline" onClick={() => addQuestion('creative')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><BookMarked className="mr-2 size-4" /> সৃজনশীল প্রশ্ন</Button>
-              <Button variant="outline" onClick={() => addQuestion('passage')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
-              <Button variant="outline" onClick={() => addQuestion('mcq')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><ListOrdered className="mr-2 size-4" /> MCQ</Button>
-              <Button variant="outline" onClick={() => addQuestion('short')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Type className="mr-2 size-4" /> সংক্ষিপ্ত প্রশ্ন</Button>
-              <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
-              <Button variant="outline" onClick={() => addQuestion('essay')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
-              <Button variant="outline" onClick={() => addQuestion('table')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><TableIcon className="mr-2 size-4" /> সারণী</Button>
-              <Link href="/editor/image" passHref>
-                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
-              </Link>
-                <Link href="/ai/suggest" passHref>
-                <Button variant="outline" className="w-full border-purple-500 text-purple-500 hover:bg-purple-500/10">
-                  <Sparkles className="mr-2 size-4" />
-                  AI দিয়ে তৈরি করুন
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <MathExpressions onInsert={handleInsertExpression} />
-      </aside>
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex h-auto min-h-14 items-center justify-between gap-4 border-b bg-slate-800 px-4 sm:px-6 flex-wrap py-2">
@@ -1121,45 +1088,51 @@ export default function EditorPage() {
             <div className="max-w-4xl mx-auto">
                 <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow-xl space-y-6">
                     <div className="space-y-4">
-                        <Input 
-                            id="schoolName" 
-                            className={`text-center text-lg ${headerInputStyle}`}
-                            value={paper.schoolName} 
-                            onChange={e => handlePaperDetailChange('schoolName', e.target.value)} 
-                        />
-                        <Input 
-                            id="examTitle" 
-                            className={`text-center ${headerInputStyle}`}
-                            value={paper.examTitle} 
-                            onChange={e => handlePaperDetailChange('examTitle', e.target.value)} 
-                        />
+                      <div className="space-y-1">
+                          <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400">School Name</Label>
+                          <Input 
+                              id="schoolName" 
+                              className={`${headerInputStyle} text-center text-lg`}
+                              value={paper.schoolName} 
+                              onChange={e => handlePaperDetailChange('schoolName', e.target.value)} 
+                          />
+                      </div>
+                      <div className="space-y-1">
+                          <Label htmlFor="examTitle" className="text-xs text-slate-500 dark:text-slate-400">Exam Title</Label>
+                          <Input 
+                              id="examTitle" 
+                              className={`${headerInputStyle} text-center`}
+                              value={paper.examTitle} 
+                              onChange={e => handlePaperDetailChange('examTitle', e.target.value)} 
+                          />
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
                         <div className="space-y-1">
-                            <Label htmlFor="subject" className="text-xs text-slate-400">Subject</Label>
+                            <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400">Subject</Label>
                             <Input id="subject" className={headerInputStyle} value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="totalMarks" className="text-xs text-slate-400">Marks</Label>
-                            <Input id="totalMarks" type="number" className={headerInputStyle} value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
-                        </div>
-                        <div className="space-y-1">
-                            <Label htmlFor="grade" className="text-xs text-slate-400">Class</Label>
+                            <Label htmlFor="grade" className="text-xs text-slate-500 dark:text-slate-400">Class</Label>
                             <Input id="grade" className={headerInputStyle} value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="timeAllowed" className="text-xs text-slate-400">Time</Label>
+                            <Label htmlFor="totalMarks" className="text-xs text-slate-500 dark:text-slate-400">Marks</Label>
+                            <Input id="totalMarks" type="number" className={headerInputStyle} value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="timeAllowed" className="text-xs text-slate-500 dark:text-slate-400">Time</Label>
                             <Input id="timeAllowed" className={headerInputStyle} value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
                         </div>
                     </div>
                     
-                    <div className="pt-2 text-center">
+                    <div className="pt-2">
                     {paper.notes === undefined ? (
                             <Button 
                                 variant="outline" 
                                 onClick={addNote}
-                                className={`w-full ${headerInputStyle} hover:bg-slate-600`}
+                                className={`w-full ${headerInputStyle} hover:bg-slate-300 dark:hover:bg-slate-600`}
                             >
                                 <Plus className="mr-2 size-4" /> Add Note
                             </Button>
@@ -1168,7 +1141,7 @@ export default function EditorPage() {
                             value={paper.notes}
                             onChange={e => handlePaperDetailChange('notes', e.target.value)}
                             placeholder="নোট লিখুন..."
-                            className={`${headerInputStyle} text-sm text-center py-2 min-h-[40px] h-auto dark:text-white`}
+                            className={`${headerInputStyle} text-sm text-center py-2 min-h-[40px] h-auto`}
                             rows={1}
                         />
                     )}
@@ -1190,6 +1163,37 @@ export default function EditorPage() {
             </div>
         </main>
       </div>
+
+      {/* Right Column (Toolbar) */}
+      <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4">
+          {/* Add Questions */}
+          <Card className="bg-slate-900 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">প্রশ্ন যোগ করুন</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              <Button variant="outline" onClick={() => addQuestion('section-header')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Minus className="mr-2 size-4" /> বিভাগ যোগ করুন</Button>
+              <Button variant="outline" onClick={() => addQuestion('creative')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><BookMarked className="mr-2 size-4" /> সৃজনশীল প্রশ্ন</Button>
+              <Button variant="outline" onClick={() => addQuestion('passage')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Pilcrow className="mr-2 size-4" /> অনুচ্ছেদ</Button>
+              <Button variant="outline" onClick={() => addQuestion('mcq')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><ListOrdered className="mr-2 size-4" /> MCQ</Button>
+              <Button variant="outline" onClick={() => addQuestion('short')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Type className="mr-2 size-4" /> সংক্ষিপ্ত প্রশ্ন</Button>
+              <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
+              <Button variant="outline" onClick={() => addQuestion('essay')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
+              <Button variant="outline" onClick={() => addQuestion('table')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><TableIcon className="mr-2 size-4" /> সারণী</Button>
+              <Link href="/editor/image" passHref>
+                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
+              </Link>
+                <Link href="/ai/suggest" passHref>
+                <Button variant="outline" className="w-full border-purple-500 text-purple-500 hover:bg-purple-500/10">
+                  <Sparkles className="mr-2 size-4" />
+                  AI দিয়ে তৈরি করুন
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <MathExpressions onInsert={handleInsertExpression} />
+      </aside>
 
       {/* Hidden div for calculations */}
       <div className="absolute top-0 left-[-9999px] opacity-0 pointer-events-none" style={{ width: `${settings.width}px` }}>
