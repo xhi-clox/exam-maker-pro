@@ -4,8 +4,10 @@ import { Bell } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Logo } from '../icons/Logo';
 import { Avatar, AvatarFallback } from '../ui/avatar';
+import { useEditorHeaderActions } from './EditorHeaderActions';
 
 export function AppHeader() {
+  const { actions } = useEditorHeaderActions();
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
       <div className="flex items-center gap-2">
@@ -14,7 +16,12 @@ export function AppHeader() {
           ExamPaper Pro
         </span>
       </div>
+
       <div className="ml-auto flex items-center gap-2">
+        {actions}
+      </div>
+
+      <div className="ml-4 flex items-center gap-2">
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notifications</span>

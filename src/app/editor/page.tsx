@@ -25,6 +25,7 @@ import { produce } from 'immer';
 import { createRoot } from 'react-dom/client';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
+import { useEditorHeaderActions } from '@/components/layout/EditorHeaderActions';
 
 let idCounter = 0;
 const generateId = (prefix: string) => {
@@ -92,6 +93,146 @@ const initialPaperData: Paper = {
   totalMarks: 100,
   questions: [],
 };
+
+
+const EditorHeader = ({ paper, preparePdfDownload, handleSaveAndExit, settings, setSettings, bookletPages, generatePdf, isDownloading, pages }: { 
+    paper: Paper, 
+    preparePdfDownload: () => void, 
+    handleSaveAndExit: () => void, 
+    settings: PaperSettings, 
+    setSettings: React.Dispatch<React.SetStateAction<PaperSettings>>,
+    bookletPages: any[],
+    generatePdf: () => void,
+    isDownloading: boolean,
+    pages: PageContent[][]
+}) => {
+  const { setActions } = useEditorHeaderActions();
+
+  const headerInputStyle = "h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2";
+
+  useEffect(() => {
+    setActions(
+      <>
+        <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
+          <Save className="mr-2 size-4" /> Save & Exit
+        </Button>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Settings className="mr-2 size-4" /> Paper Settings</Button>
+          </DialogTrigger>
+          <DialogContent className="bg-slate-800 border-slate-700 text-white">
+            <DialogHeader>
+              <DialogTitle>Paper Settings</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Font Size: {settings.fontSize}pt</Label>
+                  <Slider
+                    value={[settings.fontSize]}
+                    onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
+                    min={8} max={18} step={1}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
+                  <Slider
+                    value={[settings.lineHeight]}
+                    onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
+                    min={1.0} max={2.5} step={0.1}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                <div className="space-y-1">
+                  <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
+                  <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className={headerInputStyle} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
+                  <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className={headerInputStyle} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
+                  <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className={headerInputStyle}/>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
+                  <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className={headerInputStyle}/>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
+                  <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className={headerInputStyle}/>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
+                  <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className={headerInputStyle}/>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Eye className="mr-2 size-4" /> Preview</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl h-[90vh] flex flex-col bg-slate-800 border-slate-700 text-white">
+            <DialogHeader>
+              <DialogTitle>Question Paper Preview</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto bg-gray-100 p-4">
+              <PaperPreview 
+                paper={paper} 
+                pages={pages}
+                settings={settings}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setBookletPages([]); }}}>
+          <DialogTrigger asChild>
+            <Button onClick={preparePdfDownload} className="bg-primary hover:bg-primary/90 text-primary-foreground"><Download className="mr-2 size-4" /> Download</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-5xl bg-slate-800 border-slate-700 text-white">
+            <DialogHeader>
+              <DialogTitle>Booklet Download Preview</DialogTitle>
+            </DialogHeader>
+            <div className="my-4 overflow-x-auto">
+              {bookletPages.length > 0 ? (
+                <div className="flex gap-4 p-4 bg-gray-200">
+                  {bookletPages.map((page, index) => (
+                    <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
+                      <div className="w-1/2 h-full border-r border-gray-300">
+                        {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
+                      </div>
+                      <div className="w-1/2 h-full">
+                        {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <p>Generating PDF preview...</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  
+    // Cleanup function
+    return () => {
+      setActions(null);
+    };
+  }, [setActions, paper, handleSaveAndExit, settings, setSettings, isDownloading, bookletPages, generatePdf, pages, preparePdfDownload]);
+  
+  return null;
+}
 
 
 export default function EditorPage() {
@@ -962,179 +1103,74 @@ export default function EditorPage() {
       );
   }
   
-  const headerInputStyle = "h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2";
+  const headerInputStyle = "h-10 rounded-lg bg-slate-200 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border-slate-300 dark:border-slate-700 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2 focus-visible:bg-white dark:focus-visible:bg-slate-800/60 transition-colors";
 
 
   return (
     <div className="flex h-screen bg-slate-100 dark:bg-slate-900">
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="sticky top-0 flex h-14 items-center justify-between gap-4 border-b bg-slate-800 px-4 sm:px-6 z-30">
-            <div/>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-                <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
-                    <Save className="mr-2 size-4" /> Save & Exit
-                </Button>
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Settings className="mr-2 size-4" /> Paper Settings</Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-slate-800 border-slate-700 text-white">
-                        <DialogHeader>
-                        <DialogTitle>Paper Settings</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-6 py-4">
-                           <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Font Size: {settings.fontSize}pt</Label>
-                                    <Slider
-                                        value={[settings.fontSize]}
-                                        onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
-                                        min={8} max={18} step={1}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
-                                    <Slider
-                                        value={[settings.lineHeight]}
-                                        onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
-                                        min={1.0} max={2.5} step={0.1}
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                                <div className="space-y-1">
-                                    <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
-                                    <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className={headerInputStyle} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
-                                    <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className={headerInputStyle} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
-                                    <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className={headerInputStyle}/>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
-                                    <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className={headerInputStyle}/>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
-                                    <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className={headerInputStyle}/>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
-                                    <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className={headerInputStyle}/>
-                                </div>
-                            </div>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Eye className="mr-2 size-4" /> Preview</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl h-[90vh] flex flex-col bg-slate-800 border-slate-700 text-white">
-                        <DialogHeader>
-                        <DialogTitle>Question Paper Preview</DialogTitle>
-                        </DialogHeader>
-                        <div className="flex-1 overflow-auto bg-gray-100 p-4" ref={previewContainerRef}>
-                        <PaperPreview 
-                            paper={paper} 
-                            pages={pages}
-                            settings={settings}
-                        />
-                        </div>
-                    </DialogContent>
-                </Dialog>
-                <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setIsDownloading(false); setBookletPages([]); }}}>
-                    <DialogTrigger asChild>
-                        <Button onClick={preparePdfDownload} className="bg-primary hover:bg-primary/90 text-primary-foreground"><Download className="mr-2 size-4" /> Download</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-5xl bg-slate-800 border-slate-700 text-white">
-                        <DialogHeader>
-                        <DialogTitle>Booklet Download Preview</DialogTitle>
-                        </DialogHeader>
-                        <div className="my-4 overflow-x-auto">
-                            {bookletPages.length > 0 ? (
-                                <div className="flex gap-4 p-4 bg-gray-200">
-                                    {bookletPages.map((page, index) => (
-                                        <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
-                                            <div className="w-1/2 h-full border-r border-gray-300">
-                                                {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
-                                            </div>
-                                            <div className="w-1/2 h-full">
-                                                {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center h-64">
-                                    <p>Generating PDF preview...</p>
-                                </div>
-                            )}
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </div>
-        </header>
-
+        <EditorHeader
+            paper={paper}
+            preparePdfDownload={preparePdfDownload}
+            handleSaveAndExit={handleSaveAndExit}
+            settings={settings}
+            setSettings={setSettings}
+            bookletPages={bookletPages}
+            generatePdf={generatePdf}
+            isDownloading={isDownloading}
+            pages={pages}
+        />
+      <main className="flex-1 flex flex-col overflow-hidden">
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900">
             <div className="max-w-4xl mx-auto">
                  <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-1">
-                            <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400">School Name</Label>
-                            <Input id="schoolName" className="h-10 text-lg text-center bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} placeholder="School Name" />
+                            <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400 px-1">School Name</Label>
+                            <Input id="schoolName" className={`${headerInputStyle} text-lg text-center font-semibold`} value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} placeholder="School Name" />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="examTitle" className="text-xs text-slate-500 dark:text-slate-400">Exam Title</Label>
-                            <Input id="examTitle" className="h-9 text-center bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-black dark:text-white" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} placeholder="Exam Title" />
+                            <Label htmlFor="examTitle" className="text-xs text-slate-500 dark:text-slate-400 px-1">Exam Title</Label>
+                            <Input id="examTitle" className={`${headerInputStyle} text-center`} value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} placeholder="Exam Title" />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
                         <div className="space-y-1">
-                            <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400">Subject</Label>
+                            <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400 px-1">Subject</Label>
                             <Input id="subject" className={headerInputStyle} value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="grade" className="text-xs text-slate-500 dark:text-slate-400">Class</Label>
+                            <Label htmlFor="grade" className="text-xs text-slate-500 dark:text-slate-400 px-1">Class</Label>
                             <Input id="grade" className={headerInputStyle} value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="totalMarks" className="text-xs text-slate-500 dark:text-slate-400">Marks</Label>
+                            <Label htmlFor="totalMarks" className="text-xs text-slate-500 dark:text-slate-400 px-1">Marks</Label>
                             <Input id="totalMarks" type="number" className={headerInputStyle} value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="timeAllowed" className="text-xs text-slate-500 dark:text-slate-400">Time</Label>
-                            <Input id="timeAllowed" className={headerInputStyle} value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
+                             <Label htmlFor="timeAllowed" className="text-xs text-slate-500 dark:text-slate-400 px-1">Time</Label>
+                             <Input id="timeAllowed" className={headerInputStyle} value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
                         </div>
                     </div>
                     
                     <div className="pt-2 text-center">
                     {paper.notes === undefined ? (
                         <div className="text-center">
-                            <Button 
+                           <Button 
                                 variant="outline" 
                                 onClick={addNote}
-                                className="h-9 w-full bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white"
+                                className={`${headerInputStyle} w-full`}
                             >
-                                <Plus className="mr-2 size-4" /> Add Note
+                                <Plus className="mr-2 size-4" /> নোট যোগ করুন
                             </Button>
                         </div>
                     ) : (
                         <Textarea 
                             value={paper.notes}
                             onChange={e => handlePaperDetailChange('notes', e.target.value)}
-                            placeholder="Add instructional notes here..."
-                            className="bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 text-sm text-center py-2 min-h-[40px] h-auto text-black dark:text-white"
+                            placeholder="নোট লিখুন..."
+                            className={`${headerInputStyle} text-sm text-center py-2.5 min-h-[40px] h-auto`}
                             rows={1}
                         />
                     )}
@@ -1154,10 +1190,10 @@ export default function EditorPage() {
                     )}
                 </div>
             </div>
-        </main>
-      </div>
+        </div>
+      </main>
 
-      <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto p-4 bg-slate-800 pt-14">
+      <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto p-4 bg-slate-800">
           {/* Add Questions */}
           <Card className="bg-slate-900 border-slate-700">
             <CardHeader>
@@ -1194,5 +1230,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    

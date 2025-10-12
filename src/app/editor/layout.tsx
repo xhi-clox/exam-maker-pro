@@ -1,16 +1,16 @@
 
 'use client';
 
-// This layout is intentionally left minimal to allow the editor page to control its own layout,
-// especially for handling complex scrolling behavior.
+import { EditorHeaderActionsProvider } from "@/components/layout/EditorHeaderActions";
+
 export default function EditorLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-      children
+      <EditorHeaderActionsProvider>
+        {children}
+      </EditorHeaderActionsProvider>
   );
 }
-
-    
