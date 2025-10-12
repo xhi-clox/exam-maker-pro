@@ -1,7 +1,7 @@
 
 'use client';
 
-import { EditorHeaderActionsProvider } from "@/components/layout/EditorHeaderActions";
+import { EditorHeader } from "./EditorHeader";
 
 export default function EditorLayout({
   children,
@@ -9,8 +9,9 @@ export default function EditorLayout({
   children: React.ReactNode;
 }>) {
   return (
-      <EditorHeaderActionsProvider>
+    <div className="flex flex-col h-[calc(100vh_-_theme(spacing.24))]">
+        <EditorHeader />
         {children}
-      </EditorHeaderActionsProvider>
+    </div>
   );
 }

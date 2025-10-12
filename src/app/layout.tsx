@@ -2,7 +2,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { AppLayout } from '@/components/layout/AppLayout';
+import { AppHeader } from '@/components/layout/AppHeader';
 
 export const metadata: Metadata = {
   title: 'Bangla Exam Maker Pro',
@@ -23,9 +23,12 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AppLayout>
-          {children}
-        </AppLayout>
+        <div className="flex min-h-screen w-full flex-col bg-muted/40">
+          <AppHeader />
+          <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+              {children}
+          </main>
+        </div>
         <Toaster />
       </body>
     </html>
