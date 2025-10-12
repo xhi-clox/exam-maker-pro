@@ -964,70 +964,69 @@ export default function EditorPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <header className="flex h-auto min-h-14 items-center gap-4 border-b bg-muted/40 px-4 sm:px-6 flex-wrap py-2">
-        <div className="flex-1">
-          <h1 className="text-lg font-semibold">Paper Editor</h1>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-            <Button onClick={handleSaveAndExit} variant="outline">
-                <Save className="mr-2 size-4" /> Save & Exit
-            </Button>
-             <Dialog>
-                <DialogTrigger asChild>
-                    <Button variant="outline"><Settings className="mr-2 size-4" /> Paper Settings</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                    <DialogTitle>Paper Settings</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
-                            <div className="space-y-2">
-                                <Label>Font Size: {settings.fontSize}pt</Label>
-                                <Slider
-                                    value={[settings.fontSize]}
-                                    onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
-                                    min={8} max={18} step={1}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
-                                <Slider
-                                    value={[settings.lineHeight]}
-                                    onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
-                                    min={1.0} max={2.5} step={0.1}
-                                />
-                            </div>
+      <header className="flex h-auto min-h-14 items-center justify-between gap-4 border-b bg-muted/40 px-4 sm:px-6 flex-wrap py-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button onClick={handleSaveAndExit} variant="outline">
+              <Save className="mr-2 size-4" /> Save & Exit
+          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline"><Settings className="mr-2 size-4" /> Paper Settings</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                <DialogTitle>Paper Settings</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                        <div className="space-y-2">
+                            <Label>Font Size: {settings.fontSize}pt</Label>
+                            <Slider
+                                value={[settings.fontSize]}
+                                onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
+                                min={8} max={18} step={1}
+                            />
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
-                            <div className="space-y-1 col-span-1">
-                                <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
-                                <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-8" />
-                            </div>
-                            <div className="space-y-1 col-span-1">
-                                <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
-                                <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-8" />
-                            </div>
-                            <div className="space-y-1 col-span-1">
-                                <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
-                                <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-8"/>
-                            </div>
-                            <div className="space-y-1 col-span-1">
-                                <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
-                                <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-8"/>
-                            </div>
-                            <div className="space-y-1 col-span-1">
-                                <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
-                                <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-8"/>
-                            </div>
-                            <div className="space-y-1 col-span-1">
-                                <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
-                                <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-8"/>
-                            </div>
+                        <div className="space-y-2">
+                            <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
+                            <Slider
+                                value={[settings.lineHeight]}
+                                onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
+                                min={1.0} max={2.5} step={0.1}
+                            />
                         </div>
                     </div>
-                </DialogContent>
-            </Dialog>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
+                        <div className="space-y-1 col-span-1">
+                            <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
+                            <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-8" />
+                        </div>
+                        <div className="space-y-1 col-span-1">
+                            <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
+                            <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-8" />
+                        </div>
+                        <div className="space-y-1 col-span-1">
+                            <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
+                            <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-8"/>
+                        </div>
+                        <div className="space-y-1 col-span-1">
+                            <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
+                            <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-8"/>
+                        </div>
+                        <div className="space-y-1 col-span-1">
+                            <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
+                            <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-8"/>
+                        </div>
+                        <div className="space-y-1 col-span-1">
+                            <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
+                            <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-8"/>
+                        </div>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
@@ -1083,23 +1082,33 @@ export default function EditorPage() {
       
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 p-4 overflow-hidden">
         {/* Left Column: Main Editor */}
-        <div className="flex flex-col gap-4 overflow-hidden">
-            <div className="rounded-lg bg-white text-black p-6 border space-y-4 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-4 overflow-y-auto">
+            <div className="rounded-lg bg-white text-black p-6 border space-y-4">
                 <div className="text-center space-y-2 mb-8">
-                    <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
-                    <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
+                    <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none h-auto p-1 bg-transparent hover:bg-slate-100 focus-visible:bg-slate-100" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+                    <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none h-auto p-1 bg-transparent hover:bg-slate-100 focus-visible:bg-slate-100" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
                 </div>
-                <div className="flex justify-between text-sm">
-                    <p>বিষয়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} /></p>
-                    <p>পূর্ণমান: <Input type="number" className="inline-block w-20 border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/></p>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <p>শ্রেণি: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} /></p>
-                  <p>সময়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/></p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                    <div className="flex items-center justify-end gap-2">
+                        <Label htmlFor="subject" className="text-right">বিষয়:</Label>
+                        <Input id="subject" className="h-8" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <Label htmlFor="totalMarks" className="text-right">পূর্ণমান:</Label>
+                        <Input id="totalMarks" type="number" className="h-8" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                        <Label htmlFor="grade" className="text-right">শ্রেণি:</Label>
+                        <Input id="grade" className="h-8" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="timeAllowed" className="text-right">সময়:</Label>
+                        <Input id="timeAllowed" className="h-8" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
+                    </div>
                 </div>
                 <div className="pt-2">
                   {paper.notes === undefined ? (
-                      <Button variant="outline" size="sm" onClick={addNote} className="text-black border-gray-300 hover:bg-gray-100">
+                      <Button variant="outline" size="sm" onClick={addNote} className="text-black border-gray-400 hover:bg-gray-100 hover:text-black">
                           <Plus className="mr-2 size-4" /> নোট যোগ করুন
                       </Button>
                   ) : (
