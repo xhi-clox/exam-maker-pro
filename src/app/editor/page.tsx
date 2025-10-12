@@ -660,7 +660,7 @@ export default function EditorPage() {
 
     if (question.type === 'section-header') {
         return (
-            <Card key={question.id} className="group relative p-4 bg-slate-100">
+            <Card key={question.id} className="group relative p-4 bg-slate-100 dark:bg-slate-800">
                  <QuestionActions index={index} />
                  <Input 
                     value={question.content}
@@ -672,7 +672,7 @@ export default function EditorPage() {
     }
 
     const questionCard = (children: React.ReactNode) => (
-        <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50">
+        <Card key={question.id} className="group relative p-4 space-y-3 bg-slate-50 dark:bg-slate-900">
           <QuestionActions index={index} />
           <div className="flex items-start justify-between">
             <Label className="font-bold pt-1.5">{`${questionNumber}.`}</Label>
@@ -681,7 +681,7 @@ export default function EditorPage() {
                     value={question.content}
                     onInput={(e) => handleQuestionChange(question.id, 'content', (e.target as HTMLTextAreaElement).value)}
                     onFocus={(e) => handleFocus(e, question.id)}
-                    className="bg-white font-semibold"
+                    className="bg-white dark:bg-slate-800 font-semibold"
                     rows={1}
                 />
             </div>
@@ -735,7 +735,7 @@ export default function EditorPage() {
                         value={sq.content} 
                         onInput={(e) => handleSubQuestionChange(question.id, sq.id, 'content', (e.target as HTMLTextAreaElement).value)}
                         onFocus={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
-                        className="flex-grow bg-white" />
+                        className="flex-grow bg-white dark:bg-slate-800" />
                     { question.type === 'creative' && sq.marks !== undefined && (
                        <div className="flex items-center gap-2 shrink-0">
                          <Label htmlFor={`marks-${sq.id}`} className="text-sm">Marks:</Label>
@@ -763,7 +763,7 @@ export default function EditorPage() {
                                     value={opt.text}
                                     onInput={(e) => handleOptionChange(question.id, sq.id, opt.id, (e.target as HTMLInputElement).value)}
                                     onFocus={(e) => handleFocus(e, `option-${question.id}-${sq.id}-${opt.id}`)}
-                                    className="bg-white"
+                                    className="bg-white dark:bg-slate-800"
                                 />
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeOption(question.id, sq.id, opt.id)}>
                                     <Trash2 className="size-4" />
@@ -802,7 +802,7 @@ export default function EditorPage() {
                     value={question.content}
                     onInput={(e) => handleQuestionChange(question.id, 'content', (e.target as HTMLTextAreaElement).value)}
                     onFocus={(e) => handleFocus(e, question.id)}
-                    className="bg-white mb-4"
+                    className="bg-white dark:bg-slate-800 mb-4"
                     placeholder="সারণী সম্পর্কিত নির্দেশাবলী এখানে লিখুন..."
                   />
                   <div className="flex gap-2 mb-2">
@@ -821,7 +821,7 @@ export default function EditorPage() {
                                 <Textarea
                                   value={cell}
                                   onChange={(e) => handleTableCellChange(question.id, rowIndex, colIndex, e.target.value)}
-                                  className="w-full h-full border-0 rounded-none focus-visible:ring-1 ring-inset focus-visible:ring-blue-400"
+                                  className="w-full h-full border-0 rounded-none focus-visible:ring-1 ring-inset focus-visible:ring-blue-400 bg-white dark:bg-slate-800"
                                   rows={2}
                                 />
                               </td>
@@ -963,7 +963,7 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-screen bg-background">
       <header className="flex h-auto min-h-14 items-center gap-4 border-b bg-muted/40 px-4 sm:px-6 flex-wrap py-2">
         <div className="flex-1">
           <h1 className="text-lg font-semibold">Paper Editor</h1>
@@ -1025,15 +1025,15 @@ export default function EditorPage() {
         </div>
       </header>
       
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 p-4">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 p-4 overflow-hidden">
         {/* Left Column: Main Editor */}
-        <div className="overflow-y-auto pr-4 space-y-4">
+        <div className="flex flex-col gap-4 overflow-hidden">
             <Card>
                 <CardHeader>
                     <CardTitle>Paper Settings</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
                         <div className="space-y-2">
                             <Label>Font Size: {settings.fontSize}pt</Label>
                             <Slider
@@ -1053,45 +1053,45 @@ export default function EditorPage() {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
                         <div className="space-y-1 col-span-1">
-                            <Label htmlFor="page-width" className="text-xs">Page Width (px)</Label>
+                            <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
                             <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-8" />
                         </div>
                         <div className="space-y-1 col-span-1">
-                            <Label htmlFor="page-height" className="text-xs">Page Height (px)</Label>
+                            <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
                             <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-8" />
                         </div>
                         <div className="space-y-1 col-span-1">
-                            <Label htmlFor="margin-top" className="text-xs">Margin Top (mm)</Label>
+                            <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
                             <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-8"/>
                         </div>
                         <div className="space-y-1 col-span-1">
-                            <Label htmlFor="margin-bottom" className="text-xs">Margin Bottom (mm)</Label>
+                            <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
                             <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-8"/>
                         </div>
                         <div className="space-y-1 col-span-1">
-                            <Label htmlFor="margin-left" className="text-xs">Margin Left (mm)</Label>
+                            <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
                             <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-8"/>
                         </div>
                         <div className="space-y-1 col-span-1">
-                            <Label htmlFor="margin-right" className="text-xs">Margin Right (mm)</Label>
+                            <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
                             <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-8"/>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            <div className="rounded-lg bg-white p-6 border space-y-4">
+            <div className="rounded-lg bg-white text-black p-6 border space-y-4 flex-1 overflow-y-auto">
                 <div className="text-center space-y-2 mb-8">
-                    <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
-                    <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
+                    <Input className="text-2xl font-bold text-center border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.schoolName} onChange={e => handlePaperDetailChange('schoolName', e.target.value)} />
+                    <Input className="text-lg text-center border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.examTitle} onChange={e => handlePaperDetailChange('examTitle', e.target.value)} />
                 </div>
                 <div className="flex justify-between text-sm">
-                    <p>বিষয়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} /></p>
-                    <p>পূর্ণমান: <Input type="number" className="inline-block w-20 border-0 focus-visible:ring-0 shadow-none" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/></p>
+                    <p>বিষয়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} /></p>
+                    <p>পূর্ণমান: <Input type="number" className="inline-block w-20 border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/></p>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <p>শ্রেণি: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} /></p>
-                  <p>সময়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/></p>
+                  <p>শ্রেণি: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} /></p>
+                  <p>সময়: <Input className="inline-block w-auto border-0 focus-visible:ring-0 shadow-none bg-transparent" value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/></p>
                 </div>
                 <div className="pt-2">
                   {paper.notes === undefined ? (
@@ -1103,7 +1103,7 @@ export default function EditorPage() {
                           value={paper.notes}
                           onChange={e => handlePaperDetailChange('notes', e.target.value)}
                           placeholder="নোট লিখুন..."
-                          className="bg-slate-50 text-sm text-center"
+                          className="bg-slate-50 dark:bg-slate-800 text-sm text-center"
                       />
                   )}
                 </div>
