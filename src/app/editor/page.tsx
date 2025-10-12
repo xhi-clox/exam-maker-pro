@@ -107,13 +107,10 @@ const EditorHeader = ({ paper, preparePdfDownload, handleSaveAndExit, settings, 
     pages: PageContent[][]
 }) => {
   const { setActions } = useEditorHeaderActions();
-  const [mounted, setMounted] = useState(false);
 
   const headerInputStyle = "h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2";
 
   useEffect(() => {
-    setMounted(true);
-
     setActions(
       <>
         <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
@@ -232,7 +229,7 @@ const EditorHeader = ({ paper, preparePdfDownload, handleSaveAndExit, settings, 
     return () => {
       setActions(null);
     };
-  }, [mounted, setActions, paper, handleSaveAndExit, settings, setSettings, isDownloading, bookletPages, generatePdf, pages, preparePdfDownload]);
+  }, [setActions, paper, handleSaveAndExit, settings, setSettings, isDownloading, bookletPages, generatePdf, pages, preparePdfDownload]);
   
   return null;
 }
@@ -1230,5 +1227,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    

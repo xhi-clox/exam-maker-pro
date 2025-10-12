@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Bell } from 'lucide-react';
@@ -18,6 +19,7 @@ export function AppHeader() {
       </div>
 
       <div className="flex-1 flex justify-center">
+        {/* This div will always exist, preventing hydration errors */}
         <div className="flex items-center gap-2">
           {actions}
         </div>
