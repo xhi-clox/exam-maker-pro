@@ -37,14 +37,9 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <Link href="/" className="flex items-center gap-2">
-          <FileText className="h-7 w-7 text-primary" />
-          <span className="text-lg font-semibold font-headline text-foreground">
-            Exam Maker Pro
-          </span>
-        </Link>
+        {/* The header content is now in AppHeader.tsx */}
       </SidebarHeader>
-      <SidebarContent className="p-2">
+      <SidebarContent className="p-2 mt-4">
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
