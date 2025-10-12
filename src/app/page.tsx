@@ -1,12 +1,15 @@
+
 import { WelcomeSection } from '@/components/dashboard/WelcomeSection';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { RecentPapers } from '@/components/dashboard/RecentPapers';
 import { Statistics } from '@/components/dashboard/Statistics';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { FileText, Clock, BarChart2, History } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 export default function Home() {
   return (
+    <AppLayout>
       <div className="flex flex-col gap-8">
         <WelcomeSection />
 
@@ -50,5 +53,6 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">Bangla Exam Maker Pro &copy; 2024. All rights reserved.</p>
         </footer>
       </div>
+    </AppLayout>
   );
 }

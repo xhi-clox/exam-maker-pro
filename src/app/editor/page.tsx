@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import PaperPreview, { PaperPage, type PaperSettings, type PageContent, renderQuestionContent } from './PaperPreview';
+import PaperPreview, { PaperPage, type PaperSettings, type PageContent } from './PaperPreview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import MathExpressions from './MathExpressions';
@@ -930,67 +930,7 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50 text-foreground">
-      {/* Header */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">প্রশ্নপত্র सम्पादक</h1>
-        </div>
-        <div className="flex items-center gap-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-                <DialogHeader>
-                  <DialogTitle>Question Paper Preview</DialogTitle>
-                </DialogHeader>
-                <div className="flex-1 overflow-auto bg-gray-100 p-4" ref={previewContainerRef}>
-                  <PaperPreview 
-                    paper={paper} 
-                    pages={pages}
-                    settings={settings}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setIsDownloading(false); setBookletPages([]); }}}>
-              <DialogTrigger asChild>
-                <Button onClick={preparePdfDownload}><Download className="mr-2 size-4" /> Download</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-5xl">
-                <DialogHeader>
-                  <DialogTitle>Booklet Download Preview</DialogTitle>
-                </DialogHeader>
-                <div className="my-4 overflow-x-auto">
-                    {bookletPages.length > 0 ? (
-                        <div className="flex gap-4 p-4 bg-gray-200">
-                            {bookletPages.map((page, index) => (
-                                <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
-                                    <div className="w-1/2 h-full border-r border-gray-300">
-                                        {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
-                                    </div>
-                                    <div className="w-1/2 h-full">
-                                         {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-center h-64">
-                            <p>Generating PDF preview...</p>
-                        </div>
-                    )}
-                </div>
-                <DialogFooter>
-                    <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-        </div>
-      </header>
-
-      {/* Main Content */}
+    <div className="flex h-screen flex-col bg-slate-50 text-foreground overflow-hidden">
       <main className="flex-1 overflow-hidden">
         <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_450px]">
           {/* Left Column */}
@@ -1065,6 +1005,64 @@ export default function EditorPage() {
                         AI দিয়ে তৈরি করুন
                       </Button>
                     </Link>
+                  </CardContent>
+                </Card>
+
+                 <Card>
+                  <CardHeader>
+                    <CardTitle>Controls</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline"><Eye className="mr-2 size-4" /> Preview</Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+                            <DialogHeader>
+                            <DialogTitle>Question Paper Preview</DialogTitle>
+                            </DialogHeader>
+                            <div className="flex-1 overflow-auto bg-gray-100 p-4" ref={previewContainerRef}>
+                            <PaperPreview 
+                                paper={paper} 
+                                pages={pages}
+                                settings={settings}
+                            />
+                            </div>
+                        </DialogContent>
+                        </Dialog>
+                        <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setIsDownloading(false); setBookletPages([]); }}}>
+                        <DialogTrigger asChild>
+                            <Button onClick={preparePdfDownload}><Download className="mr-2 size-4" /> Download</Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-5xl">
+                            <DialogHeader>
+                            <DialogTitle>Booklet Download Preview</DialogTitle>
+                            </DialogHeader>
+                            <div className="my-4 overflow-x-auto">
+                                {bookletPages.length > 0 ? (
+                                    <div className="flex gap-4 p-4 bg-gray-200">
+                                        {bookletPages.map((page, index) => (
+                                            <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
+                                                <div className="w-1/2 h-full border-r border-gray-300">
+                                                    {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
+                                                </div>
+                                                <div className="w-1/2 h-full">
+                                                     {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center h-64">
+                                        <p>Generating PDF preview...</p>
+                                    </div>
+                                )}
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                   </CardContent>
                 </Card>
 
