@@ -1112,15 +1112,15 @@ export default function EditorPage() {
                 </div>
                 <div className="pt-2 text-center">
                   {paper.notes === undefined ? (
-                      <Button variant="outline" size="sm" onClick={addNote} className="bg-slate-100 text-black border-gray-300 hover:bg-gray-200">
-                          <Plus className="mr-2 size-4" /> নোট যোগ করুন
-                      </Button>
+                        <Button variant="outline" size="sm" onClick={addNote} className="text-black border-gray-400 hover:bg-gray-100 hover:text-black">
+                            <Plus className="mr-2 size-4" /> নোট যোগ করুন
+                        </Button>
                   ) : (
                       <Textarea 
                           value={paper.notes}
                           onChange={e => handlePaperDetailChange('notes', e.target.value)}
                           placeholder="নোট লিখুন..."
-                          className="bg-slate-50 dark:bg-slate-800 text-sm text-center text-black"
+                          className="bg-slate-50 dark:bg-slate-800 text-sm text-center dark:text-white h-10 py-2"
                       />
                   )}
                 </div>
@@ -1177,5 +1177,3 @@ export default function EditorPage() {
     </div>
   );
 }
-
-    
