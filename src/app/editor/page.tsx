@@ -930,11 +930,11 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50 text-foreground overflow-hidden">
+    <div className="flex h-full flex-col bg-background text-foreground">
       <main className="flex-1 overflow-hidden">
-        <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_450px]">
+        <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_400px]">
           {/* Left Column */}
-          <div className="flex flex-col gap-6 overflow-y-auto p-6">
+          <div className="flex flex-col gap-6 overflow-y-auto p-6 bg-slate-100">
             
             {/* Question Area */}
             <div className="flex-1 rounded-lg bg-white p-6 border space-y-4">
