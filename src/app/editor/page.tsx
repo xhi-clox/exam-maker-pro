@@ -1117,45 +1117,47 @@ export default function EditorPage() {
                       </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-                      <div className="space-y-1">
-                          <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400 px-1">Subject</Label>
-                          <Input id="subject" className={headerInputStyle} value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                          <Label htmlFor="grade" className="text-xs text-slate-500 dark:text-slate-400 px-1">Class</Label>
-                          <Input id="grade" className={headerInputStyle} value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                          <Label htmlFor="totalMarks" className="text-xs text-slate-500 dark:text-slate-400 px-1">Marks</Label>
-                          <Input id="totalMarks" type="number" className={headerInputStyle} value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
-                      </div>
-                      <div className="space-y-1">
-                            <Label htmlFor="timeAllowed" className="text-xs text-slate-500 dark:text-slate-400 px-1">Time</Label>
-                            <Input id="timeAllowed" className={headerInputStyle} value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
-                      </div>
-                  </div>
-                  
-                  <div className="pt-2 text-center">
-                  {paper.notes === undefined ? (
-                      <div className="text-center">
-                          <Button 
-                              variant="outline" 
-                              onClick={addNote}
-                              className={`${headerInputStyle} w-full`}
-                          >
-                              <Plus className="mr-2 size-4" />নোট যোগ করুন
-                          </Button>
-                      </div>
-                  ) : (
-                      <Textarea 
-                          value={paper.notes}
-                          onChange={e => handlePaperDetailChange('notes', e.target.value)}
-                          placeholder="নোট লিখুন..."
-                          className={`${headerInputStyle} text-sm text-center py-2.5 min-h-[40px] h-auto dark:text-white`}
-                          rows={1}
-                      />
-                  )}
+                  <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+                        <div className="space-y-1">
+                            <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400 px-1">Subject</Label>
+                            <Input id="subject" className={headerInputStyle} value={paper.subject} onChange={e => handlePaperDetailChange('subject', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="grade" className="text-xs text-slate-500 dark:text-slate-400 px-1">Class</Label>
+                            <Input id="grade" className={headerInputStyle} value={paper.grade} onChange={e => handlePaperDetailChange('grade', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="totalMarks" className="text-xs text-slate-500 dark:text-slate-400 px-1">Marks</Label>
+                            <Input id="totalMarks" type="number" className={headerInputStyle} value={paper.totalMarks} onChange={e => handlePaperDetailChange('totalMarks', parseInt(e.target.value))}/>
+                        </div>
+                        <div className="space-y-1">
+                              <Label htmlFor="timeAllowed" className="text-xs text-slate-500 dark:text-slate-400 px-1">Time</Label>
+                              <Input id="timeAllowed" className={headerInputStyle} value={paper.timeAllowed} onChange={e => handlePaperDetailChange('timeAllowed', e.target.value)}/>
+                        </div>
+                    </div>
+                    
+                    <div className="pt-2 text-center">
+                    {paper.notes === undefined ? (
+                        <div className="text-center">
+                            <Button 
+                                variant="outline" 
+                                onClick={addNote}
+                                className={`${headerInputStyle} w-full`}
+                            >
+                                <Plus className="mr-2 size-4" />নোট যোগ করুন
+                            </Button>
+                        </div>
+                    ) : (
+                        <Textarea 
+                            value={paper.notes}
+                            onChange={e => handlePaperDetailChange('notes', e.target.value)}
+                            placeholder="নোট লিখুন..."
+                            className={`${headerInputStyle} text-sm text-center py-2.5 min-h-[40px] h-auto dark:text-white`}
+                            rows={1}
+                        />
+                    )}
+                    </div>
                   </div>
               </div>
 
@@ -1212,3 +1214,5 @@ export default function EditorPage() {
     </>
   );
 }
+
+    
