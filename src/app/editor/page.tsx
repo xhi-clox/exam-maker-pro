@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef, useLayoutEffect, useContext } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -117,7 +117,7 @@ export default function EditorPage() {
   
   const [pages, setPages] = useState<PageContent[][]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [bookletPages, setBookletPages] = useState<any[]>([]);
+  const [bookletPages, setBookletPages] = useState<{left: string|null; right: string|null}[]>([]);
   const hiddenRenderRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<PaperSettings>({ 
     margins: { top: 10, bottom: 10, left: 10, right: 10 },
@@ -209,32 +209,40 @@ export default function EditorPage() {
       format: 'a4',
     });
 
+    const addImageToPdf = async (canvasDataUrl: string | null, x: number) => {
+        if (!canvasDataUrl) return;
+        await new Promise<void>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+            try {
+                const a4HalfWidth = a4Width / 2;
+                const a4HalfHeight = a4Height;
+        
+                const scale = Math.min(a4HalfWidth / img.naturalWidth, a4HalfHeight / img.naturalHeight);
+                const drawWidth = img.naturalWidth * scale;
+                const drawHeight = img.naturalHeight * scale;
+        
+                const drawX = x + (a4HalfWidth - drawWidth) / 2;
+                const drawY = (a4HalfHeight - drawHeight) / 2;
+        
+                pdf.addImage(img, 'PNG', drawX, drawY, drawWidth, drawHeight);
+                resolve();
+            } catch (e) {
+                reject(e);
+            }
+            };
+            img.onerror = (e) => reject(e);
+            img.src = canvasDataUrl;
+        });
+    };
+
     for (let i = 0; i < bookletPages.length; i++) {
         if (i > 0) {
             pdf.addPage();
         }
         const bookletPage = bookletPages[i];
-        
-        const addImageToPdf = (canvasDataUrl: string | null, x: number) => {
-            if (canvasDataUrl) {
-                const img = new Image();
-                img.src = canvasDataUrl;
-                
-                const a4HalfWidth = a4Width / 2;
-                const a4HalfHeight = a4Height;
-
-                const scale = Math.min(a4HalfWidth / img.width, a4HalfHeight / img.height);
-                const drawWidth = img.width * scale;
-                const drawHeight = img.height * scale;
-                
-                const drawX = x + (a4HalfWidth - drawWidth) / 2;
-                const drawY = (a4HalfHeight - drawHeight) / 2;
-
-                pdf.addImage(img, 'PNG', drawX, drawY, drawWidth, drawHeight);
-            }
-        }
-        addImageToPdf(bookletPage.left, 0);
-        addImageToPdf(bookletPage.right, a4Width / 2);
+        await addImageToPdf(bookletPage.left, 0);
+        await addImageToPdf(bookletPage.right, a4Width / 2);
     }
     
     pdf.save('question-paper-booklet.pdf');
@@ -247,11 +255,96 @@ export default function EditorPage() {
     
     setIsDownloading(true);
     setBookletPages([]);
-  
-    const renderContainer = document.createElement('div');
-    renderContainer.style.position = 'absolute';
-    renderContainer.style.left = '-9999px';
-    document.body.appendChild(renderContainer);
+
+    const captureNode = async (pageIndex: number | null): Promise<string | null> => {
+        if (pageIndex === null || !paper) return null;
+        const pageContent = pages[pageIndex];
+        if (!pageContent) return null;
+    
+        const mmToPx = (mm: number) => mm * 3.7795275591;
+    
+        const printCSS = `
+            * { box-sizing: border-box; }
+            html, body { margin: 0; padding: 0; }
+            .pdf-render-root {
+            width: ${settings.width}px;
+            min-height: ${settings.height}px;
+            font-family: "PT Sans", "Noto Sans Bengali", Arial, sans-serif;
+            font-size: ${settings.fontSize}pt;
+            line-height: ${settings.lineHeight};
+            margin: 0;
+            padding: ${mmToPx(settings.margins.top)}px ${mmToPx(settings.margins.right)}px ${mmToPx(settings.margins.bottom)}px ${mmToPx(settings.margins.left)}px;
+            background: #fff;
+            color: #000;
+            }
+            .pdf-render-root p { margin: 0 0 4px 0; }
+            .pdf-render-root h1,h2,h3 { margin: 0 0 6px 0; }
+            .pdf-render-root ul, .pdf-render-root ol { margin: 0 0 6px 1.2em; padding: 0; }
+            .pdf-render-root textarea, .pdf-render-root input { font-family: inherit; font-size: inherit; }
+        `;
+    
+        const pageContainer = document.createElement('div');
+        pageContainer.style.position = 'absolute';
+        pageContainer.style.left = '-9999px';
+        pageContainer.style.top = '0';
+        document.body.appendChild(pageContainer);
+    
+        let root = null as any;
+        try {
+            const styleEl = document.createElement('style');
+            styleEl.textContent = printCSS;
+            pageContainer.appendChild(styleEl);
+    
+            const wrapper = document.createElement('div');
+            wrapper.className = 'pdf-render-root';
+            pageContainer.appendChild(wrapper);
+    
+            const nodeToRender = (
+            <PaperPage
+                paper={paper}
+                pageContent={pageContent}
+                isFirstPage={pageIndex === 0}
+                settings={settings}
+                allQuestions={paper.questions}
+            />
+            );
+    
+            root = createRoot(wrapper);
+            root.render(nodeToRender);
+    
+            if ((document as any).fonts && (document as any).fonts.ready) {
+                try { await (document as any).fonts.ready; } catch(e) { /* ignore */ }
+            }
+    
+            const imgs = wrapper.querySelectorAll('img');
+            if (imgs.length > 0) {
+            await Promise.all(Array.from(imgs).map((img) => {
+                const i = img as HTMLImageElement;
+                if (i.complete) return Promise.resolve();
+                return new Promise<void>(res => { i.onload = i.onerror = () => res(); });
+            }));
+            }
+            
+            await new Promise(r => setTimeout(r, 50));
+    
+            const canvas = await html2canvas(wrapper as HTMLElement, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: '#fff',
+            });
+    
+            return canvas.toDataURL('image/png');
+        } catch (err) {
+            console.error('captureNode error:', err);
+            return null;
+        } finally {
+            try {
+                if (root) root.unmount();
+            } catch (_) {}
+            if (pageContainer.parentNode) pageContainer.parentNode.removeChild(pageContainer);
+        }
+    };
   
     let n = pages.length;
     const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
@@ -273,69 +366,36 @@ export default function EditorPage() {
       }
     }
   
-    const captureNode = async (pageIndex: number | null): Promise<string | null> => {
-      if (pageIndex === null || !paper) {
-        return null;
-      }
-  
-      const pageContent = pages[pageIndex];
-      if (!pageContent) return null;
+    try {
+        const finalBookletPages = [];
+        for (let i = 0; i < bookletOrderIndices.length; i += 2) {
+          const leftPageIndex = bookletOrderIndices[i];
+          const rightPageIndex = bookletOrderIndices[i + 1];
       
-      const nodeToRender = (
-          <PaperPage
-              paper={paper}
-              pageContent={pageContent}
-              isFirstPage={pageIndex === 0}
-              settings={settings}
-              allQuestions={paper.questions}
-          />
-      );
-
-      const pageContainer = document.createElement('div');
-      renderContainer.appendChild(pageContainer);
-
-      const root = createRoot(pageContainer);
-      await new Promise<void>(resolve => {
-        root.render(nodeToRender);
-        setTimeout(resolve, 300);
-      });
-
-      const elementToCapture = pageContainer.firstChild as HTMLElement;
-      if (!elementToCapture) return null;
-
-      const canvas = await html2canvas(elementToCapture, { scale: 2 });
-      root.unmount();
-      renderContainer.removeChild(pageContainer);
-      return canvas.toDataURL('image/png');
-    };
-  
-    const finalBookletPages = [];
-    for (let i = 0; i < bookletOrderIndices.length; i += 2) {
-      const leftPageIndex = bookletOrderIndices[i];
-      const rightPageIndex = bookletOrderIndices[i + 1];
-  
-      const [leftCanvasUrl, rightCanvasUrl] = await Promise.all([
-          captureNode(leftPageIndex),
-          captureNode(rightPageIndex),
-      ]);
-      
-      finalBookletPages.push({ left: leftCanvasUrl, right: rightCanvasUrl });
+          const [leftCanvasUrl, rightCanvasUrl] = await Promise.all([
+              captureNode(leftPageIndex),
+              captureNode(rightPageIndex),
+          ]);
+          
+          finalBookletPages.push({ left: leftCanvasUrl, right: rightCanvasUrl });
+        }
+        setBookletPages(finalBookletPages);
+    } catch(e) {
+        console.error("Failed to prepare PDF download", e);
+        setIsDownloading(false);
     }
-  
-    setBookletPages(finalBookletPages);
-    document.body.removeChild(renderContainer);
   };
 
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
         if(draft) (draft as any)[field] = value
     }));
   };
 
   const handleQuestionChange = (id: string, field: keyof Question, value: any) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const question = draft.questions.find(q => q.id === id);
         if (question) {
             (question as any)[field] = value;
@@ -344,8 +404,8 @@ export default function EditorPage() {
   };
   
     const handleSubQuestionChange = (parentId: string, subId: string, field: keyof Question, value: any) => {
-        if (!paper) return;
-        setPaper(produce(paper, draft => {
+        setPaper(prev => produce(prev, draft => {
+            if (!draft) return;
             const parentQuestion = draft.questions.find(q => q.id === parentId);
             if (parentQuestion && parentQuestion.subQuestions) {
                 const subQuestion = parentQuestion.subQuestions.find(sq => sq.id === subId);
@@ -357,8 +417,8 @@ export default function EditorPage() {
       };
   
   const addSubQuestion = (questionId: string, type: Question['type'] = 'short') => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const question = draft.questions.find(q => q.id === questionId);
         if (question) {
             const newSubQuestion: Question = {
@@ -384,8 +444,8 @@ export default function EditorPage() {
   };
   
   const removeSubQuestion = (questionId: string, subQuestionId: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const question = draft.questions.find(q => q.id === questionId);
         if (question && question.subQuestions) {
             question.subQuestions = question.subQuestions.filter(sq => sq.id !== subQuestionId);
@@ -394,8 +454,8 @@ export default function EditorPage() {
   };
 
   const addOption = (questionId: string, subQuestionId: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const q = draft.questions.find(q => q.id === questionId);
         if (q && q.subQuestions) {
             const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
@@ -411,8 +471,8 @@ export default function EditorPage() {
   };
 
   const removeOption = (questionId: string, subQuestionId: string, optionId: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const q = draft.questions.find(q => q.id === questionId);
          if (q && q.subQuestions) {
             const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
@@ -424,8 +484,8 @@ export default function EditorPage() {
   };
 
   const handleOptionChange = (questionId: string, subQuestionId: string, optionId: string, text: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const q = draft.questions.find(q => q.id === questionId);
         if (q && q.subQuestions) {
             const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
@@ -440,8 +500,8 @@ export default function EditorPage() {
   };
 
   const handleTableCellChange = (questionId: string, rowIndex: number, colIndex: number, value: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const q = draft.questions.find(q => q.id === questionId);
         if (q && q.tableData) {
             q.tableData[rowIndex][colIndex] = value;
@@ -450,8 +510,8 @@ export default function EditorPage() {
   };
   
   const addRow = (questionId: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const q = draft.questions.find(q => q.id === questionId);
         if (q) {
             const newRow = Array(q.cols || 1).fill('');
@@ -463,8 +523,8 @@ export default function EditorPage() {
   };
   
   const removeRow = (questionId: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const q = draft.questions.find(q => q.id === questionId);
         if (q && q.tableData && q.rows && q.rows > 1) {
             q.tableData.pop();
@@ -474,8 +534,8 @@ export default function EditorPage() {
   };
   
   const addCol = (questionId: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const q = draft.questions.find(q => q.id === questionId);
         if (q) {
             if (!q.tableData) q.tableData = [[]];
@@ -486,8 +546,8 @@ export default function EditorPage() {
   };
   
   const removeCol = (questionId: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const q = draft.questions.find(q => q.id === questionId);
         if (q && q.tableData && q.cols && q.cols > 1) {
             q.tableData.forEach(row => row.pop());
@@ -522,8 +582,8 @@ export default function EditorPage() {
   };
 
   const moveQuestion = (index: number, direction: 'up' | 'down') => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         const newIndex = direction === 'up' ? index - 1 : index + 1;
         if (newIndex < 0 || newIndex >= draft.questions.length) {
             return;
@@ -534,15 +594,13 @@ export default function EditorPage() {
   };
 
   const removeQuestion = (id: string) => {
-    if (!paper) return;
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
         draft.questions = draft.questions.filter(q => q.id !== id);
     }));
   };
 
   const addQuestion = (type: Question['type']) => {
-    if (!paper) return;
-
     const newQuestion: Question = {
       id: generateId('q'),
       type: type,
@@ -620,7 +678,8 @@ export default function EditorPage() {
         ];
     }
 
-    setPaper(produce(paper, draft => {
+    setPaper(prev => produce(prev, draft => {
+      if (!draft) return;
       draft.questions.push(newQuestion);
     }));
   };
@@ -831,64 +890,61 @@ export default function EditorPage() {
 
   useLayoutEffect(() => {
     if (!paper) return;
+    let cancelled = false;
   
-    const calculatePages = () => {
+    const calculatePages = async () => {
       if (!hiddenRenderRef.current) {
         setPages([]);
         return;
       }
-  
-      const pageBreakThreshold = settings.height - (settings.margins.top + settings.margins.bottom) * 3.78; // Convert mm to px
-      const hiddenPage = hiddenRenderRef.current;
-      hiddenPage.innerHTML = '';
-  
+      
       const tempRenderContainer = document.createElement('div');
-      hiddenPage.appendChild(tempRenderContainer);
+      hiddenRenderRef.current.appendChild(tempRenderContainer);
       const root = createRoot(tempRenderContainer);
-  
-      const questionNodes = (
-        <PaperPage
+      
+      try {
+        root.render((
+          <PaperPage
             paper={paper}
             pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
-            isFirstPage={true} // Simplified for measurement
+            isFirstPage={true}
             settings={settings}
             allQuestions={paper.questions}
-        />
-      );
-  
-      root.render(questionNodes);
-  
-      setTimeout(() => {
-        const renderedPaperPage = tempRenderContainer.querySelector('.paper-page');
-        if (!renderedPaperPage) {
-            root.unmount();
-            if (hiddenPage.contains(tempRenderContainer)) {
-                hiddenPage.removeChild(tempRenderContainer);
-            }
-            return;
+          />
+        ));
+    
+        if ((document as any).fonts && (document as any).fonts.ready) {
+            try { await (document as any).fonts.ready; } catch(_) {}
         }
-
+        await new Promise(r => setTimeout(r, 60));
+    
+        if (cancelled) return;
+    
+        const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
+        if (!renderedPaperPage) return;
+    
         const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>('[data-question-id]'));
-  
+    
         const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
         let headerHeight = 0;
         if (headerEl) {
             const style = window.getComputedStyle(headerEl);
-            headerHeight = headerEl.offsetHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
+            headerHeight = headerEl.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
         }
 
         const notesEl = renderedPaperPage.querySelector<HTMLElement>('.text-center.text-sm.font-semibold.mb-6');
-        if(notesEl) headerHeight += notesEl.offsetHeight + parseInt(window.getComputedStyle(notesEl).marginBottom);
+        if(notesEl) headerHeight += notesEl.offsetHeight + parseFloat(window.getComputedStyle(notesEl).marginBottom);
         
         const flexLineEls = renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm');
         flexLineEls.forEach(el => {
-            headerHeight += el.offsetHeight + parseInt(window.getComputedStyle(el).marginBottom);
+            headerHeight += el.offsetHeight + parseFloat(window.getComputedStyle(el).marginBottom);
         });
 
         const newPages: PageContent[][] = [];
         let currentPageContent: PageContent[] = [];
         let currentPageHeight = 0;
         let isFirstPage = true;
+        const pageBreakThreshold = settings.height - (settings.margins.top + settings.margins.bottom) * 3.7795275591;
   
         const startNewPage = () => {
           if (currentPageContent.length > 0) {
@@ -909,15 +965,12 @@ export default function EditorPage() {
           if (!question) return;
   
           const style = window.getComputedStyle(questionElement);
-          const questionHeight = questionElement.offsetHeight + parseInt(style.marginTop) + parseInt(style.marginBottom);
+          const questionHeight = questionElement.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
   
           let availableHeight = pageBreakThreshold;
           
           if (currentPageHeight + questionHeight > availableHeight && currentPageContent.length > 0) {
             startNewPage();
-             if (isFirstPage) { // This condition is now false, so header won't be added again
-                currentPageHeight += headerHeight;
-            }
           }
           
           const contentToAdd: PageContent = { mainQuestion: question, subQuestions: question.subQuestions || [], showMainContent: true };
@@ -930,19 +983,20 @@ export default function EditorPage() {
           newPages.push(currentPageContent);
         }
         
-        setPages(newPages);
-        
-        // Clean up
-        root.unmount();
-        if (hiddenPage.contains(tempRenderContainer)) {
-            hiddenPage.removeChild(tempRenderContainer);
+        if (!cancelled) {
+            setPages(newPages);
         }
-
-      }, 300); // Increased timeout for complex rendering
+      } finally {
+        root.unmount();
+        if (hiddenRenderRef.current?.contains(tempRenderContainer)) {
+            hiddenRenderRef.current.removeChild(tempRenderContainer);
+        }
+      }
     };
   
     calculatePages();
   
+    return () => { cancelled = true; };
   }, [paper, settings]);
   
   if (!paper) {
@@ -1037,7 +1091,7 @@ export default function EditorPage() {
                   </div>
                 </DialogContent>
               </Dialog>
-              <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setBookletPages([]); }}}>
+              <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setBookletPages([]); setIsDownloading(false); }}}>
                 <DialogTrigger asChild>
                   <Button onClick={preparePdfDownload} className="bg-primary hover:bg-primary/90 text-primary-foreground"><Download className="mr-2 size-4" /> Download</Button>
                 </DialogTrigger>
