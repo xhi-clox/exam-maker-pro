@@ -26,13 +26,11 @@ import { createRoot } from 'react-dom/client';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 
-let idCounter = 0;
 const generateId = (prefix: string) => {
-  return `${prefix}${Date.now()}_${++idCounter}`;
+    return `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
 };
 
 const ensureUniqueIds = (questions: Question[]): Question[] => {
-    idCounter = 0;
     const seenIds = new Set<string>();
 
     return produce(questions, draft => {
