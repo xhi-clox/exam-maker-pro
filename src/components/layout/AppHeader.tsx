@@ -5,12 +5,8 @@ import { Bell } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Logo } from '../icons/Logo';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { useContext } from 'react';
-import { EditorHeaderContext } from '@/app/editor/EditorHeader';
 
 export function AppHeader() {
-  const editorHeaderContext = useContext(EditorHeaderContext);
-
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
       <div className="flex items-center gap-2">
@@ -21,11 +17,6 @@ export function AppHeader() {
       </div>
 
       <div className="flex-1 flex justify-center">
-        {editorHeaderContext && (
-          <div className="flex items-center gap-2">
-            {editorHeaderContext.actions}
-          </div>
-        )}
       </div>
 
       <div className="flex items-center gap-2">
