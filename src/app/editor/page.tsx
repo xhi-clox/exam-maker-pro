@@ -569,31 +569,30 @@ export default function EditorPage() {
 
   const EditableContent = ({ id, content, onBlurHandler, onFocusHandler }: { id: string, content: string, onBlurHandler: (text: string) => void, onFocusHandler: (e: React.FocusEvent<HTMLDivElement>) => void }) => {
     const ref = useRef<HTMLDivElement>(null);
-    const [isEditing, setIsEditing] = useState(false);
-
-    const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-        setIsEditing(false);
-        onBlurHandler(e.currentTarget.innerText);
-    }
   
+    useEffect(() => {
+        if (ref.current && ref.current.innerHTML !== content) {
+            // Only update if content is different to avoid cursor jumps
+            // This is a simplification; a more robust solution might be needed
+            // for complex scenarios to avoid re-rendering while typing.
+            const selection = window.getSelection();
+            const isFocused = selection && selection.anchorNode && ref.current.contains(selection.anchorNode);
+            if(!isFocused) {
+              ref.current.innerHTML = content;
+            }
+        }
+    }, [content]);
+
     return (
       <div
         ref={ref}
         contentEditable
         suppressContentEditableWarning
-        onFocus={(e) => {
-            setIsEditing(true);
-            onFocusHandler(e);
-        }}
-        onBlur={handleBlur}
+        onFocus={onFocusHandler}
+        onBlur={(e) => onBlurHandler(e.currentTarget.innerText)}
         className="bg-white dark:bg-slate-800 font-semibold p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] w-full"
-        onInput={(e) => {
-            // This is needed to make React aware of changes for things like autosizing
-            // but we save the content onBlur
-        }}
-      >
-        {!isEditing ? parseMath(content) : content}
-      </div>
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
     );
   };
 
@@ -1003,8 +1002,8 @@ export default function EditorPage() {
         setBookletPages={setBookletPages}
       />
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
-        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 p-6 gradient-scrollbar">
-          <div className="mx-auto max-w-4xl space-y-8">
+        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 gradient-scrollbar">
+          <div className="space-y-8">
               <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg">
                   <div className="space-y-4">
                       <div className="space-y-1">
@@ -1114,3 +1113,5 @@ export default function EditorPage() {
     </>
   );
 }
+
+  
