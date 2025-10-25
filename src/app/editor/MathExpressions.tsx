@@ -245,7 +245,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
             <Button 
               onClick={handleSendExpression}
               disabled={!currentExpression.trim()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 flex-1"
             >
               <Send className="h-4 w-4" />
               Send
@@ -254,6 +254,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
               variant="outline" 
               onClick={handleClear}
               disabled={!currentExpression}
+              className="flex-1"
             >
               Clear
             </Button>
