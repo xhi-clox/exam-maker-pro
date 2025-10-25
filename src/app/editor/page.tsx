@@ -890,148 +890,189 @@ export default function EditorPage() {
   useLayoutEffect(() => {
     if (!paper) return;
 
+    // mm -> px (96dpi)
     const mmToPx = (mm: number) => mm * 3.7795275591;
+
+    // choose the selector that identifies each question block in the rendered PaperPage
     const QUESTION_SELECTOR = '[data-question-id]';
+
     let cancelled = false;
 
     const calculatePages = async () => {
         if (!hiddenRenderRef.current) {
-            setPages([]);
-            return;
+        setPages([]);
+        return;
         }
 
+        // clean any previous content
         hiddenRenderRef.current.innerHTML = '';
+
+        // create a temporary container to render the full continuous page
         const tempRenderContainer = document.createElement('div');
+        // ensure same width as preview rendering to match measurements
         tempRenderContainer.style.width = `${settings.width}px`;
         tempRenderContainer.style.boxSizing = 'border-box';
         hiddenRenderRef.current.appendChild(tempRenderContainer);
         const root = createRoot(tempRenderContainer);
 
+        // Render entire paper into the temp container (single long flow)
         root.render(
-            <PaperPage
-                paper={paper}
-                pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
-                isFirstPage={true}
-                settings={settings}
-                allQuestions={paper.questions}
-            />
+        <PaperPage
+            paper={paper}
+            pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
+            isFirstPage={true}
+            settings={settings}
+            allQuestions={paper.questions}
+        />
         );
 
         try {
-            if ((document as any).fonts && (document as any).fonts.ready) {
-                try { await (document as any).fonts.ready; } catch (e) { /* ignore */ }
+        // wait for webfonts/images to finish loading (more reliable than a fixed delay)
+        if ((document as any).fonts && (document as any).fonts.ready) {
+            try { await (document as any).fonts.ready; } catch (e) { /* ignore */ }
+        }
+
+        // wait for images inside container to load
+        const imgs = tempRenderContainer.querySelectorAll('img');
+        if (imgs.length) {
+            await Promise.all(Array.from(imgs).map(img => {
+            const im = img as HTMLImageElement;
+            return im.complete ? Promise.resolve() : new Promise<void>(res => { im.onload = im.onerror = () => res(); });
+            }));
+        }
+
+        // small stabilization pause so layout settles (safe but tiny)
+        await new Promise(r => setTimeout(r, 30));
+
+        if (cancelled) return;
+
+        // PAGE geometry (px). Convert margins from mm to px and subtract from height:
+        const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom));
+        const pageInnerWidth = settings.width - (mmToPx(settings.margins.left) + mmToPx(settings.margins.right));
+
+        // get the rendered paper page root inside the temp container
+        const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
+        if (!renderedPaperPage) {
+            root.unmount();
+            if (hiddenRenderRef.current?.contains(tempRenderContainer)) {
+                hiddenRenderRef.current.removeChild(tempRenderContainer);
             }
+            return;
+        }
 
-            const imgs = tempRenderContainer.querySelectorAll('img');
-            if (imgs.length) {
-                await Promise.all(Array.from(imgs).map(img => {
-                    const im = img as HTMLImageElement;
-                    return im.complete ? Promise.resolve() : new Promise<void>(res => { im.onload = im.onerror = () => res(); });
-                }));
+        // We'll walk question blocks and split at child DOM-element level.
+        const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>(QUESTION_SELECTOR));
+
+        const newPages: PageContent[][] = [];
+        let currentPageContent: PageContent[] = [];
+        let usedHeight = 0;
+        let isFirstPage = true;
+
+        // Helper to push current page and reset
+        const flushPage = () => {
+            if (currentPageContent.length > 0) {
+            newPages.push(currentPageContent);
+            } else {
+            // Ensure at least an empty page exists if nothing fit (edge-case)
+            newPages.push([]);
             }
+            currentPageContent = [];
+            usedHeight = 0;
+            isFirstPage = false;
+        };
 
-            await new Promise(r => setTimeout(r, 50));
-            if (cancelled) return;
+        // compute header height once (top info area that shows on first page)
+        let headerHeight = 0;
+        const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
+        if (headerEl) {
+            const st = window.getComputedStyle(headerEl);
+            headerHeight = headerEl.offsetHeight + (parseFloat(st.marginTop || '0') || 0) + (parseFloat(st.marginBottom || '0') || 0);
+        }
+        
+        const topInfoElements = renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold');
+        topInfoElements.forEach(el => {
+            const st = window.getComputedStyle(el);
+            headerHeight += el.offsetHeight + (parseFloat(st.marginTop || '0') || 0) + (parseFloat(st.marginBottom || '0') || 0);
+        });
 
-            const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom));
-            const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
-            if (!renderedPaperPage) {
-                root.unmount();
-                if (hiddenRenderRef.current?.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
-                return;
-            }
+        if (isFirstPage) {
+            usedHeight += headerHeight;
+        }
 
-            const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>(QUESTION_SELECTOR));
-            const newPages: PageContent[][] = [];
-            let currentPageContent: PageContent[] = [];
-            let usedHeight = 0;
-            let isFirstPage = true;
+        // iterate questions
+        for (const questionEl of allQuestionElements) {
+            if (cancelled) break;
+            const qId = questionEl.getAttribute('data-question-id') || '';
+            const questionObj = paper.questions.find(q => q.id === qId);
+            if (!questionObj) continue;
 
-            const flushPage = () => {
-                if (currentPageContent.length > 0) newPages.push(currentPageContent);
-                else newPages.push([]);
-                currentPageContent = [];
-                usedHeight = 0;
-                isFirstPage = false;
-            };
+            const subQuestionElements = Array.from(questionEl.querySelectorAll<HTMLElement>('[data-subquestion-id]'));
             
-            let headerHeight = 0;
-            const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
-            if (headerEl) {
-                const st = window.getComputedStyle(headerEl);
-                headerHeight += headerEl.offsetHeight + parseFloat(st.marginTop || '0') + parseFloat(st.marginBottom || '0');
-            }
-            renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold').forEach(el => {
-                const st = window.getComputedStyle(el);
-                headerHeight += el.offsetHeight + parseFloat(st.marginTop || '0') + parseFloat(st.marginBottom || '0');
-            });
-            if (isFirstPage) usedHeight += headerHeight;
+            const mainContentEl = questionEl.querySelector<HTMLElement>('.question-content');
 
-            for (const questionEl of allQuestionElements) {
-                if (cancelled) break;
-                const qId = questionEl.getAttribute('data-question-id');
-                const questionObj = paper.questions.find(q => q.id === qId);
-                if (!qId || !questionObj) continue;
+            if (mainContentEl) {
+                const cs = window.getComputedStyle(mainContentEl);
+                const chunkHeight = mainContentEl.offsetHeight + (parseFloat(cs.marginTop || '0') || 0) + (parseFloat(cs.marginBottom || '0') || 0);
+                const available = (usedHeight === 0 ? pageInnerHeight : pageInnerHeight - usedHeight);
 
-                const contentEl = questionEl.querySelector<HTMLElement>('.question-content');
-                
-                if (contentEl) {
-                    const contentHeight = contentEl.offsetHeight + parseFloat(window.getComputedStyle(contentEl).marginBottom || '0');
-                    if (usedHeight > 0 && usedHeight + contentHeight > pageInnerHeight) {
-                        flushPage();
-                        if (isFirstPage) usedHeight = 0;
-                    }
-                    
-                    let pageItem = currentPageContent.find(item => item.mainQuestion.id === qId);
-                    if (!pageItem) {
-                       pageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
-                       currentPageContent.push(pageItem);
-                    } else {
-                       pageItem.showMainContent = true;
-                    }
-
-                    usedHeight += contentHeight;
+                if (chunkHeight <= available) {
+                    currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
+                    usedHeight += chunkHeight;
+                } else {
+                    flushPage();
+                    currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
+                    usedHeight = chunkHeight;
                 }
+            }
 
-                const subQuestionElements = Array.from(questionEl.querySelectorAll<HTMLElement>('.subquestion-item'));
-                for (const subQuestionEl of subQuestionElements) {
-                    const subId = subQuestionEl.getAttribute('data-subquestion-id');
-                    const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
-                    if (!subId || !subQuestionObj) continue;
 
-                    const subHeight = subQuestionEl.offsetHeight + parseFloat(window.getComputedStyle(subQuestionEl).marginTop || '0');
-                    
-                    if (usedHeight > 0 && usedHeight + subHeight > pageInnerHeight) {
-                        flushPage();
-                        if (isFirstPage) usedHeight = 0;
-                    }
-                    
-                    let pageItem = currentPageContent.find(item => item.mainQuestion.id === qId);
+            for (const subQuestionEl of subQuestionElements) {
+                 const cs = window.getComputedStyle(subQuestionEl);
+                 const chunkHeight = subQuestionEl.offsetHeight + (parseFloat(cs.marginTop || '0') || 0) + (parseFloat(cs.marginBottom || '0') || 0);
+                 const available = (usedHeight === 0 ? pageInnerHeight : pageInnerHeight - usedHeight);
+                 const subId = subQuestionEl.getAttribute('data-subquestion-id');
+                 const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
+                 if (!subQuestionObj) continue;
+
+                 if (chunkHeight <= available) {
+                    let pageItem = currentPageContent.find(item => item.mainQuestion.id === qId && !item.showMainContent);
                     if (!pageItem) {
                         pageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: false };
                         currentPageContent.push(pageItem);
                     }
-                    
                     if (!pageItem.subQuestions.some(sq => sq.id === subId)) {
-                        pageItem.subQuestions.push(subQuestionObj);
+                       pageItem.subQuestions.push(subQuestionObj);
                     }
-                    usedHeight += subHeight;
-                }
+                    usedHeight += chunkHeight;
+                 } else {
+                    flushPage();
+                    const newPageItem = { mainQuestion: questionObj, subQuestions: [subQuestionObj], showMainContent: false };
+                    currentPageContent.push(newPageItem);
+                    usedHeight = chunkHeight;
+                 }
             }
+        } // end question loop
 
-            if (currentPageContent.length > 0) newPages.push(currentPageContent);
-            if (!cancelled) setPages(newPages);
+        // push last page
+        if (currentPageContent.length > 0) newPages.push(currentPageContent);
+
+        if (!cancelled) setPages(newPages);
 
         } catch (err) {
-            console.error('Error while calculating pages', err);
+        console.error('Error while calculating pages', err);
         } finally {
-            try { root.unmount(); } catch (e) { /* ignore */ }
-            if (hiddenRenderRef.current?.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
+        // cleanup
+        try { root.unmount(); } catch (e) { /* ignore */ }
+        if (hiddenRenderRef.current?.contains(tempRenderContainer)) {
+            hiddenRenderRef.current.removeChild(tempRenderContainer);
+        }
         }
     };
 
     calculatePages();
+
     return () => { cancelled = true; };
+
 }, [paper, settings]);
   
   if (!paper) {
@@ -1163,7 +1204,7 @@ export default function EditorPage() {
         </div>
       </header>
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900 gradient-scrollbar">
           <div className="max-w-4xl mx-auto">
               <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6">
                   <div className="space-y-4">
@@ -1177,7 +1218,7 @@ export default function EditorPage() {
                       </div>
                   </div>
 
-                  <div className="max-h-60 overflow-y-auto pr-2">
+                  <div className="max-h-60 overflow-y-auto">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
                         <div className="space-y-1">
                             <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400 px-1">Subject</Label>
@@ -1236,7 +1277,7 @@ export default function EditorPage() {
           </div>
         </main>
 
-        <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4 pt-6">
+        <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4 pt-6 gradient-scrollbar">
             {/* Add Questions */}
             <Card className="bg-slate-900 border-slate-700">
               <CardHeader>
