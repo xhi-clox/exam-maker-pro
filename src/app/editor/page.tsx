@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, Save, Settings } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, Save, Settings, FileText } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -684,7 +685,9 @@ export default function EditorPage() {
   };
 
   const addNote = () => {
-    if(paper) handlePaperDetailChange('notes', '(ক ও খ বিভাগ থেকে দুটি এবং গ ও ঘ বিভাগ থেকে ১টি সহ মোট ৭ টি প্রশ্নের উত্তর দাও)');
+    setPaper(prev => produce(prev, draft => {
+        if(draft) draft.notes = '(ক ও খ বিভাগ থেকে দুটি এবং গ ও ঘ বিভাগ থেকে ১টি সহ মোট ৭ টি প্রশ্নের উত্তর দাও)';
+    }));
   };
 
   const QuestionActions = ({ index }: { index: number }) => (
@@ -889,98 +892,96 @@ export default function EditorPage() {
 
   useLayoutEffect(() => {
     if (!paper) return;
-
+  
     // mm -> px (96dpi)
     const mmToPx = (mm: number) => mm * 3.7795275591;
-
+  
     // choose the selector that identifies each question block in the rendered PaperPage
     const QUESTION_SELECTOR = '[data-question-id]';
-
+  
     let cancelled = false;
-
+  
     const calculatePages = async () => {
-        if (!hiddenRenderRef.current) {
+      if (!hiddenRenderRef.current) {
         setPages([]);
         return;
-        }
-
-        // clean any previous content
-        hiddenRenderRef.current.innerHTML = '';
-
-        // create a temporary container to render the full continuous page
-        const tempRenderContainer = document.createElement('div');
-        // ensure same width as preview rendering to match measurements
-        tempRenderContainer.style.width = `${settings.width}px`;
-        tempRenderContainer.style.boxSizing = 'border-box';
-        hiddenRenderRef.current.appendChild(tempRenderContainer);
-        const root = createRoot(tempRenderContainer);
-
-        // Render entire paper into the temp container (single long flow)
-        root.render(
+      }
+  
+      // clean any previous content
+      hiddenRenderRef.current.innerHTML = '';
+  
+      // create a temporary container to render the full continuous page
+      const tempRenderContainer = document.createElement('div');
+      // ensure same width as preview rendering to match measurements
+      tempRenderContainer.style.width = `${settings.width}px`;
+      tempRenderContainer.style.boxSizing = 'border-box';
+      hiddenRenderRef.current.appendChild(tempRenderContainer);
+      const root = createRoot(tempRenderContainer);
+  
+      // Render entire paper into the temp container (single long flow)
+      root.render(
         <PaperPage
-            paper={paper}
-            pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
-            isFirstPage={true}
-            settings={settings}
-            allQuestions={paper.questions}
+          paper={paper}
+          pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
+          isFirstPage={true}
+          settings={settings}
+          allQuestions={paper.questions}
         />
-        );
-
-        try {
+      );
+  
+      try {
         // wait for webfonts/images to finish loading (more reliable than a fixed delay)
         if ((document as any).fonts && (document as any).fonts.ready) {
-            try { await (document as any).fonts.ready; } catch (e) { /* ignore */ }
+          try { await (document as any).fonts.ready; } catch (e) { /* ignore */ }
         }
-
+  
         // wait for images inside container to load
         const imgs = tempRenderContainer.querySelectorAll('img');
         if (imgs.length) {
-            await Promise.all(Array.from(imgs).map(img => {
+          await Promise.all(Array.from(imgs).map(img => {
             const im = img as HTMLImageElement;
             return im.complete ? Promise.resolve() : new Promise<void>(res => { im.onload = im.onerror = () => res(); });
-            }));
+          }));
         }
-
+  
         // small stabilization pause so layout settles (safe but tiny)
         await new Promise(r => setTimeout(r, 30));
-
+  
         if (cancelled) return;
-
+  
         // PAGE geometry (px). Convert margins from mm to px and subtract from height:
         const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom));
         const pageInnerWidth = settings.width - (mmToPx(settings.margins.left) + mmToPx(settings.margins.right));
-
+  
         // get the rendered paper page root inside the temp container
         const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
         if (!renderedPaperPage) {
-            root.unmount();
-            if (hiddenRenderRef.current?.contains(tempRenderContainer)) {
-                hiddenRenderRef.current.removeChild(tempRenderContainer);
-            }
-            return;
+          root.unmount();
+          if (hiddenRenderRef.current?.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
+          return;
         }
-
+  
         // We'll walk question blocks and split at child DOM-element level.
         const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>(QUESTION_SELECTOR));
-
+  
         const newPages: PageContent[][] = [];
         let currentPageContent: PageContent[] = [];
         let usedHeight = 0;
         let isFirstPage = true;
-
+  
         // Helper to push current page and reset
         const flushPage = () => {
-            if (currentPageContent.length > 0) {
+          if (currentPageContent.length > 0) {
             newPages.push(currentPageContent);
-            } else {
+          } else {
             // Ensure at least an empty page exists if nothing fit (edge-case)
             newPages.push([]);
-            }
-            currentPageContent = [];
-            usedHeight = 0;
-            isFirstPage = false;
+          }
+          currentPageContent = [];
+          usedHeight = 0;
+          isFirstPage = false;
         };
-
+  
         // compute header height once (top info area that shows on first page)
         let headerHeight = 0;
         const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
@@ -994,86 +995,102 @@ export default function EditorPage() {
             const st = window.getComputedStyle(el);
             headerHeight += el.offsetHeight + (parseFloat(st.marginTop || '0') || 0) + (parseFloat(st.marginBottom || '0') || 0);
         });
-
+  
         if (isFirstPage) {
-            usedHeight += headerHeight;
+          usedHeight += headerHeight;
         }
-
+  
         // iterate questions
         for (const questionEl of allQuestionElements) {
-            if (cancelled) break;
-            const qId = questionEl.getAttribute('data-question-id') || '';
-            const questionObj = paper.questions.find(q => q.id === qId);
-            if (!questionObj) continue;
+          if (cancelled) break;
+          const qId = questionEl.getAttribute('data-question-id') || '';
+          const questionObj = paper.questions.find(q => q.id === qId);
+          if (!questionObj) continue;
+  
+          // We treat the question block as a wrapper that contains several child elements:
+          // e.g. [stem node] [sub1 node] [sub2 node] ...
+          // We'll iterate child elements and pack them into pages dynamically.
+          const childEls = Array.from(questionEl.children) as HTMLElement[];
+  
+          // If there are no children (rare), fallback to treating the whole question element as a single child
+          const chunks = childEls.length ? childEls : [questionEl];
+  
+          let firstChildOfQuestion = true; // to show main stem only once
+          for (const chunkEl of chunks) {
+            // measure chunk including its margins
+            const cs = window.getComputedStyle(chunkEl);
+            const chunkHeight = chunkEl.offsetHeight + (parseFloat(cs.marginTop || '0') || 0) + (parseFloat(cs.marginBottom || '0') || 0);
+  
+            const available = (usedHeight === 0 ? pageInnerHeight : pageInnerHeight - usedHeight);
+  
+            // If chunk fits in remaining space, append it
+            if (chunkHeight <= available) {
+                let existingPageItem = currentPageContent.find(item => item.mainQuestion.id === qId);
 
-            const subQuestionElements = Array.from(questionEl.querySelectorAll<HTMLElement>('[data-subquestion-id]'));
-            
-            const mainContentEl = questionEl.querySelector<HTMLElement>('.question-content');
-
-            if (mainContentEl) {
-                const cs = window.getComputedStyle(mainContentEl);
-                const chunkHeight = mainContentEl.offsetHeight + (parseFloat(cs.marginTop || '0') || 0) + (parseFloat(cs.marginBottom || '0') || 0);
-                const available = (usedHeight === 0 ? pageInnerHeight : pageInnerHeight - usedHeight);
-
-                if (chunkHeight <= available) {
-                    currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
-                    usedHeight += chunkHeight;
-                } else {
-                    flushPage();
-                    currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
-                    usedHeight = chunkHeight;
+                if (chunkEl.hasAttribute('data-subquestion-id')) {
+                    const subId = chunkEl.getAttribute('data-subquestion-id');
+                    const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
+                    if (subQuestionObj) {
+                        if (existingPageItem) {
+                           if (!existingPageItem.subQuestions.some(sq => sq.id === subId)) {
+                                existingPageItem.subQuestions.push(subQuestionObj);
+                           }
+                        } else {
+                            existingPageItem = { mainQuestion: questionObj, subQuestions: [subQuestionObj], showMainContent: false };
+                            currentPageContent.push(existingPageItem);
+                        }
+                    }
+                } else if (!existingPageItem) {
+                    existingPageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
+                    currentPageContent.push(existingPageItem);
                 }
+              
+              usedHeight += chunkHeight;
+
+            } else {
+              // chunk doesn't fit into current page.
+              // Start a new page and put the chunk there.
+              flushPage();
+  
+              if (chunkEl.hasAttribute('data-subquestion-id')) {
+                  const subId = chunkEl.getAttribute('data-subquestion-id');
+                  const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
+                  if (subQuestionObj) {
+                      const newPageItem = { mainQuestion: questionObj, subQuestions: [subQuestionObj], showMainContent: false };
+                      currentPageContent.push(newPageItem);
+                  }
+              } else {
+                  // This is likely the main content/stem
+                  const newPageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
+                  currentPageContent.push(newPageItem);
+              }
+
+              usedHeight = chunkHeight;
             }
-
-
-            for (const subQuestionEl of subQuestionElements) {
-                 const cs = window.getComputedStyle(subQuestionEl);
-                 const chunkHeight = subQuestionEl.offsetHeight + (parseFloat(cs.marginTop || '0') || 0) + (parseFloat(cs.marginBottom || '0') || 0);
-                 const available = (usedHeight === 0 ? pageInnerHeight : pageInnerHeight - usedHeight);
-                 const subId = subQuestionEl.getAttribute('data-subquestion-id');
-                 const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
-                 if (!subQuestionObj) continue;
-
-                 if (chunkHeight <= available) {
-                    let pageItem = currentPageContent.find(item => item.mainQuestion.id === qId && !item.showMainContent);
-                    if (!pageItem) {
-                        pageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: false };
-                        currentPageContent.push(pageItem);
-                    }
-                    if (!pageItem.subQuestions.some(sq => sq.id === subId)) {
-                       pageItem.subQuestions.push(subQuestionObj);
-                    }
-                    usedHeight += chunkHeight;
-                 } else {
-                    flushPage();
-                    const newPageItem = { mainQuestion: questionObj, subQuestions: [subQuestionObj], showMainContent: false };
-                    currentPageContent.push(newPageItem);
-                    usedHeight = chunkHeight;
-                 }
-            }
+          } // end chunk loop
         } // end question loop
-
+  
         // push last page
         if (currentPageContent.length > 0) newPages.push(currentPageContent);
-
+  
         if (!cancelled) setPages(newPages);
-
-        } catch (err) {
+  
+      } catch (err) {
         console.error('Error while calculating pages', err);
-        } finally {
+      } finally {
         // cleanup
         try { root.unmount(); } catch (e) { /* ignore */ }
         if (hiddenRenderRef.current?.contains(tempRenderContainer)) {
-            hiddenRenderRef.current.removeChild(tempRenderContainer);
+          hiddenRenderRef.current.removeChild(tempRenderContainer);
         }
-        }
+      }
     };
-
+  
     calculatePages();
-
+  
     return () => { cancelled = true; };
-
-}, [paper, settings]);
+  
+  }, [paper, settings]);
   
   if (!paper) {
       return (
@@ -1088,119 +1105,121 @@ export default function EditorPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-slate-800 px-4 sm:px-6">
-        <div className="flex flex-1 justify-center">
-            <div className="flex items-center gap-2">
-              <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
-                <Save className="mr-2 size-4" /> Save & Exit
-              </Button>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Settings className="mr-2 size-4" /> Paper Settings</Button>
-                </DialogTrigger>
-                <DialogContent className="bg-slate-800 border-slate-700 text-white">
-                  <DialogHeader>
-                    <DialogTitle>Paper Settings</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-6 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Font Size: {settings.fontSize}pt</Label>
-                        <Slider
-                          value={[settings.fontSize]}
-                          onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
-                          min={8} max={18} step={1}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
-                        <Slider
-                          value={[settings.lineHeight]}
-                          onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
-                          min={1.0} max={2.5} step={0.1}
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                      <div className="space-y-1">
-                        <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
-                        <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
-                        <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
-                        <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
-                        <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
-                        <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
-                        <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
-                      </div>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Eye className="mr-2 size-4" /> Preview</Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl h-[90vh] flex flex-col bg-slate-800 border-slate-700 text-white">
-                  <DialogHeader>
-                    <DialogTitle>Question Paper Preview</DialogTitle>
-                  </DialogHeader>
-                  <div className="flex-1 overflow-auto bg-gray-100 p-4">
-                    <PaperPreview 
-                      paper={paper} 
-                      pages={pages}
-                      settings={settings}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-slate-900 px-4 sm:px-6">
+        <div className="flex items-center gap-3 text-white">
+          <FileText className="size-6"/>
+          <h1 className="text-lg font-semibold">Question Paper Editor</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
+            <Save className="mr-2 size-4" /> Save & Exit
+          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Settings className="mr-2 size-4" /> Paper Settings</Button>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-800 border-slate-700 text-white">
+              <DialogHeader>
+                <DialogTitle>Paper Settings</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Font Size: {settings.fontSize}pt</Label>
+                    <Slider
+                      value={[settings.fontSize]}
+                      onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
+                      min={8} max={18} step={1}
                     />
                   </div>
-                </DialogContent>
-              </Dialog>
-              <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setBookletPages([]); setIsDownloading(false); }}}>
-                <DialogTrigger asChild>
-                  <Button onClick={preparePdfDownload} className="bg-primary hover:bg-primary/90 text-primary-foreground"><Download className="mr-2 size-4" /> Download</Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-5xl bg-slate-800 border-slate-700 text-white">
-                  <DialogHeader>
-                    <DialogTitle>Booklet Download Preview</DialogTitle>
-                  </DialogHeader>
-                  <div className="my-4 overflow-x-auto">
-                    {bookletPages.length > 0 ? (
-                      <div className="flex gap-4 p-4 bg-gray-200">
-                        {bookletPages.map((page, index) => (
-                          <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
-                            <div className="w-1/2 h-full border-r border-gray-300">
-                              {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
-                            </div>
-                            <div className="w-1/2 h-full">
-                              {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-64">
-                        <p>Generating PDF preview...</p>
-                      </div>
-                    )}
+                  <div className="space-y-2">
+                    <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
+                    <Slider
+                      value={[settings.lineHeight]}
+                      onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
+                      min={1.0} max={2.5} step={0.1}
+                    />
                   </div>
-                  <DialogFooter>
-                    <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-1">
+                    <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
+                    <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
+                    <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
+                    <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
+                    <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
+                    <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
+                    <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Eye className="mr-2 size-4" /> Preview</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl h-[90vh] flex flex-col bg-slate-800 border-slate-700 text-white">
+              <DialogHeader>
+                <DialogTitle>Question Paper Preview</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto bg-gray-100 p-4">
+                <PaperPreview 
+                  paper={paper} 
+                  pages={pages}
+                  settings={settings}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setBookletPages([]); setIsDownloading(false); }}}>
+            <DialogTrigger asChild>
+              <Button onClick={preparePdfDownload} className="bg-primary hover:bg-primary/90 text-primary-foreground"><Download className="mr-2 size-4" /> Download</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-5xl bg-slate-800 border-slate-700 text-white">
+              <DialogHeader>
+                <DialogTitle>Booklet Download Preview</DialogTitle>
+              </DialogHeader>
+              <div className="my-4 overflow-x-auto">
+                {bookletPages.length > 0 ? (
+                  <div className="flex gap-4 p-4 bg-gray-200">
+                    {bookletPages.map((page, index) => (
+                      <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
+                        <div className="w-1/2 h-full border-r border-gray-300">
+                          {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
+                        </div>
+                        <div className="w-1/2 h-full">
+                          {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64">
+                    <p>Generating PDF preview...</p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </header>
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
@@ -1315,3 +1334,5 @@ export default function EditorPage() {
     </>
   );
 }
+
+    
