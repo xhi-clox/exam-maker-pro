@@ -68,8 +68,10 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
         );
     }
 
+    const subQuestionsToRender = showMainContent ? (originalQuestion?.subQuestions || []) : question.subQuestions;
+
     return (
-      <div key={question.id} className="mb-2 question-item" data-question-id={question.id}>
+      <div key={`${question.id}-${showMainContent}`} className="mb-2 question-item" data-question-id={question.id}>
         {showMainContent && (
             <div className="flex justify-between font-semibold question-content">
                 <p className="flex-1">{questionIndex}. {question.content}</p>
@@ -77,17 +79,17 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
             </div>
         )}
   
-        {question.subQuestions && question.subQuestions.length > 0 && (
+        {subQuestionsToRender && subQuestionsToRender.length > 0 && (
           <div className="pl-6">
-            {question.subQuestions.map((sq) => {
+            {subQuestionsToRender.map((sq) => {
               const sqIndex = originalQuestion?.subQuestions?.findIndex(osq => osq.id === sq.id) ?? -1;
               if (sqIndex === -1) return null;
 
               return (
                 <div key={sq.id} className="subquestion-item pt-1" data-subquestion-id={sq.id}>
                   <div className="flex justify-between">
-                    <p>{getNumbering(question.numberingFormat, sqIndex)}) {sq.content}</p>
-                    {question.type === 'creative' && sq.marks && sq.marks > 0 && <p>{sq.marks}</p>}
+                    <p>{getNumbering(originalQuestion?.numberingFormat, sqIndex)}) {sq.content}</p>
+                    {originalQuestion?.type === 'creative' && sq.marks && sq.marks > 0 && <p>{sq.marks}</p>}
                   </div>
                   {sq.options && sq.options.length > 0 && (
                     <div className="pl-6 mt-1 grid grid-cols-2 gap-x-8 gap-y-1">
@@ -102,7 +104,7 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
           </div>
         )}
   
-        {question.type !== 'mcq' && question.options && question.options.length > 0 && (
+        {showMainContent && question.type !== 'mcq' && question.options && question.options.length > 0 && (
           <div className="pl-6 mt-1 grid grid-cols-2 gap-x-8 gap-y-1">
             {question.options.map((option, optIndex) => (
               <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
