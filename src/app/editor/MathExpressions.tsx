@@ -231,7 +231,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Expression Builder Section */}
-        <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+        <div className="space-y-3 p-4 border rounded-lg bg-card sticky top-0 z-10">
           <div>
             <Input
               value={currentExpression}
