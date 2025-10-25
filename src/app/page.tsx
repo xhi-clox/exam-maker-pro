@@ -47,7 +47,7 @@ export default function Home() {
         </div>
       </div>
       
-      <footer className="mt-10 text-center py-5 border-t">
+      <footer className="text-center py-5 border-t">
           <p className="text-sm text-muted-foreground">Bangla Exam Maker Pro &copy; 2024. All rights reserved.</p>
       </footer>
     </div>
