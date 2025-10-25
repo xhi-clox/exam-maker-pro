@@ -1,10 +1,15 @@
-
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Send } from 'lucide-react';
+
+// Install these packages:
+// npm install katex react-katex
+import 'katex/dist/katex.min.css';
+import { InlineMath } from 'react-katex';
 
 interface MathExpressionsProps {
   onInsert: (expression: string) => void;
@@ -13,7 +18,7 @@ interface MathExpressionsProps {
 interface ExpressionItem {
   label: string;
   value: string;
-  visual?: string; // HTML representation for display
+  latex?: string; // LaTeX representation
 }
 
 interface ExpressionCategory {
@@ -21,422 +26,158 @@ interface ExpressionCategory {
   expressions: ExpressionItem[];
 }
 
-// Helper function to create fraction HTML
-const createFractionHTML = (numerator: string, denominator: string): string => {
-  return `<span style="display: inline-block; text-align: center; vertical-align: middle; font-size: 1em;">
-    <span style="display: block; padding: 0 0.3em;">${numerator}</span>
-    <span style="display: block; border-top: 1.5px solid currentColor; padding: 0.1em 0.3em 0 0.3em;">${denominator}</span>
-  </span>`;
-};
-
 const expressionCategories: ExpressionCategory[] = [
   {
-    category: "Common from Images",
+    category: "Basic Operations",
     expressions: [
-      { 
-        label: "Midpoint", 
-        value: "M = ((x₁+x₂)/2, (y₁+y₂)/2)",
-        visual: `M = (${createFractionHTML('x<sub>1</sub>+x<sub>2</sub>', '2')}, ${createFractionHTML('y<sub>1</sub>+y<sub>2</sub>', '2')})`
-      },
-      { 
-        label: "f(x) fraction", 
-        value: "f(x) = (3x-4)/(5x-8)",
-        visual: `f(x) = ${createFractionHTML('3x−4', '5x−8')}`
-      },
-      { 
-        label: "y² + 1/y²", 
-        value: "y² + 1/y²",
-        visual: `y<sup>2</sup> + ${createFractionHTML('1', 'y<sup>2</sup>')}`
-      },
-      { 
-        label: "x³ + 1/x³", 
-        value: "x³ + 1/x³",
-        visual: `x<sup>3</sup> + ${createFractionHTML('1', 'x<sup>3</sup>')}`
-      },
-      { 
-        label: "Quadratic Formula", 
-        value: "x = (-b ± √(b²-4ac))/2a",
-        visual: `x = ${createFractionHTML('−b ± √<span style="text-decoration: overline;">b<sup>2</sup>−4ac</span>', '2a')}`
-      },
-      { 
-        label: "Slope", 
-        value: "m = (y₂-y₁)/(x₂-x₁)",
-        visual: `m = ${createFractionHTML('y<sub>2</sub>−y<sub>1</sub>', 'x<sub>2</sub>−x<sub>1</sub>')}`
-      },
-      { 
-        label: "f(1/2) - 1", 
-        value: "f(1/2) - 1",
-        visual: `f(${createFractionHTML('1', '2')}) − 1`
-      },
-      { 
-        label: "Sphere Volume", 
-        value: "V = (4/3)πr³",
-        visual: `V = ${createFractionHTML('4', '3')}πr<sup>3</sup>`
-      },
-      { 
-        label: "1/32 + 1/256", 
-        value: "1/32 + 1/256 + ⋯",
-        visual: `${createFractionHTML('1', '32')} + ${createFractionHTML('1', '256')} + ⋯`
-      },
+      { label: "+", value: "+", latex: "+" },
+      { label: "−", value: "-", latex: "-" },
+      { label: "×", value: "\\times", latex: "\\times" },
+      { label: "÷", value: "\\div", latex: "\\div" },
+      { label: "=", value: "=", latex: "=" },
+      { label: "≠", value: "\\neq", latex: "\\neq" },
+      { label: "<", value: "<", latex: "<" },
+      { label: ">", value: ">", latex: ">" },
+      { label: "≤", value: "\\leq", latex: "\\leq" },
+      { label: "≥", value: "\\geq", latex: "\\geq" },
+      { label: "±", value: "\\pm", latex: "\\pm" },
+      { label: "(", value: "(", latex: "(" },
+      { label: ")", value: ")", latex: ")" },
+      { label: "[", value: "[", latex: "[" },
+      { label: "]", value: "]", latex: "]" },
     ]
   },
   {
-    category: "Basic Fractions",
+    category: "Fractions",
     expressions: [
-      { 
-        label: "a/b", 
-        value: "a/b",
-        visual: createFractionHTML('a', 'b')
-      },
-      { 
-        label: "1/2", 
-        value: "1/2",
-        visual: createFractionHTML('1', '2')
-      },
-      { 
-        label: "1/3", 
-        value: "1/3",
-        visual: createFractionHTML('1', '3')
-      },
-      { 
-        label: "1/4", 
-        value: "1/4",
-        visual: createFractionHTML('1', '4')
-      },
-      { 
-        label: "3/4", 
-        value: "3/4",
-        visual: createFractionHTML('3', '4')
-      },
-      { 
-        label: "a+b/c", 
-        value: "(a+b)/c",
-        visual: createFractionHTML('a+b', 'c')
-      },
-      { 
-        label: "a/b-c", 
-        value: "a/(b-c)",
-        visual: createFractionHTML('a', 'b−c')
-      },
-      { 
-        label: "(ax+b)/(cx+d)", 
-        value: "(ax+b)/(cx+d)",
-        visual: createFractionHTML('ax+b', 'cx+d')
-      },
-      { 
-        label: "x²+1/x-1", 
-        value: "(x²+1)/(x-1)",
-        visual: createFractionHTML('x<sup>2</sup>+1', 'x−1')
-      },
+      { label: "Simple Fraction", value: "\\frac{a}{b}", latex: "\\frac{a}{b}" },
+      { label: "½", value: "\\frac{1}{2}", latex: "\\frac{1}{2}" },
+      { label: "⅓", value: "\\frac{1}{3}", latex: "\\frac{1}{3}" },
+      { label: "¼", value: "\\frac{1}{4}", latex: "\\frac{1}{4}" },
+      { label: "⅔", value: "\\frac{2}{3}", latex: "\\frac{2}{3}" },
+      { label: "¾", value: "\\frac{3}{4}", latex: "\\frac{3}{4}" },
+      { label: "Mixed Fraction", value: "\\frac{a+b}{c}", latex: "\\frac{a+b}{c}" },
     ]
   },
   {
-    category: "Fractions with Powers",
+    category: "Algebra & Variables",
     expressions: [
-      { 
-        label: "x²/y", 
-        value: "x²/y",
-        visual: createFractionHTML('x<sup>2</sup>', 'y')
-      },
-      { 
-        label: "a/b²", 
-        value: "a/b²",
-        visual: createFractionHTML('a', 'b<sup>2</sup>')
-      },
-      { 
-        label: "x²/y³", 
-        value: "x²/y³",
-        visual: createFractionHTML('x<sup>2</sup>', 'y<sup>3</sup>')
-      },
-      { 
-        label: "1/x²", 
-        value: "1/x²",
-        visual: createFractionHTML('1', 'x<sup>2</sup>')
-      },
-      { 
-        label: "1/x³", 
-        value: "1/x³",
-        visual: createFractionHTML('1', 'x<sup>3</sup>')
-      },
-      { 
-        label: "(a/b)²", 
-        value: "(a/b)²",
-        visual: `(${createFractionHTML('a', 'b')})<sup>2</sup>`
-      },
-      { 
-        label: "(a/b)ⁿ", 
-        value: "(a/b)ⁿ",
-        visual: `(${createFractionHTML('a', 'b')})<sup>n</sup>`
-      },
-    ]
-  },
-  {
-    category: "Fractions with Roots",
-    expressions: [
-      { 
-        label: "√x/y", 
-        value: "√x/y",
-        visual: createFractionHTML('√<span style="text-decoration: overline;">x</span>', 'y')
-      },
-      { 
-        label: "a/√b", 
-        value: "a/√b",
-        visual: createFractionHTML('a', '√<span style="text-decoration: overline;">b</span>')
-      },
-      { 
-        label: "√a/√b", 
-        value: "√a/√b",
-        visual: createFractionHTML('√<span style="text-decoration: overline;">a</span>', '√<span style="text-decoration: overline;">b</span>')
-      },
-      { 
-        label: "1/√2", 
-        value: "1/√2",
-        visual: createFractionHTML('1', '√<span style="text-decoration: overline;">2</span>')
-      },
-      { 
-        label: "(a+√b)/c", 
-        value: "(a+√b)/c",
-        visual: createFractionHTML('a+√<span style="text-decoration: overline;">b</span>', 'c')
-      },
-    ]
-  },
-  {
-    category: "Complex Fractions",
-    expressions: [
-      { 
-        label: "(a/b)/c", 
-        value: "(a/b)/c",
-        visual: createFractionHTML(createFractionHTML('a', 'b'), 'c')
-      },
-      { 
-        label: "a/(b/c)", 
-        value: "a/(b/c)",
-        visual: createFractionHTML('a', createFractionHTML('b', 'c'))
-      },
-      { 
-        label: "(a/b)/(c/d)", 
-        value: "(a/b)/(c/d)",
-        visual: createFractionHTML(createFractionHTML('a', 'b'), createFractionHTML('c', 'd'))
-      },
-      { 
-        label: "a/b + c/d", 
-        value: "a/b + c/d",
-        visual: `${createFractionHTML('a', 'b')} + ${createFractionHTML('c', 'd')}`
-      },
-      { 
-        label: "a/b × c/d", 
-        value: "a/b × c/d",
-        visual: `${createFractionHTML('a', 'b')} × ${createFractionHTML('c', 'd')}`
-      },
-    ]
-  },
-  {
-    category: "Calculus & Derivatives",
-    expressions: [
-      { 
-        label: "dy/dx", 
-        value: "dy/dx",
-        visual: createFractionHTML('dy', 'dx')
-      },
-      { 
-        label: "d²y/dx²", 
-        value: "d²y/dx²",
-        visual: createFractionHTML('d<sup>2</sup>y', 'dx<sup>2</sup>')
-      },
-      { 
-        label: "∂f/∂x", 
-        value: "∂f/∂x",
-        visual: createFractionHTML('∂f', '∂x')
-      },
-      { 
-        label: "Δy/Δx", 
-        value: "Δy/Δx",
-        visual: createFractionHTML('Δy', 'Δx')
-      },
-      { 
-        label: "∫ f(x)dx", 
-        value: "∫f(x)dx",
-        visual: "∫ f(x) dx"
-      },
-      { 
-        label: "lim x→a", 
-        value: "lim(x→a)",
-        visual: "lim<sub>x→a</sub>"
-      },
-    ]
-  },
-  {
-    category: "Basic Operators",
-    expressions: [
-      { label: "+", value: "+", visual: "+" },
-      { label: "−", value: "−", visual: "−" },
-      { label: "×", value: "×", visual: "×" },
-      { label: "÷", value: "÷", visual: "÷" },
-      { label: "=", value: "=", visual: "=" },
-      { label: "≠", value: "≠", visual: "≠" },
-      { label: "<", value: "<", visual: "&lt;" },
-      { label: ">", value: ">", visual: "&gt;" },
-      { label: "≤", value: "≤", visual: "≤" },
-      { label: "≥", value: "≥", visual: "≥" },
-      { label: "±", value: "±", visual: "±" },
-      { label: "∓", value: "∓", visual: "∓" },
+      { label: "x", value: "x", latex: "x" },
+      { label: "y", value: "y", latex: "y" },
+      { label: "z", value: "z", latex: "z" },
+      { label: "a", value: "a", latex: "a" },
+      { label: "b", value: "b", latex: "b" },
+      { label: "c", value: "c", latex: "c" },
+      { label: "f(x)", value: "f(x)", latex: "f(x)" },
     ]
   },
   {
     category: "Powers & Exponents",
     expressions: [
-      { label: "x²", value: "x²", visual: "x<sup>2</sup>" },
-      { label: "x³", value: "x³", visual: "x<sup>3</sup>" },
-      { label: "xⁿ", value: "xⁿ", visual: "x<sup>n</sup>" },
-      { label: "x⁻¹", value: "x⁻¹", visual: "x<sup>−1</sup>" },
-      { label: "x⁻²", value: "x⁻²", visual: "x<sup>−2</sup>" },
-      { label: "eˣ", value: "eˣ", visual: "e<sup>x</sup>" },
-      { label: "(a+b)²", value: "(a+b)²", visual: "(a+b)<sup>2</sup>" },
-      { label: "(a+b)³", value: "(a+b)³", visual: "(a+b)<sup>3</sup>" },
-      { label: "a²-b²", value: "a²-b²", visual: "a<sup>2</sup>−b<sup>2</sup>" },
+      { label: "x²", value: "x^2", latex: "x^2" },
+      { label: "x³", value: "x^3", latex: "x^3" },
+      { label: "xⁿ", value: "x^n", latex: "x^n" },
+      { label: "Square Root", value: "\\sqrt{x}", latex: "\\sqrt{x}" },
+      { label: "Cube Root", value: "\\sqrt[3]{x}", latex: "\\sqrt[3]{x}" },
+      { label: "n-th Root", value: "\\sqrt[n]{x}", latex: "\\sqrt[n]{x}" },
     ]
   },
   {
-    category: "Roots",
+    category: "Subscripts & Superscripts",
     expressions: [
-      { label: "√x", value: "√x", visual: "√<span style='text-decoration: overline;'>x</span>" },
-      { label: "∛x", value: "∛x", visual: "<sup style='font-size:0.7em;'>3</sup>√<span style='text-decoration: overline;'>x</span>" },
-      { label: "∜x", value: "∜x", visual: "<sup style='font-size:0.7em;'>4</sup>√<span style='text-decoration: overline;'>x</span>" },
-      { label: "ⁿ√x", value: "ⁿ√x", visual: "<sup style='font-size:0.7em;'>n</sup>√<span style='text-decoration: overline;'>x</span>" },
-      { label: "√(a+b)", value: "√(a+b)", visual: "√<span style='text-decoration: overline;'>a+b</span>" },
-      { label: "√(a²+b²)", value: "√(a²+b²)", visual: "√<span style='text-decoration: overline;'>a<sup>2</sup>+b<sup>2</sup></span>" },
+      { label: "x₁", value: "x_1", latex: "x_1" },
+      { label: "x₂", value: "x_2", latex: "x_2" },
+      { label: "xₙ", value: "x_n", latex: "x_n" },
+      { label: "x¹", value: "x^1", latex: "x^1" },
+      { label: "x²", value: "x^2", latex: "x^2" },
+      { label: "x³", value: "x^3", latex: "x^3" },
     ]
   },
   {
     category: "Greek Letters",
     expressions: [
-      { label: "α", value: "α", visual: "α" },
-      { label: "β", value: "β", visual: "β" },
-      { label: "γ", value: "γ", visual: "γ" },
-      { label: "δ", value: "δ", visual: "δ" },
-      { label: "ε", value: "ε", visual: "ε" },
-      { label: "θ", value: "θ", visual: "θ" },
-      { label: "λ", value: "λ", visual: "λ" },
-      { label: "μ", value: "μ", visual: "μ" },
-      { label: "π", value: "π", visual: "π" },
-      { label: "σ", value: "σ", visual: "σ" },
-      { label: "φ", value: "φ", visual: "φ" },
-      { label: "ω", value: "ω", visual: "ω" },
-      { label: "Δ", value: "Δ", visual: "Δ" },
-      { label: "Σ", value: "Σ", visual: "Σ" },
-      { label: "Π", value: "Π", visual: "Π" },
-      { label: "Ω", value: "Ω", visual: "Ω" },
+      { label: "α", value: "\\alpha", latex: "\\alpha" },
+      { label: "β", value: "\\beta", latex: "\\beta" },
+      { label: "γ", value: "\\gamma", latex: "\\gamma" },
+      { label: "δ", value: "\\delta", latex: "\\delta" },
+      { label: "θ", value: "\\theta", latex: "\\theta" },
+      { label: "π", value: "\\pi", latex: "\\pi" },
+      { label: "σ", value: "\\sigma", latex: "\\sigma" },
+      { label: "ω", value: "\\omega", latex: "\\omega" },
+      { label: "Δ", value: "\\Delta", latex: "\\Delta" },
+      { label: "Σ", value: "\\Sigma", latex: "\\Sigma" },
+      { label: "Ω", value: "\\Omega", latex: "\\Omega" },
     ]
   },
   {
-    category: "Subscripts",
+    category: "Calculus",
     expressions: [
-      { label: "x₁", value: "x₁", visual: "x<sub>1</sub>" },
-      { label: "x₂", value: "x₂", visual: "x<sub>2</sub>" },
-      { label: "xₙ", value: "xₙ", visual: "x<sub>n</sub>" },
-      { label: "aᵢ", value: "aᵢ", visual: "a<sub>i</sub>" },
-      { label: "y₂-y₁", value: "y₂-y₁", visual: "y<sub>2</sub>−y<sub>1</sub>" },
-      { label: "x₂-x₁", value: "x₂-x₁", visual: "x<sub>2</sub>−x<sub>1</sub>" },
-    ]
-  },
-  {
-    category: "Functions",
-    expressions: [
-      { label: "f(x)", value: "f(x)", visual: "f(x)" },
-      { label: "g(x)", value: "g(x)", visual: "g(x)" },
-      { label: "f⁻¹(x)", value: "f⁻¹(x)", visual: "f<sup>−1</sup>(x)" },
-      { label: "f(g(x))", value: "f(g(x))", visual: "f(g(x))" },
-      { label: "|x|", value: "|x|", visual: "|x|" },
-      { label: "⌊x⌋", value: "⌊x⌋", visual: "⌊x⌋" },
-      { label: "⌈x⌉", value: "⌈x⌉", visual: "⌈x⌉" },
-    ]
-  },
-  {
-    category: "Trigonometry",
-    expressions: [
-      { label: "sin(x)", value: "sin(x)", visual: "sin(x)" },
-      { label: "cos(x)", value: "cos(x)", visual: "cos(x)" },
-      { label: "tan(x)", value: "tan(x)", visual: "tan(x)" },
-      { label: "sin⁻¹(x)", value: "sin⁻¹(x)", visual: "sin<sup>−1</sup>(x)" },
-      { label: "cos⁻¹(x)", value: "cos⁻¹(x)", visual: "cos<sup>−1</sup>(x)" },
-      { label: "tan⁻¹(x)", value: "tan⁻¹(x)", visual: "tan<sup>−1</sup>(x)" },
-      { label: "sin²(x)", value: "sin²(x)", visual: "sin<sup>2</sup>(x)" },
-      { label: "cos²(x)", value: "cos²(x)", visual: "cos<sup>2</sup>(x)" },
-    ]
-  },
-  {
-    category: "Set Theory",
-    expressions: [
-      { label: "{}", value: "{}", visual: "{}" },
-      { label: "{x:P(x)}", value: "{x:P(x)}", visual: "{x : P(x)}" },
-      { label: "∈", value: "∈", visual: "∈" },
-      { label: "∉", value: "∉", visual: "∉" },
-      { label: "⊂", value: "⊂", visual: "⊂" },
-      { label: "⊆", value: "⊆", visual: "⊆" },
-      { label: "∪", value: "∪", visual: "∪" },
-      { label: "∩", value: "∩", visual: "∩" },
-      { label: "∅", value: "∅", visual: "∅" },
-      { label: "ℕ", value: "ℕ", visual: "ℕ" },
-      { label: "ℤ", value: "ℤ", visual: "ℤ" },
-      { label: "ℚ", value: "ℚ", visual: "ℚ" },
-      { label: "ℝ", value: "ℝ", visual: "ℝ" },
-      { label: "ℂ", value: "ℂ", visual: "ℂ" },
-    ]
-  },
-  {
-    category: "Logic",
-    expressions: [
-      { label: "∧", value: "∧", visual: "∧" },
-      { label: "∨", value: "∨", visual: "∨" },
-      { label: "¬", value: "¬", visual: "¬" },
-      { label: "⇒", value: "⇒", visual: "⇒" },
-      { label: "⇔", value: "⇔", visual: "⇔" },
-      { label: "∀", value: "∀", visual: "∀" },
-      { label: "∃", value: "∃", visual: "∃" },
-      { label: "∴", value: "∴", visual: "∴" },
-      { label: "∵", value: "∵", visual: "∵" },
-    ]
-  },
-  {
-    category: "Sequences & Series",
-    expressions: [
-      { label: "Σ", value: "Σ", visual: "Σ" },
-      { label: "Π", value: "Π", visual: "Π" },
-      { label: "n!", value: "n!", visual: "n!" },
-      { label: "ⁿCᵣ", value: "ⁿCᵣ", visual: "<sup>n</sup>C<sub>r</sub>" },
-      { label: "⋯", value: "⋯", visual: "⋯" },
-      { label: "...", value: "...", visual: "..." },
+      { label: "∫", value: "\\int", latex: "\\int" },
+      { label: "d/dx", value: "\\frac{d}{dx}", latex: "\\frac{d}{dx}" },
+      { label: "∂", value: "\\partial", latex: "\\partial" },
+      { label: "∞", value: "\\infty", latex: "\\infty" },
+      { label: "lim", value: "\\lim", latex: "\\lim" },
+      { label: "→", value: "\\to", latex: "\\to" },
+      { label: "∑", value: "\\sum", latex: "\\sum" },
+      { label: "∏", value: "\\prod", latex: "\\prod" },
     ]
   },
   {
     category: "Geometry",
     expressions: [
-      { label: "∠", value: "∠", visual: "∠" },
-      { label: "°", value: "°", visual: "°" },
-      { label: "⊥", value: "⊥", visual: "⊥" },
-      { label: "∥", value: "∥", visual: "∥" },
-      { label: "△", value: "△", visual: "△" },
-      { label: "≅", value: "≅", visual: "≅" },
-      { label: "∼", value: "∼", visual: "∼" },
-      { label: "πr²", value: "πr²", visual: "πr<sup>2</sup>" },
+      { label: "∠", value: "\\angle", latex: "\\angle" },
+      { label: "°", value: "^{\\circ}", latex: "^{\\circ}" },
+      { label: "⊥", value: "\\perp", latex: "\\perp" },
+      { label: "∥", value: "\\parallel", latex: "\\parallel" },
+      { label: "△", value: "\\triangle", latex: "\\triangle" },
+      { label: "≅", value: "\\cong", latex: "\\cong" },
+      { label: "∼", value: "\\sim", latex: "\\sim" },
     ]
   },
   {
-    category: "Special Symbols",
+    category: "Set Theory & Logic",
     expressions: [
-      { label: "∞", value: "∞", visual: "∞" },
-      { label: "≈", value: "≈", visual: "≈" },
-      { label: "≡", value: "≡", visual: "≡" },
-      { label: "∝", value: "∝", visual: "∝" },
-      { label: "≪", value: "≪", visual: "≪" },
-      { label: "≫", value: "≫", visual: "≫" },
+      { label: "∈", value: "\\in", latex: "\\in" },
+      { label: "∉", value: "\\notin", latex: "\\notin" },
+      { label: "⊂", value: "\\subset", latex: "\\subset" },
+      { label: "⊆", value: "\\subseteq", latex: "\\subseteq" },
+      { label: "∪", value: "\\cup", latex: "\\cup" },
+      { label: "∩", value: "\\cap", latex: "\\cap" },
+      { label: "∅", value: "\\emptyset", latex: "\\emptyset" },
+      { label: "ℕ", value: "\\mathbb{N}", latex: "\\mathbb{N}" },
+      { label: "ℤ", value: "\\mathbb{Z}", latex: "\\mathbb{Z}" },
+      { label: "ℚ", value: "\\mathbb{Q}", latex: "\\mathbb{Q}" },
+      { label: "ℝ", value: "\\mathbb{R}", latex: "\\mathbb{R}" },
+      { label: "ℂ", value: "\\mathbb{C}", latex: "\\mathbb{C}" },
+      { label: "∧", value: "\\wedge", latex: "\\wedge" },
+      { label: "∨", value: "\\vee", latex: "\\vee" },
+      { label: "¬", value: "\\neg", latex: "\\neg" },
+      { label: "⇒", value: "\\Rightarrow", latex: "\\Rightarrow" },
+      { label: "⇔", value: "\\Leftrightarrow", latex: "\\Leftrightarrow" },
+      { label: "∀", value: "\\forall", latex: "\\forall" },
+      { label: "∃", value: "\\exists", latex: "\\exists" },
+    ]
+  },
+  {
+    category: "Trigonometry",
+    expressions: [
+      { label: "sin", value: "\\sin", latex: "\\sin" },
+      { label: "cos", value: "\\cos", latex: "\\cos" },
+      { label: "tan", value: "\\tan", latex: "\\tan" },
+      { label: "cot", value: "\\cot", latex: "\\cot" },
+      { label: "sec", value: "\\sec", latex: "\\sec" },
+      { label: "csc", value: "\\csc", latex: "\\csc" },
+      { label: "sin⁻¹", value: "\\sin^{-1}", latex: "\\sin^{-1}" },
+      { label: "cos⁻¹", value: "\\cos^{-1}", latex: "\\cos^{-1}" },
+      { label: "tan⁻¹", value: "\\tan^{-1}", latex: "\\tan^{-1}" },
     ]
   },
 ];
 
 export default function MathExpressions({ onInsert }: MathExpressionsProps) {
+  const [currentExpression, setCurrentExpression] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(['Common from Images', 'Basic Fractions', 'Basic Operators'])
+    new Set(['Basic Operations', 'Fractions', 'Algebra & Variables'])
   );
 
   const toggleCategory = (category: string) => {
@@ -449,15 +190,93 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
     setExpandedCategories(newExpanded);
   };
 
+  const handleSymbolClick = (symbol: string) => {
+    setCurrentExpression(prev => prev + symbol);
+  };
+
+  const handleSendExpression = () => {
+    if (currentExpression.trim()) {
+      // Send both LaTeX and plain text representation
+      onInsert(`$${currentExpression}$`);
+      setCurrentExpression('');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSendExpression();
+    }
+  };
+
+  const handleClear = () => {
+    setCurrentExpression('');
+  };
+
+  // Helper to render LaTeX preview
+  const renderLatexPreview = (latex: string) => {
+    try {
+      return <InlineMath math={latex} />;
+    } catch (error) {
+      return <span className="text-red-500">Invalid LaTeX</span>;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Mathematical Expressions</CardTitle>
+        <CardTitle>Build Mathematical Expression</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Click to insert • Visual fraction display
+          Build expressions using LaTeX • Real-time preview
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Expression Builder Section */}
+        <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+          <div className="flex gap-2">
+            <Input
+              value={currentExpression}
+              onChange={(e) => setCurrentExpression(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Build your LaTeX expression here... (e.g., \frac{1}{2} + \sqrt{x})"
+              className="flex-1 font-mono text-sm"
+            />
+            <Button 
+              onClick={handleSendExpression}
+              disabled={!currentExpression.trim()}
+              className="flex items-center gap-2"
+            >
+              <Send className="h-4 w-4" />
+              Send
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleClear}
+              disabled={!currentExpression}
+            >
+              Clear
+            </Button>
+          </div>
+          
+          {/* Real-time Preview */}
+          {currentExpression && (
+            <div className="p-3 bg-white border rounded-md">
+              <div className="text-xs text-muted-foreground mb-2">Preview:</div>
+              <div className="min-h-[40px] flex items-center justify-center p-2 bg-gray-50 rounded">
+                {renderLatexPreview(currentExpression)}
+              </div>
+            </div>
+          )}
+          
+          <div className="text-xs text-muted-foreground">
+            <p>LaTeX code: <code className="bg-background px-2 py-1 rounded border">{currentExpression || "(empty)"}</code></p>
+          </div>
+        </div>
+
+        {/* Symbol Categories */}
+        <div className="text-sm font-medium text-muted-foreground">
+          Mathematical Symbols & Components (LaTeX)
+        </div>
+
         {expressionCategories.map((category) => {
           const isExpanded = expandedCategories.has(category.category);
           
@@ -488,14 +307,16 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
                         key={`${expr.value}-${index}`}
                         variant="outline"
                         size="sm"
-                        className="h-auto py-3 px-3 justify-center items-center"
-                        onClick={() => onInsert(expr.value)}
+                        className="h-auto py-2 px-2 justify-center items-center min-h-[3rem] flex flex-col"
+                        onClick={() => handleSymbolClick(expr.value)}
                         title={expr.label}
                       >
-                        <span 
-                          className="text-base leading-relaxed"
-                          dangerouslySetInnerHTML={{ __html: expr.visual || expr.value }}
-                        />
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {expr.label}
+                        </div>
+                        <div className="text-sm">
+                          {renderLatexPreview(expr.latex || expr.value)}
+                        </div>
                       </Button>
                     ))}
                   </div>
@@ -505,13 +326,16 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
           );
         })}
         
-        <div className="mt-4 p-3 bg-muted rounded-lg text-xs text-muted-foreground">
-          <p className="font-semibold mb-1">💡 Fraction Display:</p>
-          <p>Fractions appear with numerator on top and denominator below, just like in textbooks!</p>
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-muted-foreground">
+          <p className="font-semibold mb-1">💡 How LaTeX Works:</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Click symbols to add LaTeX code to the builder</li>
+            <li>See real-time preview of how it will look</li>
+            <li>Send to insert formatted math into your question</li>
+            <li>Examples: <code>\frac{1}{2}</code>, <code>x^2</code>, <code>\sqrt{x}</code></li>
+          </ul>
         </div>
       </CardContent>
     </Card>
   );
 }
-
-    

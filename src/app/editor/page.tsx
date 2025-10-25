@@ -11,8 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, FileText } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -22,6 +22,9 @@ import { produce } from 'immer';
 import { createRoot } from 'react-dom/client';
 import { useToast } from '@/hooks/use-toast';
 import { PaperPage } from './PaperPreview';
+import 'katex/dist/katex.min.css';
+import LatexRenderer from './LatexRenderer';
+
 
 const generateId = (prefix: string) => {
     return `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
@@ -195,27 +198,47 @@ export default function EditorPage() {
 
   const handleInsertExpression = (expression: string) => {
     if (!focusedInput) return;
+  
     const { element } = focusedInput;
     const { selectionStart, selectionEnd } = element;
     const currentValue = element.value;
+  
+    if (selectionStart === null || selectionEnd === null) {
+      // Fallback for contentEditable or if selection is not available
+      const newValue = currentValue + expression;
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        "value"
+      )?.set;
+      nativeInputValueSetter?.call(element, newValue);
+      const event = new Event("input", { bubbles: true });
+      element.dispatchEvent(event);
+      return;
+    }
+  
     const newValue =
-      currentValue.substring(0, selectionStart ?? 0) +
+      currentValue.substring(0, selectionStart) +
       expression +
-      currentValue.substring(selectionEnd ?? 0);
-    
-    // Create a synthetic event to trigger the change handler
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+      currentValue.substring(selectionEnd);
+  
+    // This is the crucial part for React to recognize the change
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype,
+      "value"
+    )?.set;
     nativeInputValueSetter?.call(element, newValue);
-    
-    const event = new Event('input', { bubbles: true });
+  
+    const event = new Event("input", { bubbles: true });
     element.dispatchEvent(event);
-
+  
     // Restore focus and cursor position
-    element.focus();
-    const newCursorPos = (selectionStart ?? 0) + expression.length;
-    element.setSelectionRange(newCursorPos, newCursorPos);
+    setTimeout(() => {
+      element.focus();
+      const newCursorPos = selectionStart + expression.length;
+      element.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
   };
-
+  
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
     setPaper(prev => produce(prev, draft => {
         if(draft) (draft as any)[field] = value
@@ -253,15 +276,15 @@ export default function EditorPage() {
             const newSubQuestion: Question = {
                 id: generateId('sq'),
                 type: type,
-                content: 'নতুন প্রশ্ন...',
+                content: 'New question...',
                 marks: 1,
             };
             if (type === 'mcq') {
                 newSubQuestion.options = [
-                    { id: generateId('opt'), text: 'অপশন ১' },
-                    { id: generateId('opt'), text: 'অপশন ২' },
-                    { id: generateId('opt'), text: 'অপশন ৩' },
-                    { id: generateId('opt'), text: 'অপশন ৪' },
+                    { id: generateId('opt'), text: 'Option 1' },
+                    { id: generateId('opt'), text: 'Option 2' },
+                    { id: generateId('opt'), text: 'Option 3' },
+                    { id: generateId('opt'), text: 'Option 4' },
                 ];
             }
             if (!question.subQuestions) {
@@ -282,49 +305,62 @@ export default function EditorPage() {
     }));
   };
 
-  const addOption = (questionId: string, subQuestionId: string) => {
+  const addOption = (questionId: string, subQuestionId?: string) => {
     setPaper(prev => produce(prev, draft => {
-        if (!draft) return;
-        const q = draft.questions.find(q => q.id === questionId);
-        if (q && q.subQuestions) {
-            const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
-            if (sq) {
-                const newOption = { id: generateId('opt'), text: 'নতুন অপশন' };
-                 if (!sq.options) {
-                    sq.options = [];
-                }
-                sq.options.push(newOption);
-            }
+      if (!draft) return;
+      const q = draft.questions.find(q => q.id === questionId);
+      if (!q) return;
+  
+      let target: Question | undefined = q;
+      // If subQuestionId is provided, find the sub-question
+      if (subQuestionId) {
+        target = q.subQuestions?.find(sq => sq.id === subQuestionId);
+      }
+  
+      if (target) {
+        const newOption = { id: generateId('opt'), text: 'New Option' };
+        if (!target.options) {
+          target.options = [];
         }
+        target.options.push(newOption);
+      }
     }));
   };
 
-  const removeOption = (questionId: string, subQuestionId: string, optionId: string) => {
+  const removeOption = (questionId: string, optionId: string, subQuestionId?: string) => {
     setPaper(prev => produce(prev, draft => {
-        if (!draft) return;
-        const q = draft.questions.find(q => q.id === questionId);
-         if (q && q.subQuestions) {
-            const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
-            if (sq && sq.options) {
-                sq.options = sq.options.filter(opt => opt.id !== optionId);
-            }
-        }
+      if (!draft) return;
+      const q = draft.questions.find(q => q.id === questionId);
+      if (!q) return;
+  
+      let target: Question | undefined = q;
+      if (subQuestionId) {
+        target = q.subQuestions?.find(sq => sq.id === subQuestionId);
+      }
+  
+      if (target && target.options) {
+        target.options = target.options.filter(opt => opt.id !== optionId);
+      }
     }));
   };
 
-  const handleOptionChange = (questionId: string, subQuestionId: string, optionId: string, text: string) => {
+  const handleOptionChange = (questionId: string, optionId: string, text: string, subQuestionId?: string) => {
     setPaper(prev => produce(prev, draft => {
-        if (!draft) return;
-        const q = draft.questions.find(q => q.id === questionId);
-        if (q && q.subQuestions) {
-            const sq = q.subQuestions.find(sq => sq.id === subQuestionId);
-            if (sq && sq.options) {
-                const opt = sq.options.find(opt => opt.id === optionId);
-                if (opt) {
-                    opt.text = text;
-                }
-            }
+      if (!draft) return;
+      const q = draft.questions.find(q => q.id === questionId);
+      if (!q) return;
+  
+      let target: Question | undefined = q;
+      if (subQuestionId) {
+        target = q.subQuestions?.find(sq => sq.id === subQuestionId);
+      }
+  
+      if (target && target.options) {
+        const opt = target.options.find(opt => opt.id === optionId);
+        if (opt) {
+          opt.text = text;
         }
+      }
     }));
   };
 
@@ -566,6 +602,9 @@ export default function EditorPage() {
                     className="bg-white dark:bg-slate-800 font-semibold"
                     rows={2}
                  />
+                 <div className="p-2 border rounded-md mt-1 bg-white dark:bg-slate-800/50 min-h-[3rem] prose prose-sm max-w-none">
+                    <LatexRenderer content={question.content} />
+                 </div>
             </div>
           </div>
             <div className="flex items-center gap-4 pl-8">
@@ -614,13 +653,18 @@ export default function EditorPage() {
                 <span className="font-semibold pt-2">{getNumbering(question.numberingFormat, sqIndex)})</span>
                 <div className="flex-grow space-y-2">
                   <div className="flex items-center gap-2">
-                    <Textarea 
-                        value={sq.content}
-                        onFocus={(e) => handleFocus(e, `content-${sq.id}`)}
-                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
-                        className="bg-white dark:bg-slate-800"
-                        rows={1}
-                    />
+                    <div className="flex-1">
+                      <Textarea 
+                          value={sq.content}
+                          onFocus={(e) => handleFocus(e, `content-${sq.id}`)}
+                          onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
+                          className="bg-white dark:bg-slate-800"
+                          rows={1}
+                      />
+                      <div className="p-2 border rounded-md mt-1 bg-white dark:bg-slate-800/50 min-h-[1.5rem] prose prose-sm max-w-none">
+                          <LatexRenderer content={sq.content} />
+                      </div>
+                    </div>
                     { question.type === 'creative' && sq.marks !== undefined && (
                        <div className="flex items-center gap-2 shrink-0">
                          <Label htmlFor={`marks-${sq.id}`} className="text-sm">Marks:</Label>
@@ -644,14 +688,14 @@ export default function EditorPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {sq.options?.map((opt, optIndex) => (
                                 <div key={opt.id} className="flex items-center gap-2">
-                                <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)}</span>
+                                <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)})</span>
                                 <Input 
                                     value={opt.text}
-                                    onInput={(e) => handleOptionChange(question.id, sq.id, opt.id, (e.target as HTMLInputElement).value)}
+                                    onInput={(e) => handleOptionChange(question.id, opt.id, (e.target as HTMLInputElement).value, sq.id)}
                                     onFocus={(e) => handleFocus(e, `option-${question.id}-${sq.id}-${opt.id}`)}
                                     className="bg-white dark:bg-slate-800"
                                 />
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeOption(question.id, sq.id, opt.id)}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeOption(question.id, opt.id, sq.id)}>
                                     <Trash2 className="size-4" />
                                 </Button>
                                 </div>
@@ -680,7 +724,30 @@ export default function EditorPage() {
         case 'essay':
           return questionCard(subQuestionRenderer('essay'));
         case 'mcq':
-             return questionCard(subQuestionRenderer('mcq'));
+            if (question.subQuestions && question.subQuestions.length > 0) {
+              return questionCard(subQuestionRenderer('mcq'));
+            }
+            return questionCard(
+              <div className="pl-8 space-y-2 group/sub">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {question.options?.map((opt, optIndex) => (
+                    <div key={opt.id} className="flex items-center gap-2">
+                      <span className="font-semibold">{getNumbering('bangla-alpha', optIndex)})</span>
+                      <Input
+                        value={opt.text}
+                        onInput={(e) => handleOptionChange(question.id, opt.id, (e.target as HTMLInputElement).value)}
+                        onFocus={(e) => handleFocus(e, `option-${question.id}-${opt.id}`)}
+                        className="bg-white dark:bg-slate-800"
+                      />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0 opacity-0 group-hover/sub:opacity-100" onClick={() => removeOption(question.id, opt.id)}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="outline" size="sm" onClick={() => addOption(question.id)}><Plus className="mr-2 size-4" /> Add Option</Button>
+              </div>
+            );
         case 'table':
             return questionCard((
                 <>
@@ -780,7 +847,7 @@ export default function EditorPage() {
         }
   
         // small stabilization pause so layout settles (safe but tiny)
-        await new Promise(r => setTimeout(r, 30));
+        await new Promise(r => setTimeout(r, 50));
   
         if (cancelled) return;
   
@@ -946,9 +1013,9 @@ export default function EditorPage() {
         setBookletPages={setBookletPages}
       />
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
-        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 gradient-scrollbar">
-          <div className="space-y-8">
-              <div className="bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg">
+        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 p-4 md:p-8 gradient-scrollbar">
+          <div className="max-w-4xl mx-auto space-y-8">
+              <div className="bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg rounded-lg">
                   <div className="space-y-4">
                       <div className="space-y-1">
                           <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400 px-1">School Name</Label>

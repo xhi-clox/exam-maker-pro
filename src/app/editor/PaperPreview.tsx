@@ -5,6 +5,7 @@ import React from 'react';
 import type { Paper, Question, NumberingFormat } from './page';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import LatexRenderer from './LatexRenderer';
 
 export interface PaperSettings {
   margins: { top: number; bottom: number; left: number; right: number; };
@@ -61,7 +62,7 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
     if (question.type === 'section-header') {
         return (
             <div key={question.id} className="text-center font-bold underline decoration-dotted text-lg my-4" data-question-id={question.id}>
-                <div className="question-content">{question.content}</div>
+                <div className="question-content"><LatexRenderer content={question.content} /></div>
             </div>
         );
     }
@@ -72,7 +73,7 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
       <div key={`${question.id}-${showMainContent}-${subQuestionsToRender.map(sq => sq.id).join('-')}`} className="mb-2 question-item" data-question-id={question.id}>
         {showMainContent && (
             <div className="flex justify-between font-semibold question-content">
-                <p className="flex-1">{questionIndex}. {question.content}</p>
+                <p className="flex-1">{questionIndex}. <LatexRenderer content={question.content} /></p>
                 {question.type !== 'creative' && question.marks && question.marks > 0 && <p>{question.marks}</p>}
             </div>
         )}
@@ -86,13 +87,13 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
               return (
                 <div key={sq.id} className="subquestion-item pt-1" data-subquestion-id={sq.id}>
                   <div className="flex justify-between">
-                    <p>{getNumbering(mainQuestionObj?.numberingFormat, sqIndex)}) {sq.content}</p>
+                    <p>{getNumbering(mainQuestionObj?.numberingFormat, sqIndex)}) <LatexRenderer content={sq.content} /></p>
                     {mainQuestionObj?.type === 'creative' && sq.marks && sq.marks > 0 && <p>{sq.marks}</p>}
                   </div>
                   {sq.options && sq.options.length > 0 && (
                     <div className="pl-6 mt-1 grid grid-cols-2 gap-x-8 gap-y-1">
                       {sq.options.map((option, optIndex) => (
-                        <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
+                        <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) <LatexRenderer content={option.text} /></p>
                       ))}
                     </div>
                   )}
@@ -105,7 +106,7 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
         {showMainContent && question.type !== 'mcq' && question.options && question.options.length > 0 && (
           <div className="pl-6 mt-1 grid grid-cols-2 gap-x-8 gap-y-1">
             {question.options.map((option, optIndex) => (
-              <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) {option.text}</p>
+              <p key={option.id}>{getNumbering('bangla-alpha', optIndex)}) <LatexRenderer content={option.text} /></p>
             ))}
           </div>
         )}
@@ -132,7 +133,7 @@ export const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageCo
     const allQuestionIds = allQuestions.filter(q => q.type !== 'section-header').map(q => q.id);
 
     return (
-        <div ref={ref} className="bg-white text-black font-serif max-w-none mx-auto border-y border-gray-300 shadow-lg paper-page" style={pageStyle}>
+        <div ref={ref} className="bg-white text-black font-serif max-w-none mx-auto shadow-lg paper-page" style={pageStyle}>
             {isFirstPage && (
                 <>
                     <header className="text-center mb-6 preview-header">
@@ -140,7 +141,7 @@ export const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageCo
                         <h2 className="text-lg">{paper.examTitle}</h2>
                     </header>
 
-                    <div className="flex justify-between text-sm mb-2">
+                    <div className="flex justify-between text-sm mb-6">
                         <p>বিষয়: {getSubjectName(paper.subject)}</p>
                         <p>পূর্ণমান: {paper.totalMarks}</p>
                     </div>
