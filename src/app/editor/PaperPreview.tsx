@@ -57,21 +57,19 @@ const getNumbering = (format: NumberingFormat | undefined, index: number): strin
   }
 };
 
-export const renderQuestionContent = (question: Question, questionIndex: number, allQuestions: Question[], showMainContent: boolean) => {
-    const originalQuestion = allQuestions.find(q => q.id === question.id);
-
+export const renderQuestionContent = (question: Question, questionIndex: number, allQuestions: Question[], showMainContent: boolean, subQuestionsToRender: Question[] = []) => {
     if (question.type === 'section-header') {
         return (
             <div key={question.id} className="text-center font-bold underline decoration-dotted text-lg my-4" data-question-id={question.id}>
-                {question.content}
+                <div className="question-content">{question.content}</div>
             </div>
         );
     }
 
-    const subQuestionsToRender = showMainContent ? (originalQuestion?.subQuestions || []) : question.subQuestions;
+    const mainQuestionObj = allQuestions.find(q => q.id === question.id);
 
     return (
-      <div key={`${question.id}-${showMainContent}`} className="mb-2 question-item" data-question-id={question.id}>
+      <div key={`${question.id}-${showMainContent}-${subQuestionsToRender.map(sq => sq.id).join('-')}`} className="mb-2 question-item" data-question-id={question.id}>
         {showMainContent && (
             <div className="flex justify-between font-semibold question-content">
                 <p className="flex-1">{questionIndex}. {question.content}</p>
@@ -82,14 +80,14 @@ export const renderQuestionContent = (question: Question, questionIndex: number,
         {subQuestionsToRender && subQuestionsToRender.length > 0 && (
           <div className="pl-6">
             {subQuestionsToRender.map((sq) => {
-              const sqIndex = originalQuestion?.subQuestions?.findIndex(osq => osq.id === sq.id) ?? -1;
+              const sqIndex = mainQuestionObj?.subQuestions?.findIndex(osq => osq.id === sq.id) ?? -1;
               if (sqIndex === -1) return null;
 
               return (
                 <div key={sq.id} className="subquestion-item pt-1" data-subquestion-id={sq.id}>
                   <div className="flex justify-between">
-                    <p>{getNumbering(originalQuestion?.numberingFormat, sqIndex)}) {sq.content}</p>
-                    {originalQuestion?.type === 'creative' && sq.marks && sq.marks > 0 && <p>{sq.marks}</p>}
+                    <p>{getNumbering(mainQuestionObj?.numberingFormat, sqIndex)}) {sq.content}</p>
+                    {mainQuestionObj?.type === 'creative' && sq.marks && sq.marks > 0 && <p>{sq.marks}</p>}
                   </div>
                   {sq.options && sq.options.length > 0 && (
                     <div className="pl-6 mt-1 grid grid-cols-2 gap-x-8 gap-y-1">
@@ -168,12 +166,7 @@ export const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageCo
                           questionNumber = idx + 1;
                       }
                     }
-
-                    const questionToRender: Question = {
-                        ...content.mainQuestion,
-                        subQuestions: content.subQuestions
-                    };
-                    return renderQuestionContent(questionToRender, questionNumber, allQuestions, content.showMainContent);
+                    return renderQuestionContent(content.mainQuestion, questionNumber, allQuestions, content.showMainContent, content.subQuestions);
                 })}
             </main>
         </div>
@@ -232,3 +225,5 @@ export default function PaperPreview({ paper, pages, settings }: PaperPreviewPro
     </>
   );
 }
+
+    

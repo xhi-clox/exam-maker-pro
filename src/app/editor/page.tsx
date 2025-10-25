@@ -890,224 +890,146 @@ export default function EditorPage() {
 
   useLayoutEffect(() => {
     if (!paper) return;
-  
-    // mm -> px (96dpi)
+
     const mmToPx = (mm: number) => mm * 3.7795275591;
-  
-    // choose the selector that identifies each question block in the rendered PaperPage
     const QUESTION_SELECTOR = '[data-question-id]';
-  
     let cancelled = false;
-  
+
     const calculatePages = async () => {
-      if (!hiddenRenderRef.current) {
-        setPages([]);
-        return;
-      }
-  
-      // clean any previous content
-      hiddenRenderRef.current.innerHTML = '';
-  
-      // create a temporary container to render the full continuous page
-      const tempRenderContainer = document.createElement('div');
-      // ensure same width as preview rendering to match measurements
-      tempRenderContainer.style.width = `${settings.width}px`;
-      tempRenderContainer.style.boxSizing = 'border-box';
-      hiddenRenderRef.current.appendChild(tempRenderContainer);
-      const root = createRoot(tempRenderContainer);
-  
-      // Render entire paper into the temp container (single long flow)
-      root.render(
-        <PaperPage
-          paper={paper}
-          pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
-          isFirstPage={true}
-          settings={settings}
-          allQuestions={paper.questions}
-        />
-      );
-  
-      try {
-        // wait for webfonts/images to finish loading (more reliable than a fixed delay)
-        if ((document as any).fonts && (document as any).fonts.ready) {
-          try { await (document as any).fonts.ready; } catch (e) { /* ignore */ }
+        if (!hiddenRenderRef.current) {
+            setPages([]);
+            return;
         }
-  
-        // wait for images inside container to load
-        const imgs = tempRenderContainer.querySelectorAll('img');
-        if (imgs.length) {
-          await Promise.all(Array.from(imgs).map(img => {
-            const im = img as HTMLImageElement;
-            return im.complete ? Promise.resolve() : new Promise<void>(res => { im.onload = im.onerror = () => res(); });
-          }));
-        }
-  
-        // small stabilization pause so layout settles (safe but tiny)
-        await new Promise(r => setTimeout(r, 30));
-  
-        if (cancelled) return;
-  
-        // PAGE geometry (px). Convert margins from mm to px and subtract from height:
-        const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom));
-  
-        // get the rendered paper page root inside the temp container
-        const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
-        if (!renderedPaperPage) {
-          root.unmount();
-          if (hiddenRenderRef.current && hiddenRenderRef.current.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
-          return;
-        }
-  
-        // We'll walk question blocks and split at child DOM-element level.
-        const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>(QUESTION_SELECTOR));
-  
-        const newPages: PageContent[][] = [];
-        let currentPageContent: PageContent[] = [];
-        let usedHeight = 0;
-        let isFirstPage = true;
-  
-        // Helper to push current page and reset
-        const flushPage = () => {
-          if (currentPageContent.length > 0) {
-            newPages.push(currentPageContent);
-          } else {
-            // Ensure at least an empty page exists if nothing fit (edge-case)
-            newPages.push([]);
-          }
-          currentPageContent = [];
-          usedHeight = 0;
-          isFirstPage = false;
-        };
-  
-        // compute header height once (top info area that shows on first page)
-        let headerHeight = 0;
-        const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
-        if (headerEl) {
-          const st = window.getComputedStyle(headerEl);
-          headerHeight = headerEl.offsetHeight + (parseFloat(st.marginTop || '0') || 0) + (parseFloat(st.marginBottom || '0') || 0);
-        }
-        const notesEl = renderedPaperPage.querySelector<HTMLElement>('.text-center.text-sm.font-semibold.mb-6');
-        if(notesEl && isFirstPage) headerHeight += notesEl.offsetHeight + parseFloat(window.getComputedStyle(notesEl).marginBottom);
-        
-        const flexLineEls = renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm');
-        if(isFirstPage) {
-            flexLineEls.forEach(el => {
-                headerHeight += el.offsetHeight + parseFloat(window.getComputedStyle(el).marginBottom);
-            });
-        }
-        
-        if (isFirstPage) {
-          usedHeight += headerHeight;
-        }
-  
-        // iterate questions
-        for (const questionEl of allQuestionElements) {
-          if (cancelled) break;
-          const qId = questionEl.getAttribute('data-question-id') || '';
-          const questionObj = paper.questions.find(q => q.id === qId);
-          if (!questionObj) continue;
-  
-          // We treat the question block as a wrapper that contains several child elements:
-          // e.g. [stem node] [sub1 node] [sub2 node] ...
-          // We'll iterate child elements and pack them into pages dynamically.
-          const childEls = Array.from(questionEl.children) as HTMLElement[];
-  
-          // If there are no children (rare), fallback to treating the whole question element as a single child
-          const chunks = childEls.length ? childEls : [questionEl];
-  
-          let firstChildOfQuestion = true; // to show main stem only once
-          for (const chunkEl of chunks) {
-            // measure chunk including its margins
-            const cs = window.getComputedStyle(chunkEl);
-            const chunkHeight = chunkEl.offsetHeight + (parseFloat(cs.marginTop || '0') || 0) + (parseFloat(cs.marginBottom || '0') || 0);
-  
-            const available = (usedHeight === 0 && isFirstPage ? pageInnerHeight - headerHeight : pageInnerHeight - usedHeight);
-  
-            // If chunk fits in remaining space, append it
-            if (chunkHeight <= available) {
-                let pageItem: PageContent;
-                const existingItem = currentPageContent.find(item => item.mainQuestion.id === questionObj.id);
 
-                if (existingItem) {
-                    const parentSubQs = questionObj.subQuestions || [];
-                    const matched = parentSubQs.find(sq => {
-                        try { return sq.content && chunkEl.innerText.trim().startsWith((sq.content || '').trim().slice(0, 20)); } catch { return false; }
-                    });
-                    if(matched) existingItem.subQuestions.push(matched);
+        hiddenRenderRef.current.innerHTML = '';
+        const tempRenderContainer = document.createElement('div');
+        tempRenderContainer.style.width = `${settings.width}px`;
+        tempRenderContainer.style.boxSizing = 'border-box';
+        hiddenRenderRef.current.appendChild(tempRenderContainer);
+        const root = createRoot(tempRenderContainer);
 
-                } else {
-                     if (firstChildOfQuestion) {
-                        pageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
-                        firstChildOfQuestion = false;
-                     } else {
-                        const parentSubQs = questionObj.subQuestions || [];
-                        let matched = parentSubQs.find(sq => {
-                            try { return sq.content && chunkEl.innerText.trim().startsWith((sq.content || '').trim().slice(0, 20)); } catch { return false; }
-                        });
-            
-                        if (!matched) {
-                            matched = {
-                            id: generateId('sq_split'),
-                            type: (questionObj.subQuestions && questionObj.subQuestions[0]) ? questionObj.subQuestions[0].type : 'short',
-                            content: chunkEl.innerText || '',
-                            marks: undefined,
-                            } as Question;
-                        }
-            
-                        pageItem = { mainQuestion: questionObj, subQuestions: [matched], showMainContent: false };
-                     }
-                     currentPageContent.push(pageItem);
-                }
-              
-              usedHeight += chunkHeight;
-            } else {
-              flushPage();
-  
-              let pageItem: PageContent;
-              if (firstChildOfQuestion) {
-                pageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
-                firstChildOfQuestion = false;
-              } else {
-                const parentSubQs = questionObj.subQuestions || [];
-                let matched = parentSubQs.find(sq => {
-                  try { return sq.content && chunkEl.innerText.trim().startsWith((sq.content || '').trim().slice(0, 20)); } catch { return false; }
-                });
-                if (!matched) {
-                  matched = {
-                    id: generateId('sq_split'),
-                    type: (questionObj.subQuestions && questionObj.subQuestions[0]) ? questionObj.subQuestions[0].type : 'short',
-                    content: chunkEl.innerText || '',
-                    marks: undefined,
-                  } as Question;
-                }
-                pageItem = { mainQuestion: questionObj, subQuestions: [matched], showMainContent: false };
-              }
-  
-              currentPageContent.push(pageItem);
-              usedHeight = chunkHeight;
+        root.render(
+            <PaperPage
+                paper={paper}
+                pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
+                isFirstPage={true}
+                settings={settings}
+                allQuestions={paper.questions}
+            />
+        );
+
+        try {
+            if ((document as any).fonts && (document as any).fonts.ready) {
+                try { await (document as any).fonts.ready; } catch (e) { /* ignore */ }
             }
-          } 
-        } 
-  
-        // push last page
-        if (currentPageContent.length > 0) newPages.push(currentPageContent);
-  
-        if (!cancelled) setPages(newPages);
-  
-      } catch (err) {
-        console.error('Error while calculating pages', err);
-      } finally {
-        // cleanup
-        try { root.unmount(); } catch (e) { /* ignore */ }
-        if (hiddenRenderRef.current && hiddenRenderRef.current.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
-      }
+
+            const imgs = tempRenderContainer.querySelectorAll('img');
+            if (imgs.length) {
+                await Promise.all(Array.from(imgs).map(img => {
+                    const im = img as HTMLImageElement;
+                    return im.complete ? Promise.resolve() : new Promise<void>(res => { im.onload = im.onerror = () => res(); });
+                }));
+            }
+
+            await new Promise(r => setTimeout(r, 50));
+            if (cancelled) return;
+
+            const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom));
+            const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
+            if (!renderedPaperPage) {
+                root.unmount();
+                if (hiddenRenderRef.current?.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
+                return;
+            }
+
+            const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>(QUESTION_SELECTOR));
+            const newPages: PageContent[][] = [];
+            let currentPageContent: PageContent[] = [];
+            let usedHeight = 0;
+            let isFirstPage = true;
+
+            const flushPage = () => {
+                if (currentPageContent.length > 0) newPages.push(currentPageContent);
+                else newPages.push([]);
+                currentPageContent = [];
+                usedHeight = 0;
+                isFirstPage = false;
+            };
+            
+            let headerHeight = 0;
+            const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
+            if (headerEl) {
+                const st = window.getComputedStyle(headerEl);
+                headerHeight += headerEl.offsetHeight + parseFloat(st.marginTop || '0') + parseFloat(st.marginBottom || '0');
+            }
+            renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold').forEach(el => {
+                const st = window.getComputedStyle(el);
+                headerHeight += el.offsetHeight + parseFloat(st.marginTop || '0') + parseFloat(st.marginBottom || '0');
+            });
+            if (isFirstPage) usedHeight += headerHeight;
+
+            for (const questionEl of allQuestionElements) {
+                if (cancelled) break;
+                const qId = questionEl.getAttribute('data-question-id');
+                const questionObj = paper.questions.find(q => q.id === qId);
+                if (!qId || !questionObj) continue;
+
+                let questionContentProcessed = false;
+                const contentEl = questionEl.querySelector<HTMLElement>('.question-content');
+                if (contentEl) {
+                    const contentHeight = contentEl.offsetHeight + parseFloat(window.getComputedStyle(contentEl).marginBottom || '0');
+                    if (usedHeight + contentHeight > pageInnerHeight && usedHeight > 0) {
+                        flushPage();
+                    }
+                    
+                    const existingItem = currentPageContent.find(item => item.mainQuestion.id === qId && item.showMainContent);
+                    if (!existingItem) {
+                       currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
+                    }
+                    usedHeight += contentHeight;
+                    questionContentProcessed = true;
+                }
+
+                const subQuestionElements = Array.from(questionEl.querySelectorAll<HTMLElement>('.subquestion-item'));
+                for (const subQuestionEl of subQuestionElements) {
+                    const subId = subQuestionEl.getAttribute('data-subquestion-id');
+                    const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
+                    if (!subId || !subQuestionObj) continue;
+
+                    const subHeight = subQuestionEl.offsetHeight + parseFloat(window.getComputedStyle(subQuestionEl).marginTop || '0');
+                    
+                    if (usedHeight + subHeight > pageInnerHeight && usedHeight > 0) {
+                        flushPage();
+                        if (isFirstPage) usedHeight = 0;
+                    }
+                    
+                    let pageItem = currentPageContent.find(item => item.mainQuestion.id === qId);
+                    if (!pageItem) {
+                        pageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: false };
+                        currentPageContent.push(pageItem);
+                    }
+                    
+                    if (!pageItem.subQuestions.some(sq => sq.id === subId)) {
+                        pageItem.subQuestions.push(subQuestionObj);
+                    }
+                    usedHeight += subHeight;
+                }
+            }
+
+            if (currentPageContent.length > 0) newPages.push(currentPageContent);
+            if (!cancelled) setPages(newPages);
+
+        } catch (err) {
+            console.error('Error while calculating pages', err);
+        } finally {
+            try { root.unmount(); } catch (e) { /* ignore */ }
+            if (hiddenRenderRef.current?.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
+        }
     };
-  
+
     calculatePages();
-  
     return () => { cancelled = true; };
-  
-  }, [paper, settings]);
+}, [paper, settings]);
   
   if (!paper) {
       return (
@@ -1349,5 +1271,7 @@ export default function EditorPage() {
     </>
   );
 }
+
+    
 
     
