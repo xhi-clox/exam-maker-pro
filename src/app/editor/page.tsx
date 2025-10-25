@@ -204,7 +204,6 @@ export default function EditorPage() {
     const currentValue = element.value;
   
     if (selectionStart === null || selectionEnd === null) {
-      // Fallback if selection is not available
       const newValue = currentValue + expression;
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
         window.HTMLTextAreaElement.prototype,
@@ -221,7 +220,6 @@ export default function EditorPage() {
       expression +
       currentValue.substring(selectionEnd);
   
-    // This is the crucial part for React to recognize the change
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLTextAreaElement.prototype,
       "value"
@@ -231,7 +229,6 @@ export default function EditorPage() {
     const event = new Event("input", { bubbles: true });
     element.dispatchEvent(event);
   
-    // Restore focus and cursor position
     setTimeout(() => {
       element.focus();
       const newCursorPos = selectionStart + expression.length;
@@ -555,6 +552,10 @@ export default function EditorPage() {
     }));
   };
 
+  const containsMath = (text: string) => {
+    return text.includes('$') || text.includes('\\');
+  }
+
   const QuestionActions = ({ index }: { index: number }) => (
     <div className="absolute top-0 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveQuestion(index, 'up')} disabled={index === 0}>
@@ -602,9 +603,11 @@ export default function EditorPage() {
                     className="bg-white dark:bg-slate-800 font-semibold"
                     rows={2}
                  />
-                 <div className="p-2 border rounded-md mt-1 bg-white dark:bg-slate-800/50 min-h-[3rem] prose prose-sm max-w-none">
-                    <LatexRenderer content={question.content} />
-                 </div>
+                 {containsMath(question.content) && (
+                    <div className="p-2 border rounded-md mt-1 bg-white dark:bg-slate-800/50 min-h-[3rem] prose prose-sm max-w-none">
+                        <LatexRenderer content={question.content} />
+                    </div>
+                 )}
             </div>
           </div>
             <div className="flex items-center gap-4 pl-8">
@@ -661,9 +664,11 @@ export default function EditorPage() {
                           className="bg-white dark:bg-slate-800"
                           rows={1}
                       />
-                      <div className="p-2 border rounded-md mt-1 bg-white dark:bg-slate-800/50 min-h-[1.5rem] prose prose-sm max-w-none">
-                          <LatexRenderer content={sq.content} />
-                      </div>
+                      {containsMath(sq.content) && (
+                        <div className="p-2 border rounded-md mt-1 bg-white dark:bg-slate-800/50 min-h-[1.5rem] prose prose-sm max-w-none">
+                            <LatexRenderer content={sq.content} />
+                        </div>
+                      )}
                     </div>
                     { question.type === 'creative' && sq.marks !== undefined && (
                        <div className="flex items-center gap-2 shrink-0">
@@ -1013,7 +1018,7 @@ export default function EditorPage() {
         setBookletPages={setBookletPages}
       />
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
-        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800">
+        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 gradient-scrollbar">
           <div className="space-y-8">
               <div className="bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg">
                   <div className="space-y-4">
