@@ -22,7 +22,6 @@ import { produce } from 'immer';
 import { createRoot } from 'react-dom/client';
 import { useToast } from '@/hooks/use-toast';
 import { PaperPage } from './PaperPreview';
-import { parseMath } from '@/lib/math-parser';
 
 const generateId = (prefix: string) => {
     return `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
@@ -125,7 +124,7 @@ export default function EditorPage() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement | HTMLDivElement; id: string } | null>(null);
+  const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
   
   const [pages, setPages] = useState<PageContent[][]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -190,85 +189,36 @@ export default function EditorPage() {
     }
   }, [searchParams, router, paper]);
 
-  const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement | HTMLDivElement>, id: string) => {
+  const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
   };
 
   const handleInsertExpression = (expression: string) => {
     if (!focusedInput) return;
-  
     const { element } = focusedInput;
-  
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-      const { selectionStart, selectionEnd } = element;
-      const currentValue = element.value;
-      const newValue =
-        currentValue.substring(0, selectionStart ?? 0) +
-        expression +
-        currentValue.substring(selectionEnd ?? 0);
-      element.value = newValue;
-      element.focus();
-      element.setSelectionRange(
-        (selectionStart ?? 0) + expression.length,
-        (selectionStart ?? 0) + expression.length
-      );
-      const event = new Event('input', { bubbles: true });
-      element.dispatchEvent(event);
-    } else if (element.isContentEditable) {
-      element.focus();
-      const selection = window.getSelection();
-      
-      // Check if a selection range exists. If not, the input probably lost focus.
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        if (range) {
-          range.deleteContents();
-          const textNode = document.createTextNode(expression);
-          range.insertNode(textNode);
-  
-          // Move cursor after the inserted text
-          range.setStartAfter(textNode);
-          range.setEndAfter(textNode);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      } else {
-        // Fallback: If no selection, append to the end
-        element.innerHTML += expression;
-      }
-  
-      // Dispatch an input event to trigger any listeners (like onBlur saving)
-      const event = new Event('input', { bubbles: true });
-      element.dispatchEvent(event);
-    }
+    const { selectionStart, selectionEnd } = element;
+    const currentValue = element.value;
+    const newValue =
+      currentValue.substring(0, selectionStart ?? 0) +
+      expression +
+      currentValue.substring(selectionEnd ?? 0);
+    
+    // Create a synthetic event to trigger the change handler
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+    nativeInputValueSetter?.call(element, newValue);
+    
+    const event = new Event('input', { bubbles: true });
+    element.dispatchEvent(event);
+
+    // Restore focus and cursor position
+    element.focus();
+    const newCursorPos = (selectionStart ?? 0) + expression.length;
+    element.setSelectionRange(newCursorPos, newCursorPos);
   };
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
     setPaper(prev => produce(prev, draft => {
         if(draft) (draft as any)[field] = value
-    }));
-  };
-
-  const handleContentBlur = (id: string, newContent: string) => {
-    setPaper(prev => produce(prev, draft => {
-        if (!draft) return;
-        const question = draft.questions.find(q => q.id === id);
-        if (question) {
-            question.content = newContent;
-        }
-    }));
-  };
-
-  const handleSubQuestionContentBlur = (parentId: string, subId: string, newContent: string) => {
-    setPaper(prev => produce(prev, draft => {
-        if (!draft) return;
-        const parentQuestion = draft.questions.find(q => q.id === parentId);
-        if (parentQuestion && parentQuestion.subQuestions) {
-            const subQuestion = parentQuestion.subQuestions.find(sq => sq.id === subId);
-            if (subQuestion) {
-                subQuestion.content = newContent;
-            }
-        }
     }));
   };
 
@@ -583,36 +533,6 @@ export default function EditorPage() {
     </div>
   );
 
-  const EditableContent = ({ id, content, onBlurHandler, onFocusHandler }: { id: string, content: string, onBlurHandler: (text: string) => void, onFocusHandler: (e: React.FocusEvent<HTMLDivElement>) => void }) => {
-    const ref = useRef<HTMLDivElement>(null);
-  
-    useEffect(() => {
-        if (ref.current) {
-            const selection = window.getSelection();
-            const isFocused = selection && selection.anchorNode && ref.current.contains(selection.anchorNode);
-            
-            // Only update the content if the element is not focused,
-            // or if the content is drastically different (e.g., from an external update).
-            // A simple innerText check is usually sufficient to prevent cursor jumps while typing.
-            if(!isFocused || ref.current.innerText !== content) {
-              ref.current.innerHTML = parseMath(content) as unknown as string;
-            }
-        }
-    }, [content]);
-
-    return (
-      <div
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
-        onFocus={onFocusHandler}
-        onBlur={(e) => onBlurHandler(e.currentTarget.innerText)}
-        className="bg-white dark:bg-slate-800 font-semibold p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] w-full"
-        dangerouslySetInnerHTML={{ __html: parseMath(content) as unknown as string }}
-      />
-    );
-  };
-
   const renderQuestion = (question: Question, index: number) => {
     if (!paper) return null;
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
@@ -625,6 +545,7 @@ export default function EditorPage() {
                  <QuestionActions index={index} />
                  <Input 
                     value={question.content}
+                    onFocus={(e) => handleFocus(e, `content-${question.id}`)}
                     onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
                     className="text-center font-bold underline decoration-dotted text-lg border-0 focus-visible:ring-0 shadow-none bg-transparent"
                  />
@@ -638,12 +559,13 @@ export default function EditorPage() {
           <div className="flex items-start justify-between">
             <Label className="font-bold pt-1.5">{`${questionNumber}.`}</Label>
             <div className="flex-1 ml-2">
-                <EditableContent
-                    id={question.id}
-                    content={question.content}
-                    onBlurHandler={(newContent) => handleContentBlur(question.id, newContent)}
-                    onFocusHandler={(e) => handleFocus(e, question.id)}
-                />
+                 <Textarea 
+                    value={question.content}
+                    onFocus={(e) => handleFocus(e, `content-${question.id}`)}
+                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    className="bg-white dark:bg-slate-800 font-semibold"
+                    rows={2}
+                 />
             </div>
           </div>
             <div className="flex items-center gap-4 pl-8">
@@ -654,6 +576,7 @@ export default function EditorPage() {
                       id={`marks-${question.id}`}
                       type="number" 
                       value={question.marks || ''} 
+                      onFocus={(e) => handleFocus(e, `marks-${question.id}`)}
                       onChange={(e) => handleQuestionChange(question.id, 'marks', Number(e.target.value))}
                       className="w-20 h-8"
                       placeholder="Marks"
@@ -691,11 +614,12 @@ export default function EditorPage() {
                 <span className="font-semibold pt-2">{getNumbering(question.numberingFormat, sqIndex)})</span>
                 <div className="flex-grow space-y-2">
                   <div className="flex items-center gap-2">
-                     <EditableContent
-                        id={`${question.id}-${sq.id}`}
-                        content={sq.content}
-                        onBlurHandler={(newContent) => handleSubQuestionContentBlur(question.id, sq.id, newContent)}
-                        onFocusHandler={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
+                    <Textarea 
+                        value={sq.content}
+                        onFocus={(e) => handleFocus(e, `content-${sq.id}`)}
+                        onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'content', e.target.value)}
+                        className="bg-white dark:bg-slate-800"
+                        rows={1}
                     />
                     { question.type === 'creative' && sq.marks !== undefined && (
                        <div className="flex items-center gap-2 shrink-0">
@@ -704,6 +628,7 @@ export default function EditorPage() {
                            id={`marks-${sq.id}`}
                            type="number" 
                            value={sq.marks || ''} 
+                           onFocus={(e) => handleFocus(e, `marks-${sq.id}`)}
                            onChange={(e) => handleSubQuestionChange(question.id, sq.id, 'marks', Number(e.target.value))}
                            className="w-20 h-8"
                            placeholder="Marks"
@@ -759,11 +684,12 @@ export default function EditorPage() {
         case 'table':
             return questionCard((
                 <>
-                  <EditableContent
-                    id={question.id + "-content"}
-                    content={question.content}
-                    onBlurHandler={(newContent) => handleContentBlur(question.id, newContent)}
-                    onFocusHandler={(e) => handleFocus(e, question.id + "-content")}
+                  <Textarea 
+                    value={question.content}
+                    onFocus={(e) => handleFocus(e, `content-${question.id}`)}
+                    onChange={(e) => handleQuestionChange(question.id, 'content', e.target.value)}
+                    className="bg-white dark:bg-slate-800"
+                    rows={2}
                   />
                   <div className="flex gap-2 mb-2">
                      <Button size="sm" variant="outline" onClick={() => addRow(question.id)}><PlusCircle className="mr-2 size-4" /> Add Row</Button>
@@ -780,6 +706,7 @@ export default function EditorPage() {
                               <td key={colIndex} className="border border-slate-300 p-0">
                                 <Textarea
                                   value={cell}
+                                  onFocus={(e) => handleFocus(e, `table-${question.id}-${rowIndex}-${colIndex}`)}
                                   onChange={(e) => handleTableCellChange(question.id, rowIndex, colIndex, e.target.value)}
                                   className="w-full h-full border-0 rounded-none focus-visible:ring-1 ring-inset focus-visible:ring-blue-400 bg-white dark:bg-slate-800"
                                   rows={2}
@@ -1130,7 +1057,3 @@ export default function EditorPage() {
     </>
   );
 }
-
-  
-
-    
