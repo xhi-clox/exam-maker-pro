@@ -12,19 +12,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Download, Eye, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, Save, Settings, FileText } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import PaperPreview, { PaperPage, type PaperSettings, type PageContent } from './PaperPreview';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { EditorHeader } from './EditorHeader';
 import MathExpressions from './MathExpressions';
 import { produce } from 'immer';
 import { createRoot } from 'react-dom/client';
-import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
+import { PaperPage } from './PaperPreview';
 
 const generateId = (prefix: string) => {
     return `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
@@ -79,6 +76,20 @@ export interface Paper {
   totalMarks: number;
   questions: Question[];
   notes?: string;
+}
+
+export interface PaperSettings {
+  margins: { top: number; bottom: number; left: number; right: number; };
+  width: number;
+  height: number;
+  fontSize: number;
+  lineHeight: number;
+}
+
+export type PageContent = {
+    mainQuestion: Question;
+    subQuestions: Question[];
+    showMainContent: boolean;
 }
 
 const initialPaperData: Paper = {
@@ -197,195 +208,6 @@ export default function EditorPage() {
     const event = new Event('input', { bubbles: true });
     element.dispatchEvent(event);
   };
-
-  const generatePdf = async () => {
-    if (!paper || bookletPages.length === 0) return;
-    
-    const a4Width = 842; 
-    const a4Height = 595;
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'pt',
-      format: 'a4',
-    });
-
-    const addImageToPdf = async (canvasDataUrl: string | null, x: number) => {
-        if (!canvasDataUrl) return;
-        await new Promise<void>((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-            try {
-                const a4HalfWidth = a4Width / 2;
-                const a4HalfHeight = a4Height;
-        
-                const scale = Math.min(a4HalfWidth / img.naturalWidth, a4HalfHeight / img.naturalHeight);
-                const drawWidth = img.naturalWidth * scale;
-                const drawHeight = img.naturalHeight * scale;
-        
-                const drawX = x + (a4HalfWidth - drawWidth) / 2;
-                const drawY = (a4HalfHeight - drawHeight) / 2;
-        
-                pdf.addImage(img, 'PNG', drawX, drawY, drawWidth, drawHeight);
-                resolve();
-            } catch (e) {
-                reject(e);
-            }
-            };
-            img.onerror = (e) => reject(e);
-            img.src = canvasDataUrl;
-        });
-    };
-
-    for (let i = 0; i < bookletPages.length; i++) {
-        if (i > 0) {
-            pdf.addPage();
-        }
-        const bookletPage = bookletPages[i];
-        await addImageToPdf(bookletPage.left, 0);
-        await addImageToPdf(bookletPage.right, a4Width / 2);
-    }
-    
-    pdf.save('question-paper-booklet.pdf');
-    setIsDownloading(false);
-    setBookletPages([]);
-  };
-
-  const preparePdfDownload = async () => {
-    if (!paper || pages.length === 0) return;
-    
-    setIsDownloading(true);
-    setBookletPages([]);
-
-    const captureNode = async (pageIndex: number | null): Promise<string | null> => {
-        if (pageIndex === null || !paper) return null;
-        const pageContent = pages[pageIndex];
-        if (!pageContent) return null;
-    
-        const mmToPx = (mm: number) => mm * 3.7795275591;
-        const printCSS = `
-            * { box-sizing: border-box; }
-            html, body { margin: 0; padding: 0; }
-            .pdf-render-root {
-            width: ${settings.width}px;
-            min-height: ${settings.height}px;
-            font-family: "PT Sans", "Noto Sans Bengali", Arial, sans-serif;
-            font-size: ${settings.fontSize}pt;
-            line-height: ${settings.lineHeight};
-            margin: 0;
-            padding: ${mmToPx(settings.margins.top)}px ${mmToPx(settings.margins.right)}px ${mmToPx(settings.margins.bottom)}px ${mmToPx(settings.margins.left)}px;
-            background: #fff;
-            color: #000;
-            }
-            .pdf-render-root p { margin: 0 0 4px 0; }
-            .pdf-render-root h1,h2,h3 { margin: 0 0 6px 0; }
-            .pdf-render-root ul, .pdf-render-root ol { margin: 0 0 6px 1.2em; padding: 0; }
-            .pdf-render-root textarea, .pdf-render-root input { font-family: inherit; font-size: inherit; }
-        `;
-    
-        const pageContainer = document.createElement('div');
-        pageContainer.style.position = 'absolute';
-        pageContainer.style.left = '-9999px';
-        pageContainer.style.top = '0';
-        document.body.appendChild(pageContainer);
-    
-        let root = null as any;
-        try {
-            const styleEl = document.createElement('style');
-            styleEl.textContent = printCSS;
-            pageContainer.appendChild(styleEl);
-    
-            const wrapper = document.createElement('div');
-            wrapper.className = 'pdf-render-root';
-            pageContainer.appendChild(wrapper);
-    
-            const nodeToRender = (
-            <PaperPage
-                paper={paper}
-                pageContent={pageContent}
-                isFirstPage={pageIndex === 0}
-                settings={settings}
-                allQuestions={paper.questions}
-            />
-            );
-    
-            root = createRoot(wrapper);
-            root.render(nodeToRender);
-    
-            if ((document as any).fonts && (document as any).fonts.ready) {
-                try { await (document as any).fonts.ready; } catch(e) { /* ignore */ }
-            }
-    
-            const imgs = wrapper.querySelectorAll('img');
-            if (imgs.length > 0) {
-            await Promise.all(Array.from(imgs).map((img) => {
-                const i = img as HTMLImageElement;
-                if (i.complete) return Promise.resolve();
-                return new Promise<void>(res => { i.onload = i.onerror = () => res(); });
-            }));
-            }
-            
-            await new Promise(r => setTimeout(r, 50));
-    
-            const canvas = await html2canvas(wrapper as HTMLElement, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: false,
-                backgroundColor: '#fff',
-            });
-    
-            return canvas.toDataURL('image/png');
-        } catch (err) {
-            console.error('captureNode error:', err);
-            setIsDownloading(false);
-            return null;
-        } finally {
-            try {
-                if (root) root.unmount();
-            } catch (_) {}
-            if (pageContainer.parentNode) pageContainer.parentNode.removeChild(pageContainer);
-        }
-    };
-  
-    let n = pages.length;
-    const paddedPageIndices: (number | null)[] = [...Array(n).keys()];
-    while (paddedPageIndices.length % 4 !== 0 && paddedPageIndices.length > 0) {
-      paddedPageIndices.push(null);
-    }
-    n = paddedPageIndices.length;
-  
-    const bookletOrderIndices: (number | null)[] = [];
-    if (n > 0) {
-      for (let i = 0; i < n / 2; i++) {
-        if (i % 2 === 0) {
-          bookletOrderIndices.push(paddedPageIndices[n - 1 - i]);
-          bookletOrderIndices.push(paddedPageIndices[i]);
-        } else {
-          bookletOrderIndices.push(paddedPageIndices[i]);
-          bookletOrderIndices.push(paddedPageIndices[n - 1 - i]);
-        }
-      }
-    }
-  
-    try {
-        const finalBookletPages = [];
-        for (let i = 0; i < bookletOrderIndices.length; i += 2) {
-          const leftPageIndex = bookletOrderIndices[i];
-          const rightPageIndex = bookletOrderIndices[i + 1];
-      
-          const [leftCanvasUrl, rightCanvasUrl] = await Promise.all([
-              captureNode(leftPageIndex),
-              captureNode(rightPageIndex),
-          ]);
-          
-          finalBookletPages.push({ left: leftCanvasUrl, right: rightCanvasUrl });
-        }
-        setBookletPages(finalBookletPages);
-    } catch(e) {
-        console.error("Failed to prepare PDF download", e);
-        setIsDownloading(false);
-    }
-  };
-
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
     setPaper(prev => produce(prev, draft => {
@@ -892,205 +714,195 @@ export default function EditorPage() {
 
   useLayoutEffect(() => {
     if (!paper) return;
-  
+
     // mm -> px (96dpi)
     const mmToPx = (mm: number) => mm * 3.7795275591;
-  
+
     // choose the selector that identifies each question block in the rendered PaperPage
     const QUESTION_SELECTOR = '[data-question-id]';
-  
+
     let cancelled = false;
-  
+
     const calculatePages = async () => {
-      if (!hiddenRenderRef.current) {
-        setPages([]);
-        return;
-      }
-  
-      // clean any previous content
-      hiddenRenderRef.current.innerHTML = '';
-  
-      // create a temporary container to render the full continuous page
-      const tempRenderContainer = document.createElement('div');
-      // ensure same width as preview rendering to match measurements
-      tempRenderContainer.style.width = `${settings.width}px`;
-      tempRenderContainer.style.boxSizing = 'border-box';
-      hiddenRenderRef.current.appendChild(tempRenderContainer);
-      const root = createRoot(tempRenderContainer);
-  
-      // Render entire paper into the temp container (single long flow)
-      root.render(
-        <PaperPage
-          paper={paper}
-          pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
-          isFirstPage={true}
-          settings={settings}
-          allQuestions={paper.questions}
-        />
-      );
-  
-      try {
-        // wait for webfonts/images to finish loading (more reliable than a fixed delay)
-        if ((document as any).fonts && (document as any).fonts.ready) {
-          try { await (document as any).fonts.ready; } catch (e) { /* ignore */ }
+        if (!hiddenRenderRef.current) {
+            setPages([]);
+            return;
         }
-  
-        // wait for images inside container to load
-        const imgs = tempRenderContainer.querySelectorAll('img');
-        if (imgs.length) {
-          await Promise.all(Array.from(imgs).map(img => {
-            const im = img as HTMLImageElement;
-            return im.complete ? Promise.resolve() : new Promise<void>(res => { im.onload = im.onerror = () => res(); });
-          }));
-        }
-  
-        // small stabilization pause so layout settles (safe but tiny)
-        await new Promise(r => setTimeout(r, 30));
-  
-        if (cancelled) return;
-  
-        // PAGE geometry (px). Convert margins from mm to px and subtract from height:
-        const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom));
-        const pageInnerWidth = settings.width - (mmToPx(settings.margins.left) + mmToPx(settings.margins.right));
-  
-        // get the rendered paper page root inside the temp container
-        const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
-        if (!renderedPaperPage) {
-          root.unmount();
-          if (hiddenRenderRef.current?.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
-          return;
-        }
-  
-        // We'll walk question blocks and split at child DOM-element level.
-        const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>(QUESTION_SELECTOR));
-  
-        const newPages: PageContent[][] = [];
-        let currentPageContent: PageContent[] = [];
-        let usedHeight = 0;
-        let isFirstPage = true;
-  
-        // Helper to push current page and reset
-        const flushPage = () => {
-          if (currentPageContent.length > 0) {
-            newPages.push(currentPageContent);
-          } else {
-            // Ensure at least an empty page exists if nothing fit (edge-case)
-            newPages.push([]);
-          }
-          currentPageContent = [];
-          usedHeight = 0;
-          isFirstPage = false;
-        };
-  
-        // compute header height once (top info area that shows on first page)
-        let headerHeight = 0;
-        const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
-        if (headerEl) {
-            const st = window.getComputedStyle(headerEl);
-            headerHeight = headerEl.offsetHeight + (parseFloat(st.marginTop || '0') || 0) + (parseFloat(st.marginBottom || '0') || 0);
-        }
-        
-        const topInfoElements = renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold');
-        topInfoElements.forEach(el => {
-            const st = window.getComputedStyle(el);
-            headerHeight += el.offsetHeight + (parseFloat(st.marginTop || '0') || 0) + (parseFloat(st.marginBottom || '0') || 0);
-        });
-  
-        if (isFirstPage) {
-          usedHeight += headerHeight;
-        }
-  
-        // iterate questions
-        for (const questionEl of allQuestionElements) {
-          if (cancelled) break;
-          const qId = questionEl.getAttribute('data-question-id') || '';
-          const questionObj = paper.questions.find(q => q.id === qId);
-          if (!questionObj) continue;
-  
-          // We treat the question block as a wrapper that contains several child elements:
-          // e.g. [stem node] [sub1 node] [sub2 node] ...
-          // We'll iterate child elements and pack them into pages dynamically.
-          const childEls = Array.from(questionEl.children) as HTMLElement[];
-  
-          // If there are no children (rare), fallback to treating the whole question element as a single child
-          const chunks = childEls.length ? childEls : [questionEl];
-  
-          let firstChildOfQuestion = true; // to show main stem only once
-          for (const chunkEl of chunks) {
-            // measure chunk including its margins
-            const cs = window.getComputedStyle(chunkEl);
-            const chunkHeight = chunkEl.offsetHeight + (parseFloat(cs.marginTop || '0') || 0) + (parseFloat(cs.marginBottom || '0') || 0);
-  
-            const available = (usedHeight === 0 ? pageInnerHeight : pageInnerHeight - usedHeight);
-  
-            // If chunk fits in remaining space, append it
-            if (chunkHeight <= available) {
-                let existingPageItem = currentPageContent.find(item => item.mainQuestion.id === qId);
 
-                if (chunkEl.hasAttribute('data-subquestion-id')) {
-                    const subId = chunkEl.getAttribute('data-subquestion-id');
-                    const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
-                    if (subQuestionObj) {
-                        if (existingPageItem) {
-                           if (!existingPageItem.subQuestions.some(sq => sq.id === subId)) {
-                                existingPageItem.subQuestions.push(subQuestionObj);
-                           }
-                        } else {
-                            existingPageItem = { mainQuestion: questionObj, subQuestions: [subQuestionObj], showMainContent: false };
-                            currentPageContent.push(existingPageItem);
-                        }
-                    }
-                } else if (!existingPageItem) {
-                    existingPageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
-                    currentPageContent.push(existingPageItem);
-                }
-              
-              usedHeight += chunkHeight;
+        // clean any previous content
+        hiddenRenderRef.current.innerHTML = '';
 
-            } else {
-              // chunk doesn't fit into current page.
-              // Start a new page and put the chunk there.
-              flushPage();
-  
-              if (chunkEl.hasAttribute('data-subquestion-id')) {
-                  const subId = chunkEl.getAttribute('data-subquestion-id');
-                  const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
-                  if (subQuestionObj) {
-                      const newPageItem = { mainQuestion: questionObj, subQuestions: [subQuestionObj], showMainContent: false };
-                      currentPageContent.push(newPageItem);
-                  }
-              } else {
-                  // This is likely the main content/stem
-                  const newPageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
-                  currentPageContent.push(newPageItem);
-              }
+        // create a temporary container to render the full continuous page
+        const tempRenderContainer = document.createElement('div');
+        // ensure same width as preview rendering to match measurements
+        tempRenderContainer.style.width = `${settings.width}px`;
+        tempRenderContainer.style.boxSizing = 'border-box';
+        hiddenRenderRef.current.appendChild(tempRenderContainer);
+        const root = createRoot(tempRenderContainer);
 
-              usedHeight = chunkHeight;
+        // Render entire paper into the temp container (single long flow)
+        root.render(
+            <PaperPage
+                paper={paper}
+                pageContent={paper.questions.map(q => ({ mainQuestion: q, subQuestions: q.subQuestions || [], showMainContent: true }))}
+                isFirstPage={true}
+                settings={settings}
+                allQuestions={paper.questions}
+            />
+        );
+
+        try {
+            // wait for webfonts/images to finish loading (more reliable than a fixed delay)
+            if ((document as any).fonts && (document as any).fonts.ready) {
+                try { await (document as any).fonts.ready; } catch (e) { /* ignore */ }
             }
-          } // end chunk loop
-        } // end question loop
-  
-        // push last page
-        if (currentPageContent.length > 0) newPages.push(currentPageContent);
-  
-        if (!cancelled) setPages(newPages);
-  
-      } catch (err) {
-        console.error('Error while calculating pages', err);
-      } finally {
-        // cleanup
-        try { root.unmount(); } catch (e) { /* ignore */ }
-        if (hiddenRenderRef.current?.contains(tempRenderContainer)) {
-          hiddenRenderRef.current.removeChild(tempRenderContainer);
+
+            // wait for images inside container to load
+            const imgs = tempRenderContainer.querySelectorAll('img');
+            if (imgs.length) {
+                await Promise.all(Array.from(imgs).map(img => {
+                    const im = img as HTMLImageElement;
+                    return im.complete ? Promise.resolve() : new Promise<void>(res => { im.onload = im.onerror = () => res(); });
+                }));
+            }
+
+            // small stabilization pause so layout settles (safe but tiny)
+            await new Promise(r => setTimeout(r, 30));
+
+            if (cancelled) return;
+
+            // PAGE geometry (px). Convert margins from mm to px and subtract from height:
+            const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom));
+            
+            // get the rendered paper page root inside the temp container
+            const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
+            if (!renderedPaperPage) {
+                root.unmount();
+                if (hiddenRenderRef.current?.contains(tempRenderContainer)) hiddenRenderRef.current.removeChild(tempRenderContainer);
+                return;
+            }
+
+            const allQuestionElements = Array.from(renderedPaperPage.querySelectorAll<HTMLElement>(QUESTION_SELECTOR));
+
+            const newPages: PageContent[][] = [];
+            let currentPageContent: PageContent[] = [];
+            let usedHeight = 0;
+            let isFirstPage = true;
+
+            const flushPage = () => {
+                if (currentPageContent.length > 0) {
+                    newPages.push(currentPageContent);
+                }
+                currentPageContent = [];
+                usedHeight = 0;
+                isFirstPage = false;
+            };
+
+            let headerHeight = 0;
+            if (isFirstPage) {
+                const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
+                if (headerEl) {
+                    const st = window.getComputedStyle(headerEl);
+                    headerHeight = headerEl.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
+                }
+                
+                const topInfoElements = renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold');
+                topInfoElements.forEach(el => {
+                    const st = window.getComputedStyle(el);
+                    headerHeight += el.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
+                });
+                
+                usedHeight += headerHeight;
+            }
+
+            for (const questionEl of allQuestionElements) {
+                if (cancelled) break;
+                const qId = questionEl.getAttribute('data-question-id');
+                const questionObj = paper.questions.find(q => q.id === qId);
+                if (!questionObj) continue;
+
+                const chunks = Array.from(questionEl.children) as HTMLElement[];
+                
+                const mainContentEl = chunks.find(c => c.classList.contains('question-content'));
+                const subQuestionsContainer = chunks.find(c => c.querySelector('.subquestion-item'));
+                
+                let subQuestionEls: HTMLElement[] = [];
+                if(subQuestionsContainer) {
+                    subQuestionEls = Array.from(subQuestionsContainer.querySelectorAll('.subquestion-item'));
+                } else if(questionEl.classList.contains('subquestion-item')) {
+                    // This element itself is a sub-question rendered standalone (not possible with current render logic but defensive)
+                    subQuestionEls = [questionEl];
+                }
+
+                // Measure main content/stem
+                if (mainContentEl) {
+                    const cs = window.getComputedStyle(mainContentEl);
+                    const mainHeight = mainContentEl.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+
+                    if (usedHeight + mainHeight > pageInnerHeight && usedHeight > (isFirstPage ? headerHeight : 0)) {
+                        flushPage();
+                        usedHeight += isFirstPage ? headerHeight : 0;
+                    }
+                    
+                    let existingItem = currentPageContent.find(item => item.mainQuestion.id === qId);
+                    if (!existingItem) {
+                        currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
+                    } else {
+                        existingItem.showMainContent = true;
+                    }
+                    usedHeight += mainHeight;
+                }
+
+                // Measure sub-questions one by one
+                for (const subEl of subQuestionEls) {
+                    if(cancelled) break;
+                    const subId = subEl.getAttribute('data-subquestion-id');
+                    const subQuestionObj = questionObj.subQuestions?.find(sq => sq.id === subId);
+                    if (!subQuestionObj) continue;
+
+                    const cs = window.getComputedStyle(subEl);
+                    const subHeight = subEl.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+
+                    if (usedHeight + subHeight > pageInnerHeight) {
+                        flushPage();
+                         usedHeight += isFirstPage ? headerHeight : 0;
+                    }
+
+                    let existingItem = currentPageContent.find(item => item.mainQuestion.id === qId);
+                    if (!existingItem) {
+                        // This case happens when sub-questions flow to a new page
+                        existingItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: false };
+                        currentPageContent.push(existingItem);
+                    }
+                    existingItem.subQuestions.push(subQuestionObj);
+                    usedHeight += subHeight;
+                }
+            }
+
+            if (currentPageContent.length > 0) {
+                newPages.push(currentPageContent);
+            }
+
+            if (!cancelled) {
+                setPages(newPages);
+            }
+
+        } catch (err) {
+            console.error('Error while calculating pages', err);
+        } finally {
+            try { root.unmount(); } catch (e) {}
+            if (hiddenRenderRef.current?.contains(tempRenderContainer)) {
+                hiddenRenderRef.current.removeChild(tempRenderContainer);
+            }
         }
-      }
     };
-  
+
     calculatePages();
-  
-    return () => { cancelled = true; };
-  
-  }, [paper, settings]);
+
+    return () => {
+        cancelled = true;
+    };
+}, [paper, settings]);
   
   if (!paper) {
       return (
@@ -1105,123 +917,17 @@ export default function EditorPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-slate-900 px-4 sm:px-6">
-        <div className="flex items-center gap-3 text-white">
-          <FileText className="size-6"/>
-          <h1 className="text-lg font-semibold">Question Paper Editor</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
-            <Save className="mr-2 size-4" /> Save & Exit
-          </Button>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Settings className="mr-2 size-4" /> Paper Settings</Button>
-            </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700 text-white">
-              <DialogHeader>
-                <DialogTitle>Paper Settings</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-6 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Font Size: {settings.fontSize}pt</Label>
-                    <Slider
-                      value={[settings.fontSize]}
-                      onValueChange={(value) => setSettings(s => ({...s, fontSize: value[0]}))}
-                      min={8} max={18} step={1}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Line Spacing: {settings.lineHeight.toFixed(1)}</Label>
-                    <Slider
-                      value={[settings.lineHeight]}
-                      onValueChange={(value) => setSettings(s => ({...s, lineHeight: value[0]}))}
-                      min={1.0} max={2.5} step={0.1}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                  <div className="space-y-1">
-                    <Label htmlFor="page-width" className="text-xs">Width (px)</Label>
-                    <Input id="page-width" type="number" value={settings.width} onChange={e => setSettings(s => ({...s, width: parseInt(e.target.value) || 0}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="page-height" className="text-xs">Height (px)</Label>
-                    <Input id="page-height" type="number" value={settings.height} onChange={e => setSettings(s => ({...s, height: parseInt(e.target.value) || 0}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="margin-top" className="text-xs">Top (mm)</Label>
-                    <Input id="margin-top" type="number" value={settings.margins.top} onChange={e => setSettings(s => ({...s, margins: {...s.margins, top: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="margin-bottom" className="text-xs">Bottom (mm)</Label>
-                    <Input id="margin-bottom" type="number" value={settings.margins.bottom} onChange={e => setSettings(s => ({...s, margins: {...s.margins, bottom: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="margin-left" className="text-xs">Left (mm)</Label>
-                    <Input id="margin-left" type="number" value={settings.margins.left} onChange={e => setSettings(s => ({...s, margins: {...s.margins, left: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="margin-right" className="text-xs">Right (mm)</Label>
-                    <Input id="margin-right" type="number" value={settings.margins.right} onChange={e => setSettings(s => ({...s, margins: {...s.margins, right: parseInt(e.target.value) || 0}}))} className="h-9 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-gray-400 border-slate-300 dark:border-slate-600 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:ring-2"/>
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Eye className="mr-2 size-4" /> Preview</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl h-[90vh] flex flex-col bg-slate-800 border-slate-700 text-white">
-              <DialogHeader>
-                <DialogTitle>Question Paper Preview</DialogTitle>
-              </DialogHeader>
-              <div className="flex-1 overflow-auto bg-gray-100 p-4">
-                <PaperPreview 
-                  paper={paper} 
-                  pages={pages}
-                  settings={settings}
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isDownloading} onOpenChange={(open) => { if(!open) { setBookletPages([]); setIsDownloading(false); }}}>
-            <DialogTrigger asChild>
-              <Button onClick={preparePdfDownload} className="bg-primary hover:bg-primary/90 text-primary-foreground"><Download className="mr-2 size-4" /> Download</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-5xl bg-slate-800 border-slate-700 text-white">
-              <DialogHeader>
-                <DialogTitle>Booklet Download Preview</DialogTitle>
-              </DialogHeader>
-              <div className="my-4 overflow-x-auto">
-                {bookletPages.length > 0 ? (
-                  <div className="flex gap-4 p-4 bg-gray-200">
-                    {bookletPages.map((page, index) => (
-                      <div key={index} className="flex-shrink-0 bg-white shadow-lg flex" style={{width: '842px', height: '595px'}}>
-                        <div className="w-1/2 h-full border-r border-gray-300">
-                          {page.left && <img src={page.left} alt={`Page ${index} Left`} className="w-full h-full object-contain" />}
-                        </div>
-                        <div className="w-1/2 h-full">
-                          {page.right && <img src={page.right} alt={`Page ${index} Right`} className="w-full h-full object-contain" />}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-64">
-                    <p>Generating PDF preview...</p>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button onClick={generatePdf} disabled={bookletPages.length === 0}>Confirm and Download PDF</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </header>
+      <EditorHeader 
+        paper={paper}
+        settings={settings}
+        setSettings={setSettings}
+        pages={pages}
+        handleSaveAndExit={handleSaveAndExit}
+        isDownloading={isDownloading}
+        setIsDownloading={setIsDownloading}
+        bookletPages={bookletPages}
+        setBookletPages={setBookletPages}
+      />
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
         <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900 gradient-scrollbar">
           <div className="max-w-4xl mx-auto">
