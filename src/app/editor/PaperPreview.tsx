@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -119,14 +118,13 @@ export const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageCo
     
     const pageStyle: React.CSSProperties = {
         width: `${settings.width}px`,
-        height: `${settings.height}px`,
+        minHeight: `${settings.height}px`,
         paddingTop: `${settings.margins.top}mm`,
         paddingBottom: `${settings.margins.bottom}mm`,
         paddingLeft: `${settings.margins.left}mm`,
         paddingRight: `${settings.margins.right}mm`,
         fontSize: `${settings.fontSize}pt`,
         lineHeight: settings.lineHeight,
-        overflow: 'hidden',
         boxSizing: 'border-box'
     };
 
@@ -193,22 +191,30 @@ export default function PaperPreview({ paper, pages, settings }: PaperPreviewPro
         return <p>Loading preview...</p>;
     }
 
+    const pageStyle = {
+      width: `${settings.width}px`,
+      height: `${settings.height}px`,
+      overflow: 'hidden'
+    };
+
   return (
     <>
         <div className="space-y-4">
-            {pages.length > 0 ? (
-                pages[currentPage] ? (
-                    <PaperPage 
-                        paper={paper} 
-                        pageContent={pages[currentPage]} 
-                        isFirstPage={currentPage === 0} 
-                        settings={settings} 
-                        allQuestions={paper.questions}
-                    />
-                ) : <div className="bg-white" style={{width: `${settings.width}px`, height: `${settings.height}px`}}><p className="p-4 text-center">Page {currentPage + 1} is empty or invalid.</p></div>
-            ) : (
-                <PaperPage paper={paper} pageContent={[]} isFirstPage={true} settings={settings} allQuestions={paper.questions} />
-            )}
+            <div style={pageStyle} className="mx-auto">
+              {pages.length > 0 ? (
+                  pages[currentPage] ? (
+                      <PaperPage 
+                          paper={paper} 
+                          pageContent={pages[currentPage]} 
+                          isFirstPage={currentPage === 0} 
+                          settings={settings} 
+                          allQuestions={paper.questions}
+                      />
+                  ) : <div className="bg-white" style={{width: `${settings.width}px`, height: `${settings.height}px`}}><p className="p-4 text-center">Page {currentPage + 1} is empty or invalid.</p></div>
+              ) : (
+                  <PaperPage paper={paper} pageContent={[]} isFirstPage={true} settings={settings} allQuestions={paper.questions} />
+              )}
+            </div>
         </div>
         
         {pages.length > 1 && (
@@ -225,5 +231,3 @@ export default function PaperPreview({ paper, pages, settings }: PaperPreviewPro
     </>
   );
 }
-
-    

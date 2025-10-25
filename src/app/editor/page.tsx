@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -256,12 +255,12 @@ export default function EditorPage() {
     setIsDownloading(true);
     setBookletPages([]);
 
+    const mmToPx = (mm: number) => mm * 3.7795275591;
+
     const captureNode = async (pageIndex: number | null): Promise<string | null> => {
         if (pageIndex === null || !paper) return null;
         const pageContent = pages[pageIndex];
         if (!pageContent) return null;
-    
-        const mmToPx = (mm: number) => mm * 3.7795275591;
     
         const printCSS = `
             * { box-sizing: border-box; }
@@ -337,6 +336,7 @@ export default function EditorPage() {
             return canvas.toDataURL('image/png');
         } catch (err) {
             console.error('captureNode error:', err);
+            setIsDownloading(false);
             return null;
         } finally {
             try {
@@ -974,20 +974,24 @@ export default function EditorPage() {
                 const questionObj = paper.questions.find(q => q.id === qId);
                 if (!qId || !questionObj) continue;
 
-                let questionContentProcessed = false;
                 const contentEl = questionEl.querySelector<HTMLElement>('.question-content');
+                
                 if (contentEl) {
                     const contentHeight = contentEl.offsetHeight + parseFloat(window.getComputedStyle(contentEl).marginBottom || '0');
-                    if (usedHeight + contentHeight > pageInnerHeight && usedHeight > 0) {
+                    if (usedHeight > 0 && usedHeight + contentHeight > pageInnerHeight) {
                         flushPage();
+                        if (isFirstPage) usedHeight = 0;
                     }
                     
-                    const existingItem = currentPageContent.find(item => item.mainQuestion.id === qId && item.showMainContent);
-                    if (!existingItem) {
-                       currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
+                    let pageItem = currentPageContent.find(item => item.mainQuestion.id === qId);
+                    if (!pageItem) {
+                       pageItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
+                       currentPageContent.push(pageItem);
+                    } else {
+                       pageItem.showMainContent = true;
                     }
+
                     usedHeight += contentHeight;
-                    questionContentProcessed = true;
                 }
 
                 const subQuestionElements = Array.from(questionEl.querySelectorAll<HTMLElement>('.subquestion-item'));
@@ -998,7 +1002,7 @@ export default function EditorPage() {
 
                     const subHeight = subQuestionEl.offsetHeight + parseFloat(window.getComputedStyle(subQuestionEl).marginTop || '0');
                     
-                    if (usedHeight + subHeight > pageInnerHeight && usedHeight > 0) {
+                    if (usedHeight > 0 && usedHeight + subHeight > pageInnerHeight) {
                         flushPage();
                         if (isFirstPage) usedHeight = 0;
                     }
@@ -1271,7 +1275,3 @@ export default function EditorPage() {
     </>
   );
 }
-
-    
-
-    
