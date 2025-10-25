@@ -196,34 +196,50 @@ export default function EditorPage() {
 
   const handleInsertExpression = (expression: string) => {
     if (!focusedInput) return;
-
+  
     const { element } = focusedInput;
-    
+  
     if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-        const { selectionStart, selectionEnd } = element;
-        const currentValue = element.value;
-        const newValue = currentValue.substring(0, selectionStart ?? 0) + expression + currentValue.substring(selectionEnd ?? 0);
-        element.value = newValue;
-        element.focus();
-        element.setSelectionRange((selectionStart ?? 0) + expression.length, (selectionStart ?? 0) + expression.length);
-        const event = new Event('input', { bubbles: true });
-        element.dispatchEvent(event);
-
+      const { selectionStart, selectionEnd } = element;
+      const currentValue = element.value;
+      const newValue =
+        currentValue.substring(0, selectionStart ?? 0) +
+        expression +
+        currentValue.substring(selectionEnd ?? 0);
+      element.value = newValue;
+      element.focus();
+      element.setSelectionRange(
+        (selectionStart ?? 0) + expression.length,
+        (selectionStart ?? 0) + expression.length
+      );
+      const event = new Event('input', { bubbles: true });
+      element.dispatchEvent(event);
     } else if (element.isContentEditable) {
-        element.focus();
-        const selection = window.getSelection();
-        const range = selection?.getRangeAt(0);
+      element.focus();
+      const selection = window.getSelection();
+      
+      // Check if a selection range exists. If not, the input probably lost focus.
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
         if (range) {
-            range.deleteContents();
-            const textNode = document.createTextNode(expression);
-            range.insertNode(textNode);
-            range.setStartAfter(textNode);
-            range.setEndAfter(textNode);
-            selection?.removeAllRanges();
-            selection?.addRange(range);
+          range.deleteContents();
+          const textNode = document.createTextNode(expression);
+          range.insertNode(textNode);
+  
+          // Move cursor after the inserted text
+          range.setStartAfter(textNode);
+          range.setEndAfter(textNode);
+          selection.removeAllRanges();
+          selection.addRange(range);
         }
-        const event = new Event('input', { bubbles: true });
-        element.dispatchEvent(event);
+      } else {
+        // Fallback: If no selection, append to the end
+        element.innerHTML += expression;
+      }
+  
+      // Dispatch an input event to trigger any listeners (like onBlur saving)
+      const event = new Event('input', { bubbles: true });
+      element.dispatchEvent(event);
     }
   };
 
@@ -571,14 +587,15 @@ export default function EditorPage() {
     const ref = useRef<HTMLDivElement>(null);
   
     useEffect(() => {
-        if (ref.current && ref.current.innerHTML !== content) {
-            // Only update if content is different to avoid cursor jumps
-            // This is a simplification; a more robust solution might be needed
-            // for complex scenarios to avoid re-rendering while typing.
+        if (ref.current) {
             const selection = window.getSelection();
             const isFocused = selection && selection.anchorNode && ref.current.contains(selection.anchorNode);
-            if(!isFocused) {
-              ref.current.innerHTML = content;
+            
+            // Only update the content if the element is not focused,
+            // or if the content is drastically different (e.g., from an external update).
+            // A simple innerText check is usually sufficient to prevent cursor jumps while typing.
+            if(!isFocused || ref.current.innerText !== content) {
+              ref.current.innerHTML = parseMath(content) as unknown as string;
             }
         }
     }, [content]);
@@ -591,7 +608,7 @@ export default function EditorPage() {
         onFocus={onFocusHandler}
         onBlur={(e) => onBlurHandler(e.currentTarget.innerText)}
         className="bg-white dark:bg-slate-800 font-semibold p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] w-full"
-        dangerouslySetInnerHTML={{ __html: content }}
+        dangerouslySetInnerHTML={{ __html: parseMath(content) as unknown as string }}
       />
     );
   };
@@ -1004,7 +1021,7 @@ export default function EditorPage() {
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
         <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 gradient-scrollbar">
           <div className="space-y-8">
-              <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg">
+              <div className="bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg">
                   <div className="space-y-4">
                       <div className="space-y-1">
                           <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400 px-1">School Name</Label>
@@ -1115,3 +1132,5 @@ export default function EditorPage() {
 }
 
   
+
+    
