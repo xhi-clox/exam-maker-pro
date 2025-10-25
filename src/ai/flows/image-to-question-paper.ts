@@ -63,9 +63,10 @@ You must interpret the content and structure it into a valid JSON object that ma
 Key Instructions:
 1.  **Analyze and Structure**: Carefully analyze the image to identify all questions, passages (উদ্দীপক), section headers (e.g., ক-বিভাগ), and instructions. Infer the structure. A 'creative' question or a 'passage' will have a main 'content' body and its associated questions should be listed in the 'subQuestions' array.
 2.  **Identify Question Types**: Determine the type for each item. Use 'section-header' for section titles (e.g., ক-বিভাগ). Use 'creative' for a main passage followed by sub-questions (like ক, খ, গ, ঘ). Use 'passage' for other stimulus texts. Use 'mcq' for multiple choice, 'short' for short answers, and 'essay' for long answers.
-3.  **Extract Details**: Extract the question content and marks. For creative questions, the total marks might be on the main question, but individual marks MUST be on each sub-question.
-4.  **MANDATORY: Generate Unique IDs**: You MUST create a unique 'id' for every single question, sub-question, and option. Use a prefix and a number (e.g., 'q1', 'sq1a', 'opt1a1'). IDs must be unique across the entire JSON object.
-5.  **Language**: The content is likely in Bengali. Ensure your output maintains the correct language and characters.
+3.  **Handle Mathematics with LaTeX**: If you identify any mathematical expressions (fractions, exponents, roots, symbols, etc.), you MUST enclose them in LaTeX delimiters. Use single dollar signs ($...$) for inline math and double dollar signs ($$....$$) for block/display math. For example, 'x squared plus y squared equals z squared' should be written as '$x^2 + y^2 = z^2$'. A fraction 'a over b' should be '$\\frac{a}{b}$'.
+4.  **Extract Details**: Extract the question content and marks. For creative questions, the total marks might be on the main question, but individual marks MUST be on each sub-question.
+5.  **MANDATORY: Generate Unique IDs**: You MUST create a unique 'id' for every single question, sub-question, and option. Use a prefix and a number (e.g., 'q1', 'sq1a', 'opt1a1'). IDs must be unique across the entire JSON object.
+6.  **Language**: The content is likely in Bengali. Ensure your output maintains the correct language and characters.
 
 Image: {{media url=photoDataUri}}
 
