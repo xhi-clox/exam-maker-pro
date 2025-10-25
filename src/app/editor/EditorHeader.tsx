@@ -233,11 +233,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-slate-900 px-4 sm:px-6">
-      <div className="flex items-center gap-3 text-white">
-        <FileText className="size-6"/>
-        <h1 className="text-lg font-semibold">Question Paper Editor</h1>
-      </div>
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-end gap-4 border-b bg-slate-900 px-4 sm:px-6">
       <div className="flex items-center gap-2">
         <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
           <Save className="mr-2 size-4" /> Save & Exit
@@ -352,5 +348,4 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
     </header>
   );
 };
-
     
