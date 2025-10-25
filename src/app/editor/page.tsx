@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Plus, Type, Pilcrow, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, FileText } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
@@ -204,7 +204,7 @@ export default function EditorPage() {
     const currentValue = element.value;
   
     if (selectionStart === null || selectionEnd === null) {
-      // Fallback for contentEditable or if selection is not available
+      // Fallback if selection is not available
       const newValue = currentValue + expression;
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
         window.HTMLTextAreaElement.prototype,
@@ -1013,9 +1013,9 @@ export default function EditorPage() {
         setBookletPages={setBookletPages}
       />
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
-        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 p-4 md:p-8 gradient-scrollbar">
-          <div className="max-w-4xl mx-auto space-y-8">
-              <div className="bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg rounded-lg">
+        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800">
+          <div className="space-y-8">
+              <div className="bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg">
                   <div className="space-y-4">
                       <div className="space-y-1">
                           <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400 px-1">School Name</Label>
