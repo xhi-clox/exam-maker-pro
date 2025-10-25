@@ -4,181 +4,177 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Send } from 'lucide-react';
-
-// Install these packages:
-// npm install katex react-katex
+import { ChevronDown, ChevronUp, Send, AlertCircle, CheckCircle } from 'lucide-react';
 import 'katex/dist/katex.min.css';
-import { InlineMath, BlockMath } from 'react-katex';
+import { InlineMath } from 'react-katex';
 
 interface MathExpressionsProps {
   onInsert: (expression: string) => void;
 }
 
 interface ExpressionItem {
-  label: string;
-  value: string;
-  latex?: string; // LaTeX representation
+    label: string;
+    value: string;
+    latex?: string; // LaTeX representation
+}
+  
+interface ExpressionCategory {
+    category: string;
+    expressions: ExpressionItem[];
 }
 
-interface ExpressionCategory {
-  category: string;
-  expressions: ExpressionItem[];
-}
+// LaTeX Validator and Fixer
+const validateAndFixLatex = (latex: string): { fixed: string; isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  let fixed = latex;
+  
+  // Common fixes for PDF conversion issues
+  const fixes = [
+    // Fix fraction syntax
+    { 
+      regex: /\\frac\{([^}]+)\}\{([^}]+)\}/g, 
+      replacement: '\\frac{$1}{$2}',
+      error: 'Malformed fraction'
+    },
+    // Fix missing braces in exponents
+    {
+      regex: /\\\^(\d)(?![^{])/g,
+      replacement: '^{$1}',
+      error: 'Missing braces in exponent'
+    },
+    // Fix nested fractions
+    {
+      regex: /\\frac\{([^}]*\\frac\{[^}]*\}[^}]*)\}\{([^}]*)\}/g,
+      replacement: '\\frac{$1}{$2}',
+      error: 'Nested fraction issue'
+    },
+    // Fix root expressions
+    {
+      regex: /\\sqrt\[(\d+)\]\{([^}]+)\}/g,
+      replacement: '\\sqrt[$1]{$2}',
+      error: 'Malformed root'
+    },
+    // Ensure proper grouping with parentheses
+    {
+      regex: /([a-zA-Z])(\d+)/g,
+      replacement: '$1_{$2}',
+      error: 'Missing subscript braces'
+    }
+  ];
+
+  fixes.forEach(fix => {
+    if (fix.regex.test(fixed)) {
+      fixed = fixed.replace(fix.regex, fix.replacement);
+      errors.push(`${fix.error}: Auto-fixed.`);
+    }
+  });
+
+  // Basic syntax validation
+  const openBraces = (fixed.match(/{/g) || []).length;
+  const closeBraces = (fixed.match(/}/g) || []).length;
+  
+  if (openBraces !== closeBraces) {
+    errors.push(`Mismatched braces: ${openBraces} opening vs ${closeBraces} closing`);
+  }
+
+  // Check for common problematic patterns from PDF conversion
+  const pdfIssues = [
+    { pattern: /\\text\{[^}]*\}(?![^{]*\})/, issue: 'Unclosed text command' },
+    { pattern: /\\[a-zA-Z]+\{/, issue: 'Unclosed command' },
+    { pattern: /\\frac[^{]/, issue: 'Malformed fraction command' }
+  ];
+
+  pdfIssues.forEach(({ pattern, issue }) => {
+    if (pattern.test(fixed)) {
+      errors.push(issue);
+    }
+  });
+
+  return {
+    fixed,
+    isValid: errors.length === 0,
+    errors
+  };
+};
 
 const expressionCategories: ExpressionCategory[] = [
-  {
-    category: "Basic Operations",
-    expressions: [
-      { label: "+", value: "+", latex: "+" },
-      { label: "−", value: "-", latex: "-" },
-      { label: "×", value: "\\times", latex: "\\times" },
-      { label: "÷", value: "\\div", latex: "\\div" },
-      { label: "=", value: "=", latex: "=" },
-      { label: "≠", value: "\\neq", latex: "\\neq" },
-      { label: "<", value: "<", latex: "<" },
-      { label: ">", value: ">", latex: ">" },
-      { label: "≤", value: "\\leq", latex: "\\leq" },
-      { label: "≥", value: "\\geq", latex: "\\geq" },
-      { label: "±", value: "\\pm", latex: "\\pm" },
-      { label: "(", value: "(", latex: "(" },
-      { label: ")", value: ")", latex: ")" },
-      { label: "[", value: "[", latex: "[" },
-      { label: "]", value: "]", latex: "]" },
-    ]
-  },
-  {
-    category: "Fractions",
-    expressions: [
-      { label: "Simple Fraction", value: "\\frac{a}{b}", latex: "\\frac{a}{b}" },
-      { label: "½", value: "\\frac{1}{2}", latex: "\\frac{1}{2}" },
-      { label: "⅓", value: "\\frac{1}{3}", latex: "\\frac{1}{3}" },
-      { label: "¼", value: "\\frac{1}{4}", latex: "\\frac{1}{4}" },
-      { label: "⅔", value: "\\frac{2}{3}", latex: "\\frac{2}{3}" },
-      { label: "¾", value: "\\frac{3}{4}", latex: "\\frac{3}{4}" },
-      { label: "Mixed Fraction", value: "\\frac{a+b}{c}", latex: "\\frac{a+b}{c}" },
-    ]
-  },
-  {
-    category: "Algebra & Variables",
-    expressions: [
-      { label: "x", value: "x", latex: "x" },
-      { label: "y", value: "y", latex: "y" },
-      { label: "z", value: "z", latex: "z" },
-      { label: "a", value: "a", latex: "a" },
-      { label: "b", value: "b", latex: "b" },
-      { label: "c", value: "c", latex: "c" },
-      { label: "f(x)", value: "f(x)", latex: "f(x)" },
-    ]
-  },
-  {
-    category: "Powers & Exponents",
-    expressions: [
-      { label: "x²", value: "x^2", latex: "x^2" },
-      { label: "x³", value: "x^3", latex: "x^3" },
-      { label: "xⁿ", value: "x^n", latex: "x^n" },
-      { label: "Square Root", value: "\\sqrt{x}", latex: "\\sqrt{x}" },
-      { label: "Cube Root", value: "\\sqrt[3]{x}", latex: "\\sqrt[3]{x}" },
-      { label: "n-th Root", value: "\\sqrt[n]{x}", latex: "\\sqrt[n]{x}" },
-    ]
-  },
-  {
-    category: "Subscripts & Superscripts",
-    expressions: [
-      { label: "x₁", value: "x_1", latex: "x_1" },
-      { label: "x₂", value: "x_2", latex: "x_2" },
-      { label: "xₙ", value: "x_n", latex: "x_n" },
-      { label: "x¹", value: "x^1", latex: "x^1" },
-      { label: "x²", value: "x^2", latex: "x^2" },
-      { label: "x³", value: "x^3", latex: "x^3" },
-    ]
-  },
-  {
-    category: "Greek Letters",
-    expressions: [
-      { label: "α", value: "\\alpha", latex: "\\alpha" },
-      { label: "β", value: "\\beta", latex: "\\beta" },
-      { label: "γ", value: "\\gamma", latex: "\\gamma" },
-      { label: "δ", value: "\\delta", latex: "\\delta" },
-      { label: "θ", value: "\\theta", latex: "\\theta" },
-      { label: "π", value: "\\pi", latex: "\\pi" },
-      { label: "σ", value: "\\sigma", latex: "\\sigma" },
-      { label: "ω", value: "\\omega", latex: "\\omega" },
-      { label: "Δ", value: "\\Delta", latex: "\\Delta" },
-      { label: "Σ", value: "\\Sigma", latex: "\\Sigma" },
-      { label: "Ω", value: "\\Omega", latex: "\\Omega" },
-    ]
-  },
-  {
-    category: "Calculus",
-    expressions: [
-      { label: "∫", value: "\\int", latex: "\\int" },
-      { label: "d/dx", value: "\\frac{d}{dx}", latex: "\\frac{d}{dx}" },
-      { label: "∂", value: "\\partial", latex: "\\partial" },
-      { label: "∞", value: "\\infty", latex: "\\infty" },
-      { label: "lim", value: "\\lim", latex: "\\lim" },
-      { label: "→", value: "\\to", latex: "\\to" },
-      { label: "∑", value: "\\sum", latex: "\\sum" },
-      { label: "∏", value: "\\prod", latex: "\\prod" },
-    ]
-  },
-  {
-    category: "Geometry",
-    expressions: [
-      { label: "∠", value: "\\angle", latex: "\\angle" },
-      { label: "°", value: "^{\\circ}", latex: "^{\\circ}" },
-      { label: "⊥", value: "\\perp", latex: "\\perp" },
-      { label: "∥", value: "\\parallel", latex: "\\parallel" },
-      { label: "△", value: "\\triangle", latex: "\\triangle" },
-      { label: "≅", value: "\\cong", latex: "\\cong" },
-      { label: "∼", value: "\\sim", latex: "\\sim" },
-    ]
-  },
-  {
-    category: "Set Theory & Logic",
-    expressions: [
-      { label: "∈", value: "\\in", latex: "\\in" },
-      { label: "∉", value: "\\notin", latex: "\\notin" },
-      { label: "⊂", value: "\\subset", latex: "\\subset" },
-      { label: "⊆", value: "\\subseteq", latex: "\\subseteq" },
-      { label: "∪", value: "\\cup", latex: "\\cup" },
-      { label: "∩", value: "\\cap", latex: "\\cap" },
-      { label: "∅", value: "\\emptyset", latex: "\\emptyset" },
-      { label: "ℕ", value: "\\mathbb{N}", latex: "\\mathbb{N}" },
-      { label: "ℤ", value: "\\mathbb{Z}", latex: "\\mathbb{Z}" },
-      { label: "ℚ", value: "\\mathbb{Q}", latex: "\\mathbb{Q}" },
-      { label: "ℝ", value: "\\mathbb{R}", latex: "\\mathbb{R}" },
-      { label: "ℂ", value: "\\mathbb{C}", latex: "\\mathbb{C}" },
-      { label: "∧", value: "\\wedge", latex: "\\wedge" },
-      { label: "∨", value: "\\vee", latex: "\\vee" },
-      { label: "¬", value: "\\neg", latex: "\\neg" },
-      { label: "⇒", value: "\\Rightarrow", latex: "\\Rightarrow" },
-      { label: "⇔", value: "\\Leftrightarrow", latex: "\\Leftrightarrow" },
-      { label: "∀", value: "\\forall", latex: "\\forall" },
-      { label: "∃", value: "\\exists", latex: "\\exists" },
-    ]
-  },
-  {
-    category: "Trigonometry",
-    expressions: [
-      { label: "sin", value: "\\sin", latex: "\\sin" },
-      { label: "cos", value: "\\cos", latex: "\\cos" },
-      { label: "tan", value: "\\tan", latex: "\\tan" },
-      { label: "cot", value: "\\cot", latex: "\\cot" },
-      { label: "sec", value: "\\sec", latex: "\\sec" },
-      { label: "csc", value: "\\csc", latex: "\\csc" },
-      { label: "sin⁻¹", value: "\\sin^{-1}", latex: "\\sin^{-1}" },
-      { label: "cos⁻¹", value: "\\cos^{-1}", latex: "\\cos^{-1}" },
-      { label: "tan⁻¹", value: "\\tan^{-1}", latex: "\\tan^{-1}" },
-    ]
-  },
+    {
+      category: "Basic Operations",
+      expressions: [
+        { label: "+", value: " + ", latex: " + " },
+        { label: "−", value: " - ", latex: " - " },
+        { label: "×", value: " \\times ", latex: " \\times " },
+        { label: "÷", value: " \\div ", latex: " \\div " },
+        { label: "=", value: " = ", latex: " = " },
+        { label: "(", value: "(", latex: "(" },
+        { label: ")", value: ")", latex: ")" },
+        { label: "[", value: "[", latex: "[" },
+        { label: "]", value: "]", latex: "]" },
+      ]
+    },
+    {
+      category: "Fractions & Division",
+      expressions: [
+        { label: "Simple Fraction", value: "\\frac{}{}", latex: "\\frac{a}{b}" },
+        { label: "x/y", value: "\\frac{x}{y}", latex: "\\frac{x}{y}" },
+        { label: "(a+b)/(c+d)", value: "\\frac{a+b}{c+d}", latex: "\\frac{a+b}{c+d}" },
+        { label: "Nested Fraction", value: "\\frac{\\frac{}{}}{}", latex: "\\frac{\\frac{a}{b}}{c}" },
+        { label: "Complex Fraction", value: "\\frac{\\frac{}{}}{\\frac{}{}}", latex: "\\frac{\\frac{a}{b}}{\\frac{c}{d}}" },
+      ]
+    },
+    {
+      category: "Exponents & Powers",
+      expressions: [
+        { label: "x²", value: "x^{2}", latex: "x^{2}" },
+        { label: "x³", value: "x^{3}", latex: "x^{3}" },
+        { label: "xⁿ", value: "x^{n}", latex: "x^{n}" },
+        { label: "x⁻¹", value: "x^{-1}", latex: "x^{-1}" },
+        { label: "(x+y)²", value: "(x+y)^{2}", latex: "(x+y)^{2}" },
+        { label: "Multiple Powers", value: "x^{2}y^{3}", latex: "x^{2}y^{3}" },
+      ]
+    },
+    {
+      category: "Roots & Radicals",
+      expressions: [
+        { label: "√x", value: "\\sqrt{x}", latex: "\\sqrt{x}" },
+        { label: "∛x", value: "\\sqrt[3]{x}", latex: "\\sqrt[3]{x}" },
+        { label: "∜x", value: "\\sqrt[4]{x}", latex: "\\sqrt[4]{x}" },
+        { label: "ⁿ√x", value: "\\sqrt[n]{x}", latex: "\\sqrt[n]{x}" },
+        { label: "√(x+y)", value: "\\sqrt{x+y}", latex: "\\sqrt{x+y}" },
+      ]
+    },
+    {
+      category: "Common Expressions",
+      expressions: [
+        { 
+          label: "x² + x/y⁴", 
+          value: "x^{2} + \\frac{x}{y^{4}}", 
+          latex: "x^{2} + \\frac{x}{y^{4}}" 
+        },
+        { 
+          label: "Quadratic Formula", 
+          value: "x = \\frac{-b \\pm \\sqrt{b^{2}-4ac}}{2a}", 
+          latex: "x = \\frac{-b \\pm \\sqrt{b^{2}-4ac}}{2a}" 
+        },
+        { 
+          label: "Complex Fraction", 
+          value: "\\frac{\\frac{a}{b} + \\frac{c}{d}}{e}", 
+          latex: "\\frac{\\frac{a}{b} + \\frac{c}{d}}{e}" 
+        },
+      ]
+    },
 ];
 
 export default function MathExpressions({ onInsert }: MathExpressionsProps) {
   const [currentExpression, setCurrentExpression] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(['Basic Operations', 'Fractions', 'Algebra & Variables'])
+    new Set(['Basic Operations', 'Fractions & Division', 'Common Expressions'])
   );
+  const [validation, setValidation] = useState<{ isValid: boolean; errors: string[]; fixed: string }>({
+    isValid: true,
+    errors: [],
+    fixed: ''
+  });
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -191,14 +187,39 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
   };
 
   const handleSymbolClick = (symbol: string) => {
-    setCurrentExpression(prev => prev + symbol);
+    const newExpression = currentExpression + symbol;
+    setCurrentExpression(newExpression);
+    validateExpression(newExpression);
+  };
+
+  const validateExpression = (expression: string) => {
+    if (!expression.trim()) {
+      setValidation({ isValid: true, errors: [], fixed: '' });
+      return;
+    }
+    const result = validateAndFixLatex(expression);
+    setValidation(result);
+  };
+
+  const handleExpressionChange = (expression: string) => {
+    setCurrentExpression(expression);
+    validateExpression(expression);
   };
 
   const handleSendExpression = () => {
     if (currentExpression.trim()) {
-      // Send both LaTeX and plain text representation
-      onInsert(`$${currentExpression}$`);
+      // Use the fixed version if available and valid
+      const expressionToSend = validation.isValid ? currentExpression : validation.fixed;
+      onInsert(`$${expressionToSend}$`);
       setCurrentExpression('');
+      setValidation({ isValid: true, errors: [], fixed: '' });
+    }
+  };
+  
+  const handleUseFixed = () => {
+    if (validation.fixed) {
+      setCurrentExpression(validation.fixed);
+      validateExpression(validation.fixed);
     }
   };
 
@@ -210,9 +231,9 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
 
   const handleClear = () => {
     setCurrentExpression('');
+    setValidation({ isValid: true, errors: [], fixed: '' });
   };
 
-  // Helper to render LaTeX preview
   const renderLatexPreview = (latex: string) => {
     try {
       return <InlineMath math={latex} />;
@@ -222,29 +243,28 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
   };
 
   return (
-    <Card>
+    <Card className="bg-slate-900 border-slate-700 text-white">
       <CardHeader>
         <CardTitle>Build Mathematical Expression</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Build expressions using LaTeX • Real-time preview
+          Real-time LaTeX validation and fixing
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Expression Builder Section */}
-        <div className="space-y-3 p-4 border rounded-lg bg-card sticky top-0 z-10">
-          <div>
-            <Input
-              value={currentExpression}
-              onChange={(e) => setCurrentExpression(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Build your LaTeX expression here... (e.g., \frac{1}{2} + \sqrt{x})"
-              className="flex-1 font-mono text-sm"
-            />
-          </div>
+        <div className="space-y-3 p-4 border rounded-lg bg-slate-800 sticky top-0 z-10">
+            <div>
+                <Input
+                  value={currentExpression}
+                  onChange={(e) => handleExpressionChange(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Enter LaTeX code or use templates below..."
+                  className="flex-1 font-mono text-sm bg-slate-700 border-slate-600"
+                />
+            </div>
           <div className="flex gap-2">
             <Button 
               onClick={handleSendExpression}
-              disabled={!currentExpression.trim()}
+              disabled={!currentExpression.trim() || !validation.isValid}
               className="flex items-center gap-2 flex-1"
             >
               <Send className="h-4 w-4" />
@@ -254,40 +274,78 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
               variant="outline" 
               onClick={handleClear}
               disabled={!currentExpression}
-              className="flex-1"
+              className="flex-1 bg-slate-700 border-slate-600 hover:bg-slate-600"
             >
               Clear
             </Button>
           </div>
           
-          {/* Real-time Preview */}
           {currentExpression && (
-            <div className="p-3 bg-white border rounded-md">
+            <div className={`p-3 rounded-md ${
+              validation.isValid ? 'bg-green-900/50 border border-green-700' : 'bg-yellow-900/50 border border-yellow-700'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                {validation.isValid ? (
+                  <CheckCircle className="h-4 w-4 text-green-400" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-yellow-400" />
+                )}
+                <span className={`text-sm font-medium ${
+                  validation.isValid ? 'text-green-300' : 'text-yellow-300'
+                }`}>
+                  {validation.isValid ? 'LaTeX is valid' : 'LaTeX needs fixing'}
+                </span>
+              </div>
+              
+              {validation.errors.length > 0 && (
+                <div className="mb-2">
+                  <div className="text-xs font-medium text-yellow-300 mb-1">Issues found:</div>
+                  <ul className="text-xs text-yellow-400 list-disc list-inside space-y-1">
+                    {validation.errors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {validation.fixed && !validation.isValid && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-yellow-300">Suggested fix:</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleUseFixed}
+                    className="h-6 text-xs bg-yellow-800/50 border-yellow-700 hover:bg-yellow-800"
+                  >
+                    Use Fixed Version
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {currentExpression && (
+            <div className="p-3 bg-slate-900 border border-slate-700 rounded-md">
               <div className="text-xs text-muted-foreground mb-2">Preview:</div>
               <div className="min-h-[40px] flex items-center justify-center p-2 bg-gray-50 rounded text-black">
-                {renderLatexPreview(currentExpression)}
+                {renderLatexPreview(validation.isValid ? currentExpression : validation.fixed || currentExpression)}
               </div>
             </div>
           )}
           
           <div className="text-xs text-muted-foreground">
-            <p>LaTeX code: <code className="bg-background px-2 py-1 rounded border">{currentExpression || "(empty)"}</code></p>
+            <p>LaTeX code: <code className="bg-slate-700 px-2 py-1 rounded border border-slate-600 font-mono text-xs">{currentExpression || "(empty)"}</code></p>
           </div>
-        </div>
-
-        {/* Symbol Categories */}
-        <div className="text-sm font-medium text-muted-foreground">
-          Mathematical Symbols & Components (LaTeX)
         </div>
 
         {expressionCategories.map((category) => {
           const isExpanded = expandedCategories.has(category.category);
           
           return (
-            <div key={category.category} className="border rounded-lg">
+            <div key={category.category} className="border rounded-lg border-slate-700">
               <button
                 onClick={() => toggleCategory(category.category)}
-                className="w-full flex items-center justify-between p-3 hover:bg-accent rounded-lg transition-colors"
+                className="w-full flex items-center justify-between p-3 hover:bg-slate-800 rounded-lg transition-colors"
               >
                 <span className="font-semibold text-sm">{category.category}</span>
                 <div className="flex items-center gap-2">
@@ -304,13 +362,13 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
               
               {isExpanded && (
                 <div className="p-3 pt-0">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {category.expressions.map((expr, index) => (
                       <Button
                         key={`${expr.value}-${index}`}
                         variant="outline"
                         size="sm"
-                        className="h-auto py-2 px-2 justify-center items-center min-h-[3rem] flex flex-col"
+                        className="h-auto py-2 px-2 justify-center items-center min-h-[3rem] flex flex-col bg-slate-800 border-slate-700 hover:bg-slate-700 text-white"
                         onClick={() => handleSymbolClick(expr.value)}
                         title={expr.label}
                       >
@@ -329,13 +387,13 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
           );
         })}
         
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-muted-foreground">
-          <p className="font-semibold mb-1">💡 How LaTeX Works:</p>
+        <div className="mt-4 p-3 bg-blue-900/50 border border-blue-700 rounded-lg text-xs text-blue-300">
+          <p className="font-semibold mb-2">💡 PDF Conversion Issues:</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>Click symbols to add LaTeX code to the builder</li>
-            <li>See real-time preview of how it will look</li>
-            <li>Send to insert formatted math into your question</li>
-            <li>Examples: <code>{`\\frac{1}{2}`}</code>, <code>{`x^2`}</code>, <code>{`\\sqrt{x}`}</code></li>
+            <li><strong>Fraction lines going up:</strong> Usually caused by missing braces in exponents or nested fractions</li>
+            <li><strong>Solution:</strong> Use proper LaTeX syntax: <code>x^{'{2}'}</code> not <code>x²</code></li>
+            <li><strong>For complex fractions:</strong> Use <code>\frac{'{'}\frac{'{a}'}{'{b}'}{'}'}{'{c}'}</code> for nested fractions</li>
+            <li>The validator will automatically detect and fix common issues</li>
           </ul>
         </div>
       </CardContent>
