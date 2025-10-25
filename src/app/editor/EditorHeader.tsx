@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
@@ -38,6 +38,15 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   bookletPages,
   setBookletPages
 }) => {
+  const [katexCss, setKatexCss] = useState('');
+
+  useEffect(() => {
+    // Fetch KaTeX CSS to inject it for PDF generation
+    fetch('https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css')
+      .then(response => response.text())
+      .then(css => setKatexCss(css))
+      .catch(err => console.error("Failed to fetch KaTeX CSS", err));
+  }, []);
 
   const generatePdf = async () => {
     if (!paper || bookletPages.length === 0) return;
@@ -92,7 +101,10 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   };
 
   const preparePdfDownload = async () => {
-    if (!paper || pages.length === 0) return;
+    if (!paper || pages.length === 0 || !katexCss) {
+        if (!katexCss) console.error("KaTeX CSS not loaded yet.");
+        return;
+    }
     
     setIsDownloading(true);
     setBookletPages([]);
@@ -104,6 +116,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
     
         const mmToPx = (mm: number) => mm * 3.7795275591;
         const printCSS = `
+            ${katexCss} /* Inject KaTeX CSS */
             * { box-sizing: border-box; }
             html, body { margin: 0; padding: 0; }
             .pdf-render-root {
@@ -121,31 +134,6 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
             .pdf-render-root h1,h2,h3 { margin: 0 0 6px 0; }
             .pdf-render-root ul, .pdf-render-root ol { margin: 0 0 6px 1.2em; padding: 0; }
             .pdf-render-root textarea, .pdf-render-root input { font-family: inherit; font-size: inherit; }
-            
-            /* Fraction styling for PDF */
-            .math-fraction {
-              display: inline-block;
-              text-align: center;
-              vertical-align: middle;
-              font-size: 1em;
-            }
-            .math-fraction-numerator {
-              display: block;
-              padding: 0 0.3em;
-            }
-            .math-fraction-line {
-              display: block;
-              border-top: 1.5px solid #000;
-              padding: 0.1em 0.3em 0 0.3em;
-            }
-            sup {
-              vertical-align: super;
-              font-size: 0.7em;
-            }
-            sub {
-              vertical-align: sub;
-              font-size: 0.7em;
-            }
         `;
     
         const pageContainer = document.createElement('div');
@@ -190,7 +178,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
             }));
             }
             
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 100)); // Increased delay for KaTeX
     
             const canvas = await html2canvas(wrapper as HTMLElement, {
                 scale: 2,
@@ -373,5 +361,3 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
     </header>
   );
 };
-
-    
