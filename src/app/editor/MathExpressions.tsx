@@ -261,7 +261,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
           {currentExpression && (
             <div className="p-3 bg-white border rounded-md">
               <div className="text-xs text-muted-foreground mb-2">Preview:</div>
-              <div className="min-h-[40px] flex items-center justify-center p-2 bg-gray-50 rounded">
+              <div className="min-h-[40px] flex items-center justify-center p-2 bg-gray-50 rounded text-black">
                 {renderLatexPreview(currentExpression)}
               </div>
             </div>
