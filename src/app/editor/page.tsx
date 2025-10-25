@@ -22,6 +22,7 @@ import { produce } from 'immer';
 import { createRoot } from 'react-dom/client';
 import { useToast } from '@/hooks/use-toast';
 import { PaperPage } from './PaperPreview';
+import { parseMath } from '@/lib/math-parser';
 
 const generateId = (prefix: string) => {
     return `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
@@ -124,7 +125,7 @@ export default function EditorPage() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
+  const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement | HTMLDivElement; id: string } | null>(null);
   
   const [pages, setPages] = useState<PageContent[][]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -189,29 +190,69 @@ export default function EditorPage() {
     }
   }, [searchParams, router, paper]);
 
-  const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
+  const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement | HTMLDivElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
   };
 
   const handleInsertExpression = (expression: string) => {
-    if (!focusedInput || !paper) return;
+    if (!focusedInput) return;
 
-    const { element, id } = focusedInput;
-    const { selectionStart, selectionEnd } = element;
-    const currentValue = element.value;
-    const newValue = currentValue.substring(0, selectionStart ?? 0) + expression + currentValue.substring(selectionEnd ?? 0);
+    const { element } = focusedInput;
+    
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+        const { selectionStart, selectionEnd } = element;
+        const currentValue = element.value;
+        const newValue = currentValue.substring(0, selectionStart ?? 0) + expression + currentValue.substring(selectionEnd ?? 0);
+        element.value = newValue;
+        element.focus();
+        element.setSelectionRange((selectionStart ?? 0) + expression.length, (selectionStart ?? 0) + expression.length);
+        const event = new Event('input', { bubbles: true });
+        element.dispatchEvent(event);
 
-    element.value = newValue;
-    element.focus();
-    element.setSelectionRange((selectionStart ?? 0) + expression.length, (selectionStart ?? 0) + expression.length);
-
-    const event = new Event('input', { bubbles: true });
-    element.dispatchEvent(event);
+    } else if (element.isContentEditable) {
+        element.focus();
+        const selection = window.getSelection();
+        const range = selection?.getRangeAt(0);
+        if (range) {
+            range.deleteContents();
+            const textNode = document.createTextNode(expression);
+            range.insertNode(textNode);
+            range.setStartAfter(textNode);
+            range.setEndAfter(textNode);
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+        }
+        const event = new Event('input', { bubbles: true });
+        element.dispatchEvent(event);
+    }
   };
 
   const handlePaperDetailChange = (field: keyof Paper, value: string | number) => {
     setPaper(prev => produce(prev, draft => {
         if(draft) (draft as any)[field] = value
+    }));
+  };
+
+  const handleContentBlur = (id: string, newContent: string) => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
+        const question = draft.questions.find(q => q.id === id);
+        if (question) {
+            question.content = newContent;
+        }
+    }));
+  };
+
+  const handleSubQuestionContentBlur = (parentId: string, subId: string, newContent: string) => {
+    setPaper(prev => produce(prev, draft => {
+        if (!draft) return;
+        const parentQuestion = draft.questions.find(q => q.id === parentId);
+        if (parentQuestion && parentQuestion.subQuestions) {
+            const subQuestion = parentQuestion.subQuestions.find(sq => sq.id === subId);
+            if (subQuestion) {
+                subQuestion.content = newContent;
+            }
+        }
     }));
   };
 
@@ -526,6 +567,36 @@ export default function EditorPage() {
     </div>
   );
 
+  const EditableContent = ({ id, content, onBlurHandler, onFocusHandler }: { id: string, content: string, onBlurHandler: (text: string) => void, onFocusHandler: (e: React.FocusEvent<HTMLDivElement>) => void }) => {
+    const ref = useRef<HTMLDivElement>(null);
+    const [isEditing, setIsEditing] = useState(false);
+
+    const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+        setIsEditing(false);
+        onBlurHandler(e.currentTarget.innerText);
+    }
+  
+    return (
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onFocus={(e) => {
+            setIsEditing(true);
+            onFocusHandler(e);
+        }}
+        onBlur={handleBlur}
+        className="bg-white dark:bg-slate-800 font-semibold p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] w-full"
+        onInput={(e) => {
+            // This is needed to make React aware of changes for things like autosizing
+            // but we save the content onBlur
+        }}
+      >
+        {!isEditing ? parseMath(content) : content}
+      </div>
+    );
+  };
+
   const renderQuestion = (question: Question, index: number) => {
     if (!paper) return null;
     const isContainer = ['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'creative'].includes(question.type);
@@ -551,12 +622,11 @@ export default function EditorPage() {
           <div className="flex items-start justify-between">
             <Label className="font-bold pt-1.5">{`${questionNumber}.`}</Label>
             <div className="flex-1 ml-2">
-                <Textarea
-                    value={question.content}
-                    onInput={(e) => handleQuestionChange(question.id, 'content', (e.target as HTMLTextAreaElement).value)}
-                    onFocus={(e) => handleFocus(e, question.id)}
-                    className="bg-white dark:bg-slate-800 font-semibold"
-                    rows={1}
+                <EditableContent
+                    id={question.id}
+                    content={question.content}
+                    onBlurHandler={(newContent) => handleContentBlur(question.id, newContent)}
+                    onFocusHandler={(e) => handleFocus(e, question.id)}
                 />
             </div>
           </div>
@@ -605,11 +675,12 @@ export default function EditorPage() {
                 <span className="font-semibold pt-2">{getNumbering(question.numberingFormat, sqIndex)})</span>
                 <div className="flex-grow space-y-2">
                   <div className="flex items-center gap-2">
-                    <Textarea 
-                        value={sq.content} 
-                        onInput={(e) => handleSubQuestionChange(question.id, sq.id, 'content', (e.target as HTMLTextAreaElement).value)}
-                        onFocus={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
-                        className="flex-grow bg-white dark:bg-slate-800" />
+                     <EditableContent
+                        id={`${question.id}-${sq.id}`}
+                        content={sq.content}
+                        onBlurHandler={(newContent) => handleSubQuestionContentBlur(question.id, sq.id, newContent)}
+                        onFocusHandler={(e) => handleFocus(e, `${question.id}-${sq.id}`)}
+                    />
                     { question.type === 'creative' && sq.marks !== undefined && (
                        <div className="flex items-center gap-2 shrink-0">
                          <Label htmlFor={`marks-${sq.id}`} className="text-sm">Marks:</Label>
@@ -672,12 +743,11 @@ export default function EditorPage() {
         case 'table':
             return questionCard((
                 <>
-                  <Textarea
-                    value={question.content}
-                    onInput={(e) => handleQuestionChange(question.id, 'content', (e.target as HTMLTextAreaElement).value)}
-                    onFocus={(e) => handleFocus(e, question.id)}
-                    className="bg-white dark:bg-slate-800 mb-4"
-                    placeholder="সারণী সম্পর্কিত নির্দেশাবলী এখানে লিখুন..."
+                  <EditableContent
+                    id={question.id + "-content"}
+                    content={question.content}
+                    onBlurHandler={(newContent) => handleContentBlur(question.id, newContent)}
+                    onFocusHandler={(e) => handleFocus(e, question.id + "-content")}
                   />
                   <div className="flex gap-2 mb-2">
                      <Button size="sm" variant="outline" onClick={() => addRow(question.id)}><PlusCircle className="mr-2 size-4" /> Add Row</Button>
@@ -799,19 +869,19 @@ export default function EditorPage() {
         };
   
         let headerHeight = 0;
+        const headerEl = renderedPaperPage.querySelector('.preview-header');
+        const topInfoElements = renderedPaperPage.querySelectorAll('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold');
+        
+        if (isFirstPage && headerEl) {
+            const st = window.getComputedStyle(headerEl);
+            headerHeight += headerEl.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
+        }
+        topInfoElements.forEach(el => {
+            const st = window.getComputedStyle(el as Element);
+            headerHeight += (el as HTMLElement).offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
+        });
+
         if (isFirstPage) {
-            const headerEl = renderedPaperPage.querySelector<HTMLElement>('.preview-header');
-            if (headerEl) {
-                const st = window.getComputedStyle(headerEl);
-                headerHeight += headerEl.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
-            }
-            
-            const topInfoElements = renderedPaperPage.querySelectorAll<HTMLElement>('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold');
-            topInfoElements.forEach(el => {
-                const st = window.getComputedStyle(el);
-                headerHeight += el.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
-            });
-            
             usedHeight += headerHeight;
         }
 
@@ -824,27 +894,27 @@ export default function EditorPage() {
             const mainContentEl = questionEl.querySelector<HTMLElement>('.question-content');
             const subQuestionEls = Array.from(questionEl.querySelectorAll<HTMLElement>('.subquestion-item'));
             
-            let mainContentProcessed = false;
-
-            // Process main content if it exists
+            // Case 1: Main content (stem)
             if (mainContentEl) {
                 const cs = window.getComputedStyle(mainContentEl);
                 const mainHeight = mainContentEl.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
 
                 if (usedHeight + mainHeight > pageInnerHeight && usedHeight > (isFirstPage ? headerHeight : 0)) {
                     flushPage();
-                    usedHeight += isFirstPage ? headerHeight : 0; 
+                    if(isFirstPage) usedHeight += headerHeight;
                 }
                 
-                let existingItem = currentPageContent.find(item => item.mainQuestion.id === qId && item.showMainContent);
+                let existingItem = currentPageContent.find(item => item.mainQuestion.id === qId);
                 if (!existingItem) {
-                    currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
+                    existingItem = { mainQuestion: questionObj, subQuestions: [], showMainContent: true };
+                    currentPageContent.push(existingItem);
+                } else {
+                    existingItem.showMainContent = true;
                 }
                 usedHeight += mainHeight;
-                mainContentProcessed = true;
             }
 
-            // Process sub-questions one by one
+            // Case 2: Sub-questions
             for (const subEl of subQuestionEls) {
                 if(cancelled) break;
                 const subId = subEl.getAttribute('data-subquestion-id');
@@ -856,7 +926,7 @@ export default function EditorPage() {
 
                 if (usedHeight + subHeight > pageInnerHeight) {
                     flushPage();
-                    usedHeight += isFirstPage ? headerHeight : 0;
+                    if(isFirstPage) usedHeight += headerHeight; 
                 }
 
                 let existingItem = currentPageContent.find(item => item.mainQuestion.id === qId);
@@ -870,13 +940,13 @@ export default function EditorPage() {
                 usedHeight += subHeight;
             }
 
-            // Handle questions with no sub-questions but that might be section headers
-            if (!mainContentEl && subQuestionEls.length === 0) {
+             // Case 3: No sub-questions (e.g. section headers)
+            if (subQuestionEls.length === 0 && !mainContentEl) {
                  const cs = window.getComputedStyle(questionEl);
                  const elHeight = questionEl.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
                  if (usedHeight + elHeight > pageInnerHeight && usedHeight > (isFirstPage ? headerHeight : 0)) {
                     flushPage();
-                    usedHeight += isFirstPage ? headerHeight : 0;
+                    if(isFirstPage) usedHeight += headerHeight;
                  }
                  currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
                  usedHeight += elHeight;
@@ -933,9 +1003,9 @@ export default function EditorPage() {
         setBookletPages={setBookletPages}
       />
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
-        <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900 gradient-scrollbar">
-          <div className="">
-              <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6">
+        <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 p-6 gradient-scrollbar">
+          <div className="mx-auto max-w-4xl space-y-8">
+              <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg">
                   <div className="space-y-4">
                       <div className="space-y-1">
                           <Label htmlFor="schoolName" className="text-xs text-slate-500 dark:text-slate-400 px-1">School Name</Label>
@@ -947,7 +1017,7 @@ export default function EditorPage() {
                       </div>
                   </div>
 
-                  <div className="max-h-60 overflow-y-auto">
+                  <div className="max-h-60 overflow-y-auto p-1">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
                         <div className="space-y-1">
                             <Label htmlFor="subject" className="text-xs text-slate-500 dark:text-slate-400 px-1">Subject</Label>
@@ -967,7 +1037,7 @@ export default function EditorPage() {
                         </div>
                     </div>
                     
-                    <div className="pt-2 text-center">
+                    <div className="pt-4 text-center">
                     {paper.notes === undefined ? (
                         <div className="text-center">
                             <Button 
@@ -991,7 +1061,7 @@ export default function EditorPage() {
                   </div>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="space-y-4">
                   {paper.questions.length === 0 ? (
                   <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700">
                       <p className="font-semibold text-foreground">Your paper is empty</p>
@@ -1044,5 +1114,3 @@ export default function EditorPage() {
     </>
   );
 }
-
-    
