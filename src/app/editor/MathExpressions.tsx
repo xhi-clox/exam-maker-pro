@@ -332,7 +332,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
             <li>Click symbols to add LaTeX code to the builder</li>
             <li>See real-time preview of how it will look</li>
             <li>Send to insert formatted math into your question</li>
-            <li>Examples: <code>\\frac{1}{2}</code>, <code>x^2</code>, <code>\\sqrt{x}</code></li>
+            <li>Examples: <code>{`\\frac{1}{2}`}</code>, <code>{`x^2`}</code>, <code>{`\\sqrt{x}`}</code></li>
           </ul>
         </div>
       </CardContent>
