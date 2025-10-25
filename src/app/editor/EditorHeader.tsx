@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save, Settings, Eye, Download, FileText } from 'lucide-react';
+import { Save, Settings, Eye, Download, FileText, Trash2, ArrowUp, ArrowDown, Plus } from 'lucide-react';
 import type { Paper, PaperSettings, PageContent } from './page';
 import PaperPreview from './PaperPreview';
 import jsPDF from 'jspdf';
@@ -121,6 +121,31 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
             .pdf-render-root h1,h2,h3 { margin: 0 0 6px 0; }
             .pdf-render-root ul, .pdf-render-root ol { margin: 0 0 6px 1.2em; padding: 0; }
             .pdf-render-root textarea, .pdf-render-root input { font-family: inherit; font-size: inherit; }
+            
+            /* Fraction styling for PDF */
+            .math-fraction {
+              display: inline-block;
+              text-align: center;
+              vertical-align: middle;
+              font-size: 1em;
+            }
+            .math-fraction-numerator {
+              display: block;
+              padding: 0 0.3em;
+            }
+            .math-fraction-line {
+              display: block;
+              border-top: 1.5px solid #000;
+              padding: 0.1em 0.3em 0 0.3em;
+            }
+            sup {
+              vertical-align: super;
+              font-size: 0.7em;
+            }
+            sub {
+              vertical-align: sub;
+              font-size: 0.7em;
+            }
         `;
     
         const pageContainer = document.createElement('div');
@@ -348,4 +373,5 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
     </header>
   );
 };
+
     
