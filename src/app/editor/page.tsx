@@ -1019,7 +1019,7 @@ export default function EditorPage() {
       />
       <div className="flex h-[calc(100vh-theme(spacing.14))]">
         <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 gradient-scrollbar">
-          <div className="space-y-8">
+          <div>
               <div className="bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg">
                   <div className="space-y-4">
                       <div className="space-y-1">
@@ -1076,7 +1076,7 @@ export default function EditorPage() {
                   </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 p-4">
                   {paper.questions.length === 0 ? (
                   <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700">
                       <p className="font-semibold text-foreground">Your paper is empty</p>
