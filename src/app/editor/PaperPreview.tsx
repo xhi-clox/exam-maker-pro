@@ -139,11 +139,11 @@ export const PaperPage = React.forwardRef<HTMLDivElement, { paper: Paper; pageCo
                         <h2 className="text-lg">{paper.examTitle}</h2>
                     </header>
 
-                    <div className="flex justify-between text-sm mb-4 pb-2 border-b-2 border-dotted">
+                    <div className="flex justify-between text-sm mb-2">
                         <p>বিষয়: {getSubjectName(paper.subject)}</p>
                         <p>পূর্ণমান: {paper.totalMarks}</p>
                     </div>
-                    <div className="flex justify-between text-sm mb-6 pb-2 border-b-2 border-dotted">
+                    <div className="flex justify-between text-sm mb-6">
                         <p>শ্রেণি: {getGradeName(paper.grade)}</p>        
                         <p>সময়: {paper.timeAllowed}</p>
                     </div>
