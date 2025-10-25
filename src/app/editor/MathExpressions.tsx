@@ -232,7 +232,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
       <CardContent className="space-y-4">
         {/* Expression Builder Section */}
         <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
-          <div className="flex gap-2">
+          <div>
             <Input
               value={currentExpression}
               onChange={(e) => setCurrentExpression(e.target.value)}
@@ -240,6 +240,8 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
               placeholder="Build your LaTeX expression here... (e.g., \frac{1}{2} + \sqrt{x})"
               className="flex-1 font-mono text-sm"
             />
+          </div>
+          <div className="flex gap-2">
             <Button 
               onClick={handleSendExpression}
               disabled={!currentExpression.trim()}
