@@ -255,13 +255,12 @@ export default function EditorPage() {
     setIsDownloading(true);
     setBookletPages([]);
 
-    const mmToPx = (mm: number) => mm * 3.7795275591;
-
     const captureNode = async (pageIndex: number | null): Promise<string | null> => {
         if (pageIndex === null || !paper) return null;
         const pageContent = pages[pageIndex];
         if (!pageContent) return null;
     
+        const mmToPx = (mm: number) => mm * 3.7795275591;
         const printCSS = `
             * { box-sizing: border-box; }
             html, body { margin: 0; padding: 0; }
@@ -1163,7 +1162,7 @@ export default function EditorPage() {
             </div>
         </div>
       </header>
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex h-[calc(100vh-theme(spacing.14))]">
         <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900">
           <div className="max-w-4xl mx-auto">
               <div className="rounded-lg bg-white dark:bg-slate-800/50 p-6 space-y-6">
@@ -1237,7 +1236,7 @@ export default function EditorPage() {
           </div>
         </main>
 
-        <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4 pt-14">
+        <aside className="w-[400px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto bg-slate-800 p-4 pt-6">
             {/* Add Questions */}
             <Card className="bg-slate-900 border-slate-700">
               <CardHeader>
