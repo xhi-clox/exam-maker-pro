@@ -1,9 +1,10 @@
+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Send, AlertCircle, CheckCircle } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { InlineMath } from 'react-katex';
@@ -65,7 +66,9 @@ const validateAndFixLatex = (latex: string): { fixed: string; isValid: boolean; 
   fixes.forEach(fix => {
     if (fix.regex.test(fixed)) {
       fixed = fixed.replace(fix.regex, fix.replacement);
-      errors.push(`${fix.error}: Auto-fixed.`);
+      if (!errors.includes(fix.error)) {
+        errors.push(fix.error);
+      }
     }
   });
 
@@ -86,7 +89,9 @@ const validateAndFixLatex = (latex: string): { fixed: string; isValid: boolean; 
 
   pdfIssues.forEach(({ pattern, issue }) => {
     if (pattern.test(fixed)) {
-      errors.push(issue);
+        if (!errors.includes(issue)) {
+            errors.push(issue);
+        }
     }
   });
 
@@ -170,11 +175,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(['Basic Operations', 'Fractions & Division', 'Common Expressions'])
   );
-  const [validation, setValidation] = useState<{ isValid: boolean; errors: string[]; fixed: string }>({
-    isValid: true,
-    errors: [],
-    fixed: ''
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -188,54 +189,40 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
 
   const handleSymbolClick = (symbol: string) => {
     const newExpression = currentExpression + symbol;
-    setCurrentExpression(newExpression);
-    validateExpression(newExpression);
-  };
-
-  const validateExpression = (expression: string) => {
-    if (!expression.trim()) {
-      setValidation({ isValid: true, errors: [], fixed: '' });
-      return;
-    }
-    const result = validateAndFixLatex(expression);
-    setValidation(result);
+    handleExpressionChange(newExpression);
   };
 
   const handleExpressionChange = (expression: string) => {
-    setCurrentExpression(expression);
-    validateExpression(expression);
+      setIsProcessing(true);
+      const { fixed } = validateAndFixLatex(expression);
+      setCurrentExpression(fixed);
+      setIsProcessing(false);
   };
 
   const handleSendExpression = () => {
     if (currentExpression.trim()) {
-      // Use the fixed version if available and valid
-      const expressionToSend = validation.isValid ? currentExpression : validation.fixed;
-      onInsert(`$${expressionToSend}$`);
+      onInsert(`$${currentExpression}$`);
       setCurrentExpression('');
-      setValidation({ isValid: true, errors: [], fixed: '' });
     }
   };
   
-  const handleUseFixed = () => {
-    if (validation.fixed) {
-      setCurrentExpression(validation.fixed);
-      validateExpression(validation.fixed);
-    }
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSendExpression();
+    if (e.key === 'Enter' && !isProcessing) {
+        e.preventDefault();
+        handleSendExpression();
     }
   };
 
   const handleClear = () => {
     setCurrentExpression('');
-    setValidation({ isValid: true, errors: [], fixed: '' });
   };
 
   const renderLatexPreview = (latex: string) => {
     try {
+      // If latex is empty or just spaces, don't render anything
+      if (!latex.trim()) {
+        return <span className="text-muted-foreground">Preview here...</span>;
+      }
       return <InlineMath math={latex} />;
     } catch (error) {
       return <span className="text-red-500">Invalid LaTeX</span>;
@@ -256,7 +243,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
                 <Input
                   value={currentExpression}
                   onChange={(e) => handleExpressionChange(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyPress}
                   placeholder="Enter LaTeX code or use templates below..."
                   className="flex-1 font-mono text-sm bg-slate-700 border-slate-600"
                 />
@@ -264,7 +251,7 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
           <div className="flex gap-2">
             <Button 
               onClick={handleSendExpression}
-              disabled={!currentExpression.trim() || !validation.isValid}
+              disabled={!currentExpression.trim() || isProcessing}
               className="flex items-center gap-2 flex-1"
             >
               <Send className="h-4 w-4" />
@@ -279,59 +266,13 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
               Clear
             </Button>
           </div>
-          
-          {currentExpression && (
-            <div className={`p-3 rounded-md ${
-              validation.isValid ? 'bg-green-900/50 border border-green-700' : 'bg-yellow-900/50 border border-yellow-700'
-            }`}>
-              <div className="flex items-center gap-2 mb-2">
-                {validation.isValid ? (
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 text-yellow-400" />
-                )}
-                <span className={`text-sm font-medium ${
-                  validation.isValid ? 'text-green-300' : 'text-yellow-300'
-                }`}>
-                  {validation.isValid ? 'LaTeX is valid' : 'LaTeX needs fixing'}
-                </span>
-              </div>
-              
-              {validation.errors.length > 0 && (
-                <div className="mb-2">
-                  <div className="text-xs font-medium text-yellow-300 mb-1">Issues found:</div>
-                  <ul className="text-xs text-yellow-400 list-disc list-inside space-y-1">
-                    {validation.errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {validation.fixed && !validation.isValid && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-yellow-300">Suggested fix:</span>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleUseFixed}
-                    className="h-6 text-xs bg-yellow-800/50 border-yellow-700 hover:bg-yellow-800"
-                  >
-                    Use Fixed Version
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {currentExpression && (
-            <div className="p-3 bg-slate-900 border border-slate-700 rounded-md">
+                    
+          <div className="p-3 bg-slate-900 border border-slate-700 rounded-md">
               <div className="text-xs text-muted-foreground mb-2">Preview:</div>
               <div className="min-h-[40px] flex items-center justify-center p-2 bg-gray-50 rounded text-black">
-                {renderLatexPreview(validation.isValid ? currentExpression : validation.fixed || currentExpression)}
+                {renderLatexPreview(currentExpression)}
               </div>
-            </div>
-          )}
+          </div>
           
           <div className="text-xs text-muted-foreground">
             <p>LaTeX code: <code className="bg-slate-700 px-2 py-1 rounded border border-slate-600 font-mono text-xs">{currentExpression || "(empty)"}</code></p>
@@ -400,3 +341,5 @@ export default function MathExpressions({ onInsert }: MathExpressionsProps) {
     </Card>
   );
 }
+
+    
