@@ -52,27 +52,30 @@ export default function ImageToQuestionPage() {
   const openEditorWithContent = () => {
     if (!extractedJson) return;
     try {
-      // Solution 1: Append to existing data in localStorage
-      const existingDataRaw = localStorage.getItem('newImageData');
-      let existingData: { questions: any[] } = { questions: [] };
+      // Get the current full paper data from the editor
+      const currentPaperRaw = localStorage.getItem('currentPaper');
+      let paperData = { questions: [] };
 
-      if (existingDataRaw) {
+      if (currentPaperRaw) {
         try {
-          existingData = JSON.parse(existingDataRaw);
-          if (!Array.isArray(existingData.questions)) {
-            existingData.questions = [];
-          }
+            paperData = JSON.parse(currentPaperRaw);
+            if (!Array.isArray(paperData.questions)) {
+              paperData.questions = [];
+            }
         } catch {
-          // If parsing fails, start fresh
-          existingData.questions = [];
+            paperData = { questions: [] };
         }
       }
 
       const newQuestions = extractedJson.questions || [];
+      
+      // Create the combined data object that the editor expects
       const combinedData = {
-        questions: [...existingData.questions, ...newQuestions]
+        ...paperData, // Spread existing paper metadata
+        questions: [...paperData.questions, ...newQuestions] // Append new questions
       };
 
+      // We use 'newImageData' to signal the editor page to perform a one-time import
       localStorage.setItem('newImageData', JSON.stringify(combinedData));
       router.push('/editor?from=image');
     } catch (e) {

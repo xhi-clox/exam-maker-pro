@@ -166,34 +166,15 @@ export default function EditorPage() {
   // Import effect
   useEffect(() => {
     const from = searchParams.get('from');
-    if ((from === 'image' || from === 'suggest') && paper) {
+    if ((from === 'image' || from === 'suggest')) {
       const data = localStorage.getItem('newImageData');
       if (data) {
         try {
           const parsedData = JSON.parse(data);
-          
-          setPaper(currentPaper => {
-            if (!currentPaper) return null;
-            
-            // For 'suggest', the entire paper object is replaced/updated
-            if (from === 'suggest' && parsedData.subject) {
-              const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
-               return produce(currentPaper, draft => {
-                 draft.examTitle = parsedData.title || draft.examTitle;
-                 draft.subject = parsedData.subject || draft.subject;
-                 draft.grade = parsedData.grade || draft.grade;
-                 draft.questions.push(...newQuestions);
-               });
-            }
-
-            // For 'image', only questions are appended
-            const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
-            
-            return produce(currentPaper, draft => {
-              draft.questions.push(...newQuestions);
-            });
-          });
-
+          // When importing, we replace the entire paper state
+          // with the combined data prepared by the import pages.
+          const questionsWithUniqueIds = ensureUniqueIds(parsedData.questions || []);
+          setPaper({ ...parsedData, questions: questionsWithUniqueIds });
         } catch (e) {
           console.error("Failed to parse or append paper data from localStorage", e);
         } finally {
@@ -204,7 +185,7 @@ export default function EditorPage() {
         }
       }
     }
-  }, [searchParams, router, paper]);
+  }, [searchParams, router]);
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });
