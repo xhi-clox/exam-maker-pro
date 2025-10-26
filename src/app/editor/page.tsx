@@ -175,6 +175,18 @@ export default function EditorPage() {
           setPaper(currentPaper => {
             if (!currentPaper) return null;
             
+            // For 'suggest', the entire paper object is replaced/updated
+            if (from === 'suggest' && parsedData.subject) {
+              const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
+               return produce(currentPaper, draft => {
+                 draft.examTitle = parsedData.title || draft.examTitle;
+                 draft.subject = parsedData.subject || draft.subject;
+                 draft.grade = parsedData.grade || draft.grade;
+                 draft.questions.push(...newQuestions);
+               });
+            }
+
+            // For 'image', only questions are appended
             const newQuestions = parsedData.questions ? ensureUniqueIds(parsedData.questions) : [];
             
             return produce(currentPaper, draft => {
