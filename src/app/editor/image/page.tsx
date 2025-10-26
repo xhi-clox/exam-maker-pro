@@ -52,10 +52,31 @@ export default function ImageToQuestionPage() {
   const openEditorWithContent = () => {
     if (!extractedJson) return;
     try {
-      localStorage.setItem('newImageData', JSON.stringify(extractedJson));
+      // Solution 1: Append to existing data in localStorage
+      const existingDataRaw = localStorage.getItem('newImageData');
+      let existingData: { questions: any[] } = { questions: [] };
+
+      if (existingDataRaw) {
+        try {
+          existingData = JSON.parse(existingDataRaw);
+          if (!Array.isArray(existingData.questions)) {
+            existingData.questions = [];
+          }
+        } catch {
+          // If parsing fails, start fresh
+          existingData.questions = [];
+        }
+      }
+
+      const newQuestions = extractedJson.questions || [];
+      const combinedData = {
+        questions: [...existingData.questions, ...newQuestions]
+      };
+
+      localStorage.setItem('newImageData', JSON.stringify(combinedData));
       router.push('/editor?from=image');
     } catch (e) {
-      console.error("Invalid JSON format", e);
+      console.error("Invalid JSON format or localStorage error", e);
       setError("Failed to prepare data for the editor due to an invalid format.");
     }
   };
@@ -87,7 +108,11 @@ export default function ImageToQuestionPage() {
                   variant="destructive" 
                   size="icon" 
                   className="absolute top-2 right-2 rounded-full h-8 w-8"
-                  onClick={() => setImage(null)}
+                  onClick={() => {
+                    setImage(null);
+                    setExtractedJson(null);
+                    if(fileInputRef.current) fileInputRef.current.value = "";
+                  }}
                 >
                   <X className="size-4"/>
                   <span className="sr-only">Remove image</span>
@@ -125,7 +150,7 @@ export default function ImageToQuestionPage() {
                 <span className="flex items-center justify-center size-8 rounded-full bg-primary text-primary-foreground font-bold">2</span>
                  ফলাফল পর্যালোচনা করুন
               </CardTitle>
-              <CardDescription>AI द्वारा তৈরি প্রশ্নপত্রটি দেখুন এবং এডিটরে নিয়ে সম্পাদনা করুন।</CardDescription>
+              <CardDescription>AI দ্বারা তৈরি প্রশ্নপত্রটি দেখুন এবং এডিটরে নিয়ে সম্পাদনা করুন।</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {isLoading ? (

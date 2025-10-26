@@ -35,9 +35,11 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
 
     return produce(questions, draft => {
       const processNode = (node: any, prefix: string) => {
-        let newId = node.id && !node.id.includes('undefined') && !seenIds.has(node.id) ? node.id : generateId(prefix);
+        // A more robust ID generation for imports
+        const randomPart = Math.random().toString(36).substring(2, 11);
+        let newId = node.id && !node.id.includes('undefined') && !seenIds.has(node.id) ? node.id : `${prefix}${Date.now()}_${randomPart}`;
         while(seenIds.has(newId)) {
-            newId = generateId(prefix);
+            newId = `${prefix}${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         }
         node.id = newId;
         seenIds.add(newId);
