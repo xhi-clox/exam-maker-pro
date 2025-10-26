@@ -166,26 +166,43 @@ export default function EditorPage() {
   // Import effect
   useEffect(() => {
     const from = searchParams.get('from');
-    if ((from === 'image' || from === 'suggest')) {
-      const data = localStorage.getItem('newImageData');
-      if (data) {
+    if ((from === 'image' || from === 'suggest') && paper) {
+      const dataToImportRaw = localStorage.getItem('newImageData');
+      if (dataToImportRaw) {
         try {
-          const parsedData = JSON.parse(data);
-          // When importing, we replace the entire paper state
-          // with the combined data prepared by the import pages.
-          const questionsWithUniqueIds = ensureUniqueIds(parsedData.questions || []);
-          setPaper({ ...parsedData, questions: questionsWithUniqueIds });
+          const dataToImport = JSON.parse(dataToImportRaw);
+          const newQuestions = dataToImport.questions || [];
+          const questionsWithUniqueIds = ensureUniqueIds(newQuestions);
+
+          setPaper(currentPaper => produce(currentPaper, draft => {
+            if (!draft) return;
+            
+            // Append questions
+            draft.questions.push(...questionsWithUniqueIds);
+
+            // Update metadata if it exists in the imported data
+            if (dataToImport.title) draft.examTitle = dataToImport.title;
+            if (dataToImport.subject) draft.subject = dataToImport.subject;
+            if (dataToImport.grade) draft.grade = dataToImport.grade;
+          }));
+
         } catch (e) {
           console.error("Failed to parse or append paper data from localStorage", e);
+           toast({
+            variant: "destructive",
+            title: "Import Failed",
+            description: "Could not import the questions. The data was not in the correct format.",
+          });
         } finally {
           localStorage.removeItem('newImageData');
+          // Clean the URL
           const url = new URL(window.location.href);
           url.searchParams.delete('from');
-          router.replace(url.pathname, { scroll: false });
+          router.replace(url.pathname + url.search, { scroll: false });
         }
       }
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, paper, toast]);
 
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>, id: string) => {
     setFocusedInput({ element: e.currentTarget, id });

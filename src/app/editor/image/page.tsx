@@ -52,31 +52,9 @@ export default function ImageToQuestionPage() {
   const openEditorWithContent = () => {
     if (!extractedJson) return;
     try {
-      // Get the current full paper data from the editor
-      const currentPaperRaw = localStorage.getItem('currentPaper');
-      let paperData = { questions: [] };
-
-      if (currentPaperRaw) {
-        try {
-            paperData = JSON.parse(currentPaperRaw);
-            if (!Array.isArray(paperData.questions)) {
-              paperData.questions = [];
-            }
-        } catch {
-            paperData = { questions: [] };
-        }
-      }
-
-      const newQuestions = extractedJson.questions || [];
-      
-      // Create the combined data object that the editor expects
-      const combinedData = {
-        ...paperData, // Spread existing paper metadata
-        questions: [...paperData.questions, ...newQuestions] // Append new questions
-      };
-
-      // We use 'newImageData' to signal the editor page to perform a one-time import
-      localStorage.setItem('newImageData', JSON.stringify(combinedData));
+      // The editor page is responsible for merging.
+      // We just pass the newly extracted data.
+      localStorage.setItem('newImageData', JSON.stringify(extractedJson));
       router.push('/editor?from=image');
     } catch (e) {
       console.error("Invalid JSON format or localStorage error", e);

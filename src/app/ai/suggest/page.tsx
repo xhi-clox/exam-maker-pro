@@ -41,45 +41,34 @@ export default function AiSuggestPage() {
   const openEditorWithContent = () => {
     if (!suggestedJson) return;
     try {
-      // 1. Get existing data from localStorage
-      const existingDataRaw = localStorage.getItem('currentPaper');
-      let combinedData = { questions: [] as any[], title: '', subject: '', grade: '' };
-
-      if (existingDataRaw) {
-        try {
-          const existingData = JSON.parse(existingDataRaw);
-          combinedData = { 
-            ...existingData, 
-            questions: Array.isArray(existingData.questions) ? existingData.questions : []
-          };
-        } catch {
-          // If parsing fails, start with a fresh slate but prepare to append
-          combinedData = { questions: [], title: '', subject: '', grade: '' };
-        }
-      }
-      
-      // 2. Extract new questions and metadata from the AI suggestion
+      // Convert the AI output into the format expected by the editor's import logic.
       const newQuestions: any[] = [];
       (suggestedJson.sections || []).forEach(section => {
         newQuestions.push({
-          id: `section_${Date.now()}_${Math.random()}`, // Create a unique ID for the section header
+          id: `section_${Date.now()}_${Math.random()}`,
           type: 'section-header',
           content: section.title,
+          marks: 0,
         });
-        newQuestions.push(...(section.questions || []));
+        (section.questions || []).forEach(q => {
+          newQuestions.push({
+            ...q,
+            id: `q_${Date.now()}_${Math.random()}`,
+          });
+        });
       });
 
-      // 3. Append new questions to existing ones
-      combinedData.questions.push(...newQuestions);
-      
-      // 4. Update metadata from the latest suggestion
-      combinedData.title = suggestedJson.title;
-      combinedData.subject = suggestedJson.subject;
-      combinedData.grade = suggestedJson.grade;
+      const importData = {
+        questions: newQuestions,
+        title: suggestedJson.title,
+        subject: suggestedJson.subject,
+        grade: suggestedJson.grade,
+      };
 
-      // 5. Save the combined data back to localStorage, using the key the editor page expects
-      localStorage.setItem('newImageData', JSON.stringify(combinedData));
+      // Save the new data to localStorage for the editor to pick up.
+      localStorage.setItem('newImageData', JSON.stringify(importData));
       
+      // Navigate to the editor with a flag.
       router.push('/editor?from=suggest');
     } catch (e) {
       console.error("Invalid JSON format or localStorage error", e);
@@ -152,5 +141,3 @@ export default function AiSuggestPage() {
     </div>
   );
 }
-
-    
