@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save, Settings, Eye, Download, FileText, Trash2, ArrowUp, ArrowDown, Plus } from 'lucide-react';
+import { Save, Settings, Eye, Download, LogOut, FileText, Trash2, ArrowUp, ArrowDown, Plus } from 'lucide-react';
 import type { Paper, PaperSettings, PageContent } from './page';
 import PaperPreview from './PaperPreview';
 import jsPDF from 'jspdf';
@@ -20,7 +20,8 @@ interface EditorHeaderProps {
   settings: PaperSettings;
   setSettings: React.Dispatch<React.SetStateAction<PaperSettings>>;
   pages: PageContent[][];
-  handleSaveAndExit: () => void;
+  handleSave: () => void;
+  handleExit: () => void;
   isDownloading: boolean;
   setIsDownloading: React.Dispatch<React.SetStateAction<boolean>>;
   bookletPages: { left: string | null; right: string | null; }[];
@@ -32,7 +33,8 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   settings, 
   setSettings, 
   pages,
-  handleSaveAndExit,
+  handleSave,
+  handleExit,
   isDownloading,
   setIsDownloading,
   bookletPages,
@@ -246,11 +248,9 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-end gap-4 border-b bg-slate-900 px-4 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-slate-900 px-4 sm:px-6">
+       <div>{/* Placeholder for left content */}</div>
       <div className="flex items-center gap-2">
-        <Button onClick={handleSaveAndExit} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
-          <Save className="mr-2 size-4" /> Save & Exit
-        </Button>
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white"><Settings className="mr-2 size-4" /> Paper Settings</Button>
@@ -357,6 +357,15 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button onClick={handleSave} variant="outline" className="text-white border-slate-600 hover:bg-slate-700 hover:text-white">
+          <Save className="mr-2 size-4" /> Save
+        </Button>
+        <Button onClick={handleExit} variant="outline" className="text-white border-red-500/50 hover:bg-red-500/10 hover:text-white hover:border-red-500">
+          <LogOut className="mr-2 size-4" /> Exit
+        </Button>
       </div>
     </header>
   );

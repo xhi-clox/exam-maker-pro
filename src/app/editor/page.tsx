@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, LogOut } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -182,7 +182,7 @@ export default function EditorPage() {
     lineHeight: 1.4,
   });
 
-  const handleSaveAndExit = () => {
+  const handleSave = () => {
     if (paper) {
       try {
         localStorage.setItem('currentPaper', JSON.stringify(paper));
@@ -190,7 +190,6 @@ export default function EditorPage() {
           title: "Progress Saved",
           description: "Your question paper has been saved locally.",
         });
-        router.push('/');
       } catch (e) {
         console.error("Failed to save paper to localStorage", e);
         toast({
@@ -202,17 +201,23 @@ export default function EditorPage() {
     }
   };
 
+  const handleExit = () => {
+    router.push('/');
+  };
+
+  // Add this function inside the EditorPage component, before the import effect
   const mergeImportedQuestions = (existingPaper: Paper, importedData: any): Paper => {
     const newQuestions = importedData.questions || [];
     
     // Create a new paper object by combining questions and updating metadata
-    const combinedPaper: Paper = {
-      ...existingPaper,
-      examTitle: importedData.title || existingPaper.examTitle,
-      subject: importedData.subject || existingPaper.subject,
-      grade: importedData.grade || existingPaper.grade,
-      questions: [...existingPaper.questions, ...newQuestions],
-    };
+    const combinedPaper: Paper = produce(existingPaper, draft => {
+        if (importedData.title) draft.examTitle = importedData.title;
+        if (importedData.subject) draft.subject = importedData.subject;
+        if (importedData.grade) draft.grade = importedData.grade;
+        
+        // Append new questions to existing ones
+        draft.questions.push(...newQuestions);
+      });
     
     // Ensure all questions in the combined paper have unique IDs
     combinedPaper.questions = ensureUniqueIds(combinedPaper.questions);
@@ -1078,7 +1083,8 @@ export default function EditorPage() {
         settings={settings}
         setSettings={setSettings}
         pages={pages}
-        handleSaveAndExit={handleSaveAndExit}
+        handleSave={handleSave}
+        handleExit={handleExit}
         isDownloading={isDownloading}
         setIsDownloading={setIsDownloading}
         bookletPages={bookletPages}
@@ -1194,4 +1200,5 @@ export default function EditorPage() {
     </>
   );
 }
+
 
