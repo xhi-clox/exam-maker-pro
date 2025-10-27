@@ -32,29 +32,47 @@ const generateId = (prefix: string) => {
 
 const ensureUniqueIds = (questions: Question[]): Question[] => {
     const seenIds = new Set<string>();
+    const idMap = new Map<string, string>();
 
     return produce(questions, draft => {
-      const processNode = (node: any, prefix: string) => {
-        // A more robust ID generation for imports
+      const processNode = (node: any, newParentId?: string) => {
+        const oldId = node.id;
         const randomPart = Math.random().toString(36).substring(2, 11);
-        let newId = node.id && !node.id.includes('undefined') && !seenIds.has(node.id) ? node.id : `${prefix}${Date.now()}_${randomPart}`;
-        while(seenIds.has(newId)) {
-            newId = `${prefix}${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        let newId: string;
+
+        if (newParentId && oldId) {
+            // If it's a sub-item, create a new ID based on the new parent ID.
+            const suffix = oldId.replace(newParentId.split('_')[0], '').replace(/^[a-zA-Z0-9]+_/, '');
+            newId = `${newParentId}_${suffix}`;
+        } else {
+             // For top-level questions or items without a valid old ID
+            newId = `q_${Date.now()}_${randomPart}`;
         }
+
+        while (seenIds.has(newId)) {
+            newId = `${newId.split('_')[0]}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        }
+        
         node.id = newId;
         seenIds.add(newId);
+        if (oldId) {
+            idMap.set(oldId, newId);
+        }
+
+        const parentIdForChildren = newId;
   
         if (node.options) {
-          node.options.forEach((option: any) => processNode(option, 'opt_'));
+          node.options.forEach((option: any) => processNode(option, parentIdForChildren));
         }
         if (node.subQuestions) {
-          node.subQuestions.forEach((sub: any) => processNode(sub, 'sq_'));
+          node.subQuestions.forEach((sub: any) => processNode(sub, parentIdForChildren));
         }
       };
   
-      draft.forEach(q => processNode(q, 'q_'));
+      draft.forEach(q => processNode(q));
     });
 };
+
 
 
 export type NumberingFormat = 'bangla-alpha' | 'bangla-numeric' | 'roman';
@@ -172,19 +190,23 @@ export default function EditorPage() {
         try {
           const dataToImport = JSON.parse(dataToImportRaw);
           const newQuestions = dataToImport.questions || [];
-          const questionsWithUniqueIds = ensureUniqueIds(newQuestions);
+          
+          setPaper(currentPaper => {
+            if (!currentPaper) return null; // Should not happen, but good practice
 
-          setPaper(currentPaper => produce(currentPaper, draft => {
-            if (!draft) return;
-            
-            // Append questions
-            draft.questions.push(...questionsWithUniqueIds);
+            // Ensure all new questions have unique IDs, even recursively
+            const questionsWithUniqueIds = ensureUniqueIds(newQuestions);
 
-            // Update metadata if it exists in the imported data
-            if (dataToImport.title) draft.examTitle = dataToImport.title;
-            if (dataToImport.subject) draft.subject = dataToImport.subject;
-            if (dataToImport.grade) draft.grade = dataToImport.grade;
-          }));
+            return produce(currentPaper, draft => {
+              // Append new questions
+              draft.questions.push(...questionsWithUniqueIds);
+
+              // Update metadata if it exists in the imported data
+              if (dataToImport.title) draft.examTitle = dataToImport.title;
+              if (dataToImport.subject) draft.subject = dataToImport.subject;
+              if (dataToImport.grade) draft.grade = dataToImport.grade;
+            });
+          });
 
         } catch (e) {
           console.error("Failed to parse or append paper data from localStorage", e);

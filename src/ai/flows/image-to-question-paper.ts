@@ -33,11 +33,11 @@ const SimpleQuestionSchema = z.object({
   rows: z.number().optional(),
   cols: z.number().optional(),
   subQuestions: z.array(z.object({
-      id: z.string().describe("A unique identifier for the sub-question (e.g., 'q1a', 'q1b')."),
+      id: z.string().describe("A unique identifier for the sub-question that follows the parent's ID (e.g., 'q1a', 'q1b')."),
       type: z.enum(['passage', 'fill-in-the-blanks', 'short', 'mcq', 'essay', 'table', 'creative', 'section-header']),
       content: z.string().describe("The text content of the sub-question."),
       marks: z.number().optional().describe("The marks for this sub-question."),
-      options: z.array(z.object({ id: z.string(), text: z.string() })).optional().describe("Multiple choice options for the sub-question."),
+      options: z.array(z.object({ id: z.string(), text: z.string() })).optional().describe("Multiple choice options for the sub-question, with IDs following the sub-question ID (e.g., 'q1a_opt1')."),
   })).optional().describe("An array of sub-questions nested under a main question (e.g., a passage or creative question)."),
 });
 
@@ -63,9 +63,13 @@ You must interpret the content and structure it into a valid JSON object that ma
 Key Instructions:
 1.  **Analyze and Structure**: Carefully analyze the image to identify all questions, passages (উদ্দীপক), section headers (e.g., ক-বিভাগ), and instructions. Infer the structure. A 'creative' question or a 'passage' will have a main 'content' body and its associated questions should be listed in the 'subQuestions' array.
 2.  **Identify Question Types**: Determine the type for each item. Use 'section-header' for section titles (e.g., ক-বিভাগ). Use 'creative' for a main passage followed by sub-questions (like ক, খ, গ, ঘ). Use 'passage' for other stimulus texts. Use 'mcq' for multiple choice, 'short' for short answers, and 'essay' for long answers.
-3.  **Handle Mathematics with LaTeX**: If you identify any mathematical expressions (fractions, exponents, roots, symbols, etc.), you MUST enclose them in LaTeX delimiters. Use single dollar signs ($...$) for inline math and double dollar signs ($$....$$) for block/display math. For example, 'x squared plus y squared equals z squared' should be written as '$x^2 + y^2 = z^2$'. A fraction 'a over b' should be '$\\frac{a}{b}$'.
+3.  **Handle Mathematics with LaTeX**: If you identify any mathematical expressions (fractions, exponents, roots, symbols, etc.), you MUST enclose them in LaTeX delimiters. Use single dollar signs ($...$) for inline math and double dollar signs ($$...$$) for block/display math. For example, 'x squared plus y squared equals z squared' should be written as '$x^2 + y^2 = z^2$'. A fraction 'a over b' should be '$\\frac{a}{b}$'.
 4.  **Extract Details**: Extract the question content and marks. For creative questions, the total marks might be on the main question, but individual marks MUST be on each sub-question.
-5.  **MANDATORY: Generate Unique IDs**: You MUST create a unique 'id' for every single question, sub-question, and option. Use a prefix and a number (e.g., 'q1', 'sq1a', 'opt1a1'). IDs must be unique across the entire JSON object.
+5.  **MANDATORY: Generate Hierarchical IDs**: You MUST create a unique 'id' for every single item.
+    - Main questions: 'q1', 'q2', etc.
+    - Sub-questions: Must be based on the parent ID. E.g., for 'q1', sub-questions are 'q1a', 'q1b'.
+    - Options: Must be based on their question/sub-question ID. E.g., for 'q1a', options are 'q1a_opt1', 'q1a_opt2'.
+    - IDs must be unique across the entire JSON object.
 6.  **Language**: The content is likely in Bengali. Ensure your output maintains the correct language and characters.
 
 Image: {{media url=photoDataUri}}
