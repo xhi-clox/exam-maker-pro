@@ -32,45 +32,64 @@ const generateId = (prefix: string) => {
 
 const ensureUniqueIds = (questions: Question[]): Question[] => {
     const seenIds = new Set<string>();
-    const idMap = new Map<string, string>();
 
-    return produce(questions, draft => {
-      const processNode = (node: any, newParentId?: string) => {
-        const oldId = node.id;
-        const randomPart = Math.random().toString(36).substring(2, 11);
-        let newId: string;
-
-        if (newParentId && oldId) {
-            // If it's a sub-item, create a new ID based on the new parent ID.
-            const suffix = oldId.replace(newParentId.split('_')[0], '').replace(/^[a-zA-Z0-9]+_/, '');
-            newId = `${newParentId}_${suffix}`;
-        } else {
-             // For top-level questions or items without a valid old ID
-            newId = `q_${Date.now()}_${randomPart}`;
+    const processNode = (node: any, parentIdPrefix?: string) => {
+        let newId = node.id;
+        let isNew = false;
+        
+        // Generate a new ID if it's missing, or if it has been seen before.
+        if (!newId || seenIds.has(newId)) {
+            const prefix = parentIdPrefix ? `${parentIdPrefix}_` : 'q_';
+            newId = `${prefix}${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            isNew = true;
         }
 
         while (seenIds.has(newId)) {
-            newId = `${newId.split('_')[0]}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-        }
-        
-        node.id = newId;
-        seenIds.add(newId);
-        if (oldId) {
-            idMap.set(oldId, newId);
+            const prefix = newId.split('_')[0];
+            newId = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            isNew = true;
         }
 
-        const parentIdForChildren = newId;
-  
-        if (node.options) {
-          node.options.forEach((option: any) => processNode(option, parentIdForChildren));
+        if (isNew) {
+            node.id = newId;
         }
+        seenIds.add(newId);
+
+        const newParentIdPrefix = newId;
+
         if (node.subQuestions) {
-          node.subQuestions.forEach((sub: any) => processNode(sub, parentIdForChildren));
+          // If the parent ID was just generated, we need to update sub-questions
+          if(isNew) {
+            node.subQuestions.forEach((sub: any, i: number) => {
+              const subId = `${newParentIdPrefix}${String.fromCharCode(97 + i)}`; // e.g., q1a, q1b
+              sub.id = subId;
+              processNode(sub, newParentIdPrefix);
+            });
+          } else {
+            node.subQuestions.forEach((sub: any) => processNode(sub, newParentIdPrefix));
+          }
         }
-      };
-  
-      draft.forEach(q => processNode(q));
+        
+        if (node.options) {
+            node.options.forEach((option: any, i: number) => {
+                let optId = option.id;
+                if (!optId || seenIds.has(optId)) {
+                    optId = `${newParentIdPrefix}_opt${i + 1}`;
+                }
+                while (seenIds.has(optId)) {
+                    optId = `${newParentIdPrefix}_opt${i + 1}_${Math.random().toString(36).substring(2, 5)}`;
+                }
+                option.id = optId;
+                seenIds.add(optId);
+            });
+        }
+    };
+
+    const draft = produce(questions, draft => {
+        draft.forEach(q => processNode(q));
     });
+
+    return draft;
 };
 
 
@@ -192,20 +211,27 @@ export default function EditorPage() {
           const newQuestions = dataToImport.questions || [];
           
           setPaper(currentPaper => {
-            if (!currentPaper) return null; // Should not happen, but good practice
+            if (!currentPaper) return null; // Should not happen
 
-            // Ensure all new questions have unique IDs, even recursively
-            const questionsWithUniqueIds = ensureUniqueIds(newQuestions);
+            const combinedQuestions = [
+              ...(currentPaper.questions || []),
+              ...newQuestions,
+            ];
+
+            const questionsWithUniqueIds = ensureUniqueIds(combinedQuestions);
 
             return produce(currentPaper, draft => {
-              // Append new questions
-              draft.questions.push(...questionsWithUniqueIds);
-
+              draft.questions = questionsWithUniqueIds;
               // Update metadata if it exists in the imported data
               if (dataToImport.title) draft.examTitle = dataToImport.title;
               if (dataToImport.subject) draft.subject = dataToImport.subject;
               if (dataToImport.grade) draft.grade = dataToImport.grade;
             });
+          });
+          
+          toast({
+            title: "Questions Imported",
+            description: `${newQuestions.length} new question(s) have been added to your paper.`,
           });
 
         } catch (e) {
@@ -1162,3 +1188,5 @@ export default function EditorPage() {
     </>
   );
 }
+
+    

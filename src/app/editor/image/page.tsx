@@ -52,8 +52,7 @@ export default function ImageToQuestionPage() {
   const openEditorWithContent = () => {
     if (!extractedJson) return;
     try {
-      // The editor page is responsible for merging.
-      // We just pass the newly extracted data.
+      // Just pass the newly extracted data. The editor page is responsible for merging.
       localStorage.setItem('newImageData', JSON.stringify(extractedJson));
       router.push('/editor?from=image');
     } catch (e) {
@@ -165,3 +164,5 @@ export default function ImageToQuestionPage() {
     </div>
   );
 }
+
+    
