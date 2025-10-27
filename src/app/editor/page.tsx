@@ -45,10 +45,11 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
         }
 
         while (seenIds.has(newId)) {
-            const prefix = newId.split('_')[0];
+            const prefix = newId.split('_')[0] || 'q';
             newId = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
             isNew = true;
         }
+
 
         if (isNew) {
             node.id = newId;
@@ -58,22 +59,23 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
         const newParentIdPrefix = newId;
 
         if (node.subQuestions) {
-          // If the parent ID was just generated, we need to update sub-questions
-          if(isNew) {
-            node.subQuestions.forEach((sub: any, i: number) => {
-              const subId = `${newParentIdPrefix}${String.fromCharCode(97 + i)}`; // e.g., q1a, q1b
+          node.subQuestions.forEach((sub: any, i: number) => {
+            let subIdSuffix = String.fromCharCode(97 + i); // e.g., a, b
+            let subId = `${newParentIdPrefix}${subIdSuffix}`;
+
+            // If the original sub-id was different, it might have been intentional (e.g. q1c after q1a)
+            // This logic is simple and just re-sequences them: a, b, c...
+            if(isNew || !sub.id || seenIds.has(sub.id) || !sub.id.startsWith(newParentIdPrefix)) {
               sub.id = subId;
-              processNode(sub, newParentIdPrefix);
-            });
-          } else {
-            node.subQuestions.forEach((sub: any) => processNode(sub, newParentIdPrefix));
-          }
+            }
+            processNode(sub, newParentIdPrefix);
+          });
         }
         
         if (node.options) {
             node.options.forEach((option: any, i: number) => {
                 let optId = option.id;
-                if (!optId || seenIds.has(optId)) {
+                if (!optId || seenIds.has(optId) || isNew || !optId.startsWith(newParentIdPrefix)) {
                     optId = `${newParentIdPrefix}_opt${i + 1}`;
                 }
                 while (seenIds.has(optId)) {
@@ -200,7 +202,26 @@ export default function EditorPage() {
     }
   };
 
-  // Import effect
+  const mergeImportedQuestions = (existingPaper: Paper, importedData: any): Paper => {
+    const newQuestions = importedData.questions || [];
+    
+    // Create a new paper object by combining questions and updating metadata
+    const combinedPaper: Paper = {
+      ...existingPaper,
+      examTitle: importedData.title || existingPaper.examTitle,
+      subject: importedData.subject || existingPaper.subject,
+      grade: importedData.grade || existingPaper.grade,
+      questions: [...existingPaper.questions, ...newQuestions],
+    };
+    
+    // Ensure all questions in the combined paper have unique IDs
+    combinedPaper.questions = ensureUniqueIds(combinedPaper.questions);
+
+    return combinedPaper;
+  };
+
+
+  // Import effect - Updated version
   useEffect(() => {
     const from = searchParams.get('from');
     if ((from === 'image' || from === 'suggest') && paper) {
@@ -208,35 +229,20 @@ export default function EditorPage() {
       if (dataToImportRaw) {
         try {
           const dataToImport = JSON.parse(dataToImportRaw);
-          const newQuestions = dataToImport.questions || [];
           
           setPaper(currentPaper => {
-            if (!currentPaper) return null; // Should not happen
-
-            const combinedQuestions = [
-              ...(currentPaper.questions || []),
-              ...newQuestions,
-            ];
-
-            const questionsWithUniqueIds = ensureUniqueIds(combinedQuestions);
-
-            return produce(currentPaper, draft => {
-              draft.questions = questionsWithUniqueIds;
-              // Update metadata if it exists in the imported data
-              if (dataToImport.title) draft.examTitle = dataToImport.title;
-              if (dataToImport.subject) draft.subject = dataToImport.subject;
-              if (dataToImport.grade) draft.grade = dataToImport.grade;
-            });
+            if (!currentPaper) return null;
+            return mergeImportedQuestions(currentPaper, dataToImport);
           });
           
           toast({
             title: "Questions Imported",
-            description: `${newQuestions.length} new question(s) have been added to your paper.`,
+            description: `${dataToImport.questions?.length || 0} new question(s) have been added to your paper.`,
           });
 
         } catch (e) {
           console.error("Failed to parse or append paper data from localStorage", e);
-           toast({
+          toast({
             variant: "destructive",
             title: "Import Failed",
             description: "Could not import the questions. The data was not in the correct format.",
@@ -1189,4 +1195,3 @@ export default function EditorPage() {
   );
 }
 
-    
