@@ -4,23 +4,23 @@
 
 @layer base {
   :root {
-    --bg-primary: 240 11% 4%;
-    --bg-surface: 240 11% 8%;
-    --bg-card: 240 11% 10%;
-    --bg-card-hover: 240 11% 14%;
-    --primary: 259 90% 67%;
-    --primary-light: 259 90% 77%;
-    --primary-dark: 262 84% 58%;
+    --bg-primary: 240 10% 3.9%;
+    --bg-surface: 240 9% 10%;
+    --bg-card: 240 8% 12%;
+    --bg-card-hover: 240 8% 15%;
+    --primary: 262 84% 58%;
+    --primary-light: 260 90% 80%;
+    --primary-dark: 260 80% 60%;
     --secondary: 239 88% 70%;
     --accent: 336 82% 61%;
     --text-primary: 215 28% 97%;
-    --text-secondary: 215 16% 65%;
-    --text-tertiary: 217 14% 49%;
+    --text-secondary: 220 15% 70%;
+    --text-tertiary: 220 14% 55%;
     --success: 153 65% 51%;
     --warning: 39 92% 56%;
     --danger: 355 83% 60%;
-    --border: 240 10% 18%;
-    --border-light: 240 10% 23%;
+    --border: 240 8% 17%;
+    --border-light: 240 8% 22%;
     --shadow-color: 0 0 0;
     --glow: 259 90% 67%;
     --radius-sm: 6px;
@@ -31,80 +31,62 @@
 
     --background: var(--bg-primary);
     --foreground: var(--text-primary);
-
     --card: var(--bg-card);
     --card-foreground: var(--text-primary);
-
     --popover: var(--bg-card);
     --popover-foreground: var(--text-primary);
-
     --primary: var(--primary);
     --primary-foreground: 215 28% 97%;
-
     --secondary: var(--secondary);
     --secondary-foreground: 215 28% 97%;
-
     --muted: var(--bg-surface);
     --muted-foreground: var(--text-secondary);
-
     --accent: var(--accent);
     --accent-foreground: var(--text-primary);
-
     --destructive: var(--danger);
     --destructive-foreground: var(--text-primary);
-    
     --border: var(--border);
     --input: var(--border);
     --ring: var(--primary);
-
     --radius: var(--radius-md);
   }
 
   .dark {
-    --bg-primary: 240 10% 7%; /* Slightly lighter background */
-    --bg-surface: 240 9% 10%; /* Lighter surface for header/sections */
-    --bg-card: 240 8% 12%; /* Lighter card background */
+    --bg-primary: 240 10% 3.9%;
+    --bg-surface: 240 9% 10%;
+    --bg-card: 240 8% 12%;
     --bg-card-hover: 240 8% 15%;
-    --primary: 260 85% 70%; /* Brighter primary purple */
+    --primary: 262 84% 58%;
     --primary-light: 260 90% 80%;
     --primary-dark: 260 80% 60%;
     --secondary: 239 88% 70%;
     --accent: 336 82% 61%;
     --text-primary: 215 28% 97%;
-    --text-secondary: 220 15% 70%; /* Lighter secondary text */
-    --text-tertiary: 220 14% 55%; /* Lighter tertiary text */
+    --text-secondary: 220 15% 70%;
+    --text-tertiary: 220 14% 55%;
     --success: 153 65% 51%;
     --warning: 39 92% 56%;
     --danger: 355 83% 60%;
-    --border: 240 8% 17%; /* Lighter border to match cards */
+    --border: 240 8% 17%;
     --border-light: 240 8% 22%;
     --shadow-color: 0 0 0;
     --glow: 259 90% 67%;
-
     --background: var(--bg-primary);
     --foreground: var(--text-primary);
-
     --card: var(--bg-card);
     --card-foreground: var(--text-primary);
-
     --popover: var(--bg-card);
     --popover-foreground: var(--text-primary);
-
     --primary: var(--primary);
     --primary-foreground: 215 28% 97%;
-
     --secondary: var(--secondary);
     --secondary-foreground: 215 28% 97%;
-
     --muted: var(--bg-surface);
     --muted-foreground: var(--text-secondary);
-
     --accent: var(--accent);
     --accent-foreground: var(--text-primary);
-
     --destructive: var(--danger);
     --destructive-foreground: var(--text-primary);
-    
     --border: var(--border);
     --input: var(--border);
     --ring: var(--primary);
@@ -117,7 +99,7 @@
   }
   body {
     background: linear-gradient(135deg, hsl(var(--bg-primary)) 0%, #0f0f1a 100%);
-    @apply text-foreground;
+    @apply bg-background text-foreground;
   }
 }
 
