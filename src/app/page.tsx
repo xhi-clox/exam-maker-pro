@@ -1,64 +1,67 @@
-
 import { WelcomeSection } from '@/components/dashboard/WelcomeSection';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { RecentPapers } from '@/components/dashboard/RecentPapers';
 import { Statistics } from '@/components/dashboard/Statistics';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { Projects } from '@/components/dashboard/Projects';
-import { FileText, Clock, BarChart2, History, FolderKanban } from 'lucide-react';
+import { FileText, Clock, BarChart2, History, Folder, Bolt } from 'lucide-react';
+import { AppHeader } from '@/components/layout/AppHeader';
 
 export default function Home() {
   return (
-    <div className="flex flex-col gap-8 p-4 md:p-6 lg:p-8">
-      <WelcomeSection />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-8">
-          <section>
-              <div className="flex items-center gap-3 mb-5">
-                  <FileText className="text-primary size-5" />
-                  <h3 className="text-lg font-semibold text-foreground">Quick Actions</h3>
-              </div>
-              <QuickActions />
+    <>
+      <AppHeader />
+      <div className="grid grid-cols-12 gap-6 mt-7">
+        <div className="col-span-12 lg:col-span-4">
+           <section className="bg-surface backdrop-blur-2xl rounded-lg p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-border h-full">
+            <h2 className="text-xl font-bold mb-5 flex items-center gap-3">
+              <Bolt className="text-primary" /> Quick Actions
+            </h2>
+            <QuickActions />
           </section>
-
-          <section>
-                <div className="flex items-center gap-3 mb-5">
-                    <FolderKanban className="text-primary size-5" />
-                    <h3 className="text-lg font-semibold text-foreground">Projects</h3>
+        </div>
+        <div className="col-span-12 lg:col-span-8">
+            <section className="bg-surface backdrop_blur-2xl rounded-lg p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-border h-full">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-xl font-bold flex items-center gap-3">
+                        <Folder className="text-primary" /> Projects
+                    </h2>
+                    <a href="#" className="text-primary text-sm font-semibold hover:text-primary-light transition-colors">View All</a>
                 </div>
                 <Projects />
           </section>
-          
-          <section>
-              <div className="flex items-center gap-3 mb-5">
-                  <Clock className="text-primary size-5" />
-                  <h3 className="text-lg font-semibold text-foreground">Recent Papers</h3>
+        </div>
+        <div className="col-span-12 lg:col-span-8">
+            <section className="bg-surface backdrop-blur-2xl rounded-lg p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-border h-full">
+              <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-xl font-bold flex items-center gap-3">
+                      <FileText className="text-primary" /> Recent Papers
+                  </h2>
+                  <a href="#" className="text-primary text-sm font-semibold hover:text-primary-light transition-colors">View All</a>
               </div>
               <RecentPapers />
           </section>
         </div>
-        <div className="lg:col-span-1 space-y-8">
-           <section>
-              <div className="flex items-center gap-3 mb-5">
-                  <BarChart2 className="text-primary size-5" />
-                  <h3 className="text-lg font-semibold text-foreground">Statistics</h3>
-              </div>
+        <div className="col-span-12 lg:col-span-4">
+           <section className="bg-surface backdrop-blur-2xl rounded-lg p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-border h-full">
+              <h2 className="text-xl font-bold mb-5 flex items-center gap-3">
+                  <BarChart2 className="text-primary" /> Statistics
+              </h2>
               <Statistics />
           </section>
-          <section>
-              <div className="flex items-center gap-3 mb-5">
-                  <History className="text-primary size-5" />
-                  <h3 className="text-lg font-semibold text-foreground">Recent Activity</h3>
+        </div>
+        <div className="col-span-12">
+            <section className="bg-surface backdrop-blur-2xl rounded-lg p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-border h-full">
+               <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-xl font-bold flex items-center gap-3">
+                      <History className="text-primary" /> Recent Activity
+                  </h2>
+                  <a href="#" className="text-primary text-sm font-semibold hover:text-primary-light transition-colors">View All</a>
               </div>
               <RecentActivity />
           </section>
         </div>
       </div>
-      
-      <footer className="text-center py-5 border-t">
-          <p className="text-sm text-muted-foreground">Bangla Exam Maker Pro &copy; 2024. All rights reserved.</p>
-      </footer>
-    </div>
+    </>
   );
 }

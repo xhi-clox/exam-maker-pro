@@ -3,86 +3,82 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarSeparator,
-} from '@/components/ui/sidebar';
-import {
   LayoutDashboard,
+  BookOpen,
   FileText,
-  BookCopy,
-  FolderKanban,
+  Folder,
+  Sparkles,
+  BarChart2,
   Settings,
-  LifeBuoy,
-  FileSignature,
+  User,
+  HelpCircle,
+  LogOut,
 } from 'lucide-react';
 import { Logo } from '../icons/Logo';
-import { useSidebar } from '../ui/sidebar';
 import { cn } from '@/lib/utils';
 
-
-const menuItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/editor', label: 'Editor', icon: FileSignature },
-  { href: '/templates', label: 'Templates', icon: BookCopy },
-  { href: '/question-bank', label: 'Question Bank', icon: FolderKanban },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
+const navSections = [
+    {
+        title: "Main",
+        items: [
+            { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+            { href: '/question-bank', label: 'Question Bank', icon: BookOpen },
+            { href: '/papers', label: 'Papers', icon: FileText },
+            { href: '/projects', label: 'Projects', icon: Folder },
+        ]
+    },
+    {
+        title: "Tools",
+        items: [
+            { href: '/ai-generator', label: 'AI Generator', icon: Sparkles },
+            { href: '/analytics', label: 'Analytics', icon: BarChart2 },
+            { href: '/settings', label: 'Settings', icon: Settings },
+        ]
+    },
+    {
+        title: "Account",
+        items: [
+            { href: '/profile', label: 'Profile', icon: User },
+            { href: '/help', label: 'Help & Support', icon: HelpCircle },
+            { href: '/logout', label: 'Logout', icon: LogOut },
+        ]
+    }
+]
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { isMobile } = useSidebar();
 
   return (
-    <Sidebar>
-      <SidebarHeader className={cn(isMobile && "hidden")}>
-        <div className="flex items-center gap-2">
-            <Logo className="h-7 w-7 text-primary" />
-            <span className="text-xl font-semibold text-foreground">
-                ExamPaper Pro
-            </span>
+    <aside className="w-[260px] bg-surface border-r border-border fixed h-full py-6 sidebar-scrollbar overflow-y-auto hidden md:block">
+        <div className="px-6 pb-6 border-b border-border mb-6">
+            <div className="flex items-center gap-3 text-lg font-bold">
+                <Logo />
+                <span>ExamPro</span>
+            </div>
         </div>
-      </SidebarHeader>
-      <SidebarContent className="p-2">
-        <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))}
-                tooltip={{ children: item.label, side: 'right' }}
-              >
-                <Link href={item.href}>
-                  <item.icon />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-      <SidebarSeparator />
-      <SidebarFooter className="p-2">
-         <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton
-                    asChild
-                    isActive={pathname === '/help'}
-                    tooltip={{ children: 'Help & Support', side: 'right' }}
-                >
-                    <Link href="/help">
-                        <LifeBuoy />
-                        <span>Help & Support</span>
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-         </SidebarMenu>
-      </SidebarFooter>
-    </Sidebar>
+        
+        {navSections.map(section => (
+            <div key={section.title} className="mb-8">
+                <h3 className="text-xs font-semibold uppercase text-text-tertiary tracking-wider px-6 pb-3">{section.title}</h3>
+                <nav>
+                    {section.items.map(item => (
+                        <Link 
+                            key={item.href} 
+                            href={item.href}
+                            className={cn(
+                                "flex items-center gap-3 py-3 px-6 text-text-secondary font-medium border-l-4 transition-colors",
+                                pathname === item.href 
+                                    ? "text-primary bg-[rgba(139,92,246,0.1)] border-primary" 
+                                    : "border-transparent hover:text-primary hover:bg-[rgba(139,92,246,0.05)]"
+                            )}
+                        >
+                            <item.icon className="size-5" />
+                            <span>{item.label}</span>
+                        </Link>
+                    ))}
+                </nav>
+            </div>
+        ))}
+    </aside>
   );
 }

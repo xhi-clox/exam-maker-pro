@@ -1,20 +1,10 @@
 import { cn } from '@/lib/utils';
+import { GraduationCap } from 'lucide-react';
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <svg
-      className={cn('size-8', className)}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M9 4H7.2C6.0799 4 5.51984 4 5.09202 4.21799C4.71569 4.40973 4.40973 4.71569 4.21799 5.09202C4 5.51984 4 6.0799 4 7.2V16.8C4 17.9201 4 18.4802 4.21799 18.908C4.40973 19.2843 4.71569 19.5903 5.09202 19.782C5.51984 20 6.0799 20 7.2 20H16.8C17.9201 20 18.4802 20 18.908 19.782C19.2843 19.5903 19.5903 19.2843 19.782 18.908C20 18.4802 20 17.9201 20 16.8V15M9 4C9.37563 4 9.73731 4.10389 10.0576 4.2965C10.3779 4.48912 10.646 4.76189 10.8386 5.08218C11.0312 5.40248 11.1415 5.76417 11.1415 6.14C11.1415 6.51583 11.0312 6.87752 10.8386 7.19782C10.646 7.51811 10.3779 7.79088 10.0576 7.9835C9.73731 8.17611 9.37563 8.28 9 8.28M9 4V8.28M9 8.28H15M9 8.28C8.62437 8.28 8.26269 8.17611 7.94239 7.9835C7.6221 7.79088 7.35395 7.51811 7.16135 7.19782C6.96874 6.87752 6.85848 6.51583 6.85848 6.14C6.85848 5.76417 6.96874 5.40248 7.16135 5.08218C7.35395 4.76189 7.6221 4.48912 7.94239 4.2965C8.26269 4.10389 8.62437 4 9 4M15 8.28H18M15 8.28V12.5M7 13H17M7 17H13"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <div className={cn('flex items-center justify-center size-9 rounded-lg bg-gradient-to-br from-primary to-accent', className)}>
+      <GraduationCap className="size-5 text-white" />
+    </div>
   );
 }

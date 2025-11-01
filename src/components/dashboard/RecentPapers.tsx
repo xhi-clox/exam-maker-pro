@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -9,11 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, CheckCircle, Edit, MoreHorizontal } from 'lucide-react';
-import { Button } from '../ui/button';
-import Link from 'next/link';
+import { MoreHorizontal } from 'lucide-react';
 
 const recentPapers = [
   {
@@ -38,52 +34,48 @@ const recentPapers = [
 
 export function RecentPapers() {
   return (
-    <Card className="shadow-lg">
-      <CardContent className="p-6">
+    <div>
+        <div className="mb-5">
+            <select className="bg-card border border-border rounded-md py-2 px-3 text-sm text-foreground cursor-pointer focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(139,92,246,0.15)]">
+                <option>Sort by: Last Updated</option>
+                <option>Sort by: Name</option>
+                <option>Sort by: Status</option>
+            </select>
+        </div>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="text-muted-foreground font-medium">Paper Name</TableHead>
-              <TableHead className="text-muted-foreground font-medium">Status</TableHead>
-              <TableHead className="text-muted-foreground font-medium">Last Updated</TableHead>
+            <TableRow className="border-b-2 border-border">
+              <TableHead className="text-text-tertiary font-semibold uppercase tracking-wider">Paper Name</TableHead>
+              <TableHead className="text-text-tertiary font-semibold uppercase tracking-wider">Status</TableHead>
+              <TableHead className="text-text-tertiary font-semibold uppercase tracking-wider">Last Updated</TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {recentPapers.map((paper) => (
-              <TableRow key={paper.id} className="hover:bg-muted/50">
+              <TableRow key={paper.id} className="border-border hover:bg-[rgba(139,92,246,0.08)] cursor-pointer">
                 <TableCell className="font-semibold text-foreground">{paper.title}</TableCell>
                 <TableCell>
                   {paper.status === 'Completed' ? (
-                    <Badge variant="secondary" className="bg-cyan-100 text-cyan-800 hover:bg-cyan-100/80">
-                        <CheckCircle className="mr-1.5 size-3.5" />
+                    <Badge variant="outline" className="bg-[rgba(16,185,129,0.15)] text-success border-[rgba(16,185,129,0.3)] gap-1.5 capitalize font-bold text-xs py-1 px-3 rounded-full before:content-[''] before:w-1.5 before:h-1.5 before:rounded-full before:bg-success">
                         Completed
                     </Badge>
                   ) : (
-                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80">
-                        <Edit className="mr-1.5 size-3.5" />
+                    <Badge variant="outline" className="bg-[rgba(245,158,11,0.15)] text-warning border-[rgba(245,158,11,0.3)] gap-1.5 capitalize font-bold text-xs py-1 px-3 rounded-full before:content-[''] before:w-1.5 before:h-1.5 before:rounded-full before:bg-warning">
                         Draft
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{paper.lastUpdated}</TableCell>
+                <TableCell className="text-text-secondary">{paper.lastUpdated}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                    <span className="sr-only">More options</span>
-                  </Button>
+                  <button className="text-text-tertiary hover:text-text-primary transition-colors">
+                    <MoreHorizontal className="h-5 w-5" />
+                  </button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        <div className="flex justify-end mt-4">
-            <Link href="#" className="inline-flex items-center gap-2 text-primary font-medium text-sm">
-                <span>View All Papers</span>
-                <ArrowRight className="size-4" />
-            </Link>
-        </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
