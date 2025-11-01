@@ -4,92 +4,63 @@
 
 @layer base {
   :root {
-    --bg-primary: 240 10% 3.9%;
-    --bg-surface: 240 9% 10%;
-    --bg-card: 240 8% 12%;
-    --bg-card-hover: 240 8% 15%;
-    --primary: 262 84% 58%;
-    --primary-light: 260 90% 80%;
-    --primary-dark: 260 80% 60%;
-    --secondary: 239 88% 70%;
-    --accent: 336 82% 61%;
-    --text-primary: 215 28% 97%;
-    --text-secondary: 220 15% 70%;
-    --text-tertiary: 220 14% 55%;
-    --success: 153 65% 51%;
-    --warning: 39 92% 56%;
-    --danger: 355 83% 60%;
-    --border: 240 8% 17%;
-    --border-light: 240 8% 22%;
-    --shadow-color: 0 0 0;
-    --glow: 259 90% 67%;
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
-    --sidebar-width: 260px;
-    --header-height: 80px;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 14%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 50%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 25%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 50%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 25%;
+    --input: 217 33% 25%;
+    --ring: 217 33% 50%;
+    --radius: 0.5rem;
 
-    --background: var(--bg-primary);
-    --foreground: var(--text-primary);
-    --card: var(--bg-card);
-    --card-foreground: var(--text-primary);
-    --popover: var(--bg-card);
-    --popover-foreground: var(--text-primary);
-    --primary: var(--primary);
-    --primary-foreground: 215 28% 97%;
-    --secondary: var(--secondary);
-    --secondary-foreground: 215 28% 97%;
-    --muted: var(--bg-surface);
-    --muted-foreground: var(--text-secondary);
-    --accent: var(--accent);
-    --accent-foreground: var(--text-primary);
-    --destructive: var(--danger);
-    --destructive-foreground: var(--text-primary);
-    --border: var(--border);
-    --input: var(--border);
-    --ring: var(--primary);
-    --radius: var(--radius-md);
+    --sidebar-background: 222 47% 10%;
+    --sidebar-foreground: 215 20% 65%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 222 47% 14%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 47% 14%;
+    --sidebar-ring: 217 33% 50%;
+
+    --chart-1: 210 40% 98%;
+    --chart-2: 217 33% 50%;
+    --chart-3: 173 58% 39%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
 
   .dark {
-    --bg-primary: 240 10% 3.9%;
-    --bg-surface: 240 9% 10%;
-    --bg-card: 240 8% 12%;
-    --bg-card-hover: 240 8% 15%;
-    --primary: 262 84% 58%;
-    --primary-light: 260 90% 80%;
-    --primary-dark: 260 80% 60%;
-    --secondary: 239 88% 70%;
-    --accent: 336 82% 61%;
-    --text-primary: 215 28% 97%;
-    --text-secondary: 220 15% 70%;
-    --text-tertiary: 220 14% 55%;
-    --success: 153 65% 51%;
-    --warning: 39 92% 56%;
-    --danger: 355 83% 60%;
-    --border: 240 8% 17%;
-    --border-light: 240 8% 22%;
-    --shadow-color: 0 0 0;
-    --glow: 259 90% 67%;
-    --background: var(--bg-primary);
-    --foreground: var(--text-primary);
-    --card: var(--bg-card);
-    --card-foreground: var(--text-primary);
-    --popover: var(--bg-card);
-    --popover-foreground: var(--text-primary);
-    --primary: var(--primary);
-    --primary-foreground: 215 28% 97%;
-    --secondary: var(--secondary);
-    --secondary-foreground: 215 28% 97%;
-    --muted: var(--bg-surface);
-    --muted-foreground: var(--text-secondary);
-    --accent: var(--accent);
-    --accent-foreground: var(--text-primary);
-    --destructive: var(--danger);
-    --destructive-foreground: var(--text-primary);
-    --border: var(--border);
-    --input: var(--border);
-    --ring: var(--primary);
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 14%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 50%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 25%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 50%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 25%;
+    --input: 217 33% 25%;
+    --ring: 217 33% 50%;
   }
 }
 
@@ -98,7 +69,6 @@
     @apply border-border;
   }
   body {
-    background: linear-gradient(135deg, hsl(var(--bg-primary)) 0%, #0f0f1a 100%);
     @apply bg-background text-foreground;
   }
 }
@@ -107,18 +77,18 @@
   width: 8px;
 }
 .sidebar-scrollbar::-webkit-scrollbar-track {
-  background: hsl(var(--bg-surface));
+  background: hsl(var(--muted));
 }
 .sidebar-scrollbar::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 4px;
 }
 .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary));
+  background: hsl(var(--accent));
 }
 .sidebar-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) hsl(var(--bg-surface));
+  scrollbar-color: hsl(var(--border)) hsl(var(--muted));
 }
 
 /* KaTeX vertical alignment fixes - safe version */
