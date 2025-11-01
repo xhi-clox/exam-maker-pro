@@ -963,7 +963,7 @@ export default function EditorPage() {
         if (cancelled) return;
   
         // PAGE geometry (px). Convert margins from mm to px and subtract from height:
-        const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom));
+        const pageInnerHeight = settings.height - (mmToPx(settings.margins.top) + mmToPx(settings.margins.bottom)) + 10; // Add 10px buffer
         
         // get the rendered paper page root inside the temp container
         const renderedPaperPage = tempRenderContainer.querySelector('.paper-page') as HTMLElement | null;
@@ -978,7 +978,6 @@ export default function EditorPage() {
         const newPages: PageContent[][] = [];
         let currentPageContent: PageContent[] = [];
         let usedHeight = 0;
-        let isFirstPage = true;
   
         const flushPage = () => {
           if (currentPageContent.length > 0) {
@@ -986,23 +985,24 @@ export default function EditorPage() {
           }
           currentPageContent = [];
           usedHeight = 0;
-          isFirstPage = false;
         };
   
         let headerHeight = 0;
         const headerEl = renderedPaperPage.querySelector('.preview-header');
         const topInfoElements = renderedPaperPage.querySelectorAll('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold');
         
-        if (headerEl) {
-            const st = window.getComputedStyle(headerEl);
-            headerHeight += headerEl.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
+        if (newPages.length === 0) { // Only calculate for the first page
+            if (headerEl) {
+                const st = window.getComputedStyle(headerEl);
+                headerHeight += headerEl.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
+            }
+            topInfoElements.forEach(el => {
+                const st = window.getComputedStyle(el as Element);
+                headerHeight += (el as HTMLElement).offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
+            });
         }
-        topInfoElements.forEach(el => {
-            const st = window.getComputedStyle(el as Element);
-            headerHeight += (el as HTMLElement).offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
-        });
-
-        usedHeight += headerHeight;
+        
+        usedHeight = newPages.length === 0 ? headerHeight : 0;
 
         for (const questionEl of allQuestionElements) {
             if (cancelled) break;
@@ -1018,9 +1018,9 @@ export default function EditorPage() {
                 const cs = window.getComputedStyle(mainContentEl);
                 const mainHeight = mainContentEl.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
 
-                if (usedHeight + mainHeight > pageInnerHeight && usedHeight > (isFirstPage ? headerHeight : 0)) {
+                if (usedHeight + mainHeight > pageInnerHeight && currentPageContent.length > 0) {
                     flushPage();
-                    if(isFirstPage) usedHeight += headerHeight;
+                    usedHeight = newPages.length === 0 ? headerHeight : 0;
                 }
                 
                 let existingItem = currentPageContent.find(item => item.mainQuestion.id === qId);
@@ -1043,9 +1043,9 @@ export default function EditorPage() {
                 const cs = window.getComputedStyle(subEl);
                 const subHeight = subEl.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
 
-                if (usedHeight + subHeight > pageInnerHeight) {
+                if (usedHeight + subHeight > pageInnerHeight && currentPageContent.length > 0) {
                     flushPage();
-                    if(isFirstPage) usedHeight += headerHeight; 
+                    usedHeight = newPages.length === 0 ? headerHeight : 0; 
                 }
 
                 let existingItem = currentPageContent.find(item => item.mainQuestion.id === qId);
@@ -1063,9 +1063,9 @@ export default function EditorPage() {
             if (subQuestionEls.length === 0 && !mainContentEl) {
                  const cs = window.getComputedStyle(questionEl);
                  const elHeight = questionEl.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
-                 if (usedHeight + elHeight > pageInnerHeight && usedHeight > (isFirstPage ? headerHeight : 0)) {
+                 if (usedHeight + elHeight > pageInnerHeight && currentPageContent.length > 0) {
                     flushPage();
-                    if(isFirstPage) usedHeight += headerHeight;
+                    usedHeight = newPages.length === 0 ? headerHeight : 0;
                  }
                  currentPageContent.push({ mainQuestion: questionObj, subQuestions: [], showMainContent: true });
                  usedHeight += elHeight;
@@ -1122,7 +1122,7 @@ export default function EditorPage() {
         bookletPages={bookletPages}
         setBookletPages={setBookletPages}
       />
-      <div className="flex h-[calc(100vh-theme(spacing.14))]">
+      <div className="flex h-[calc(100vh-3.5rem)]">
         <main className="flex-1 overflow-y-auto bg-slate-200 dark:bg-gray-800 p-4">
               <div className="space-y-4">
                   <div className="bg-white dark:bg-slate-800/50 p-6 space-y-6 shadow-lg rounded-lg">
@@ -1234,3 +1234,5 @@ export default function EditorPage() {
     </>
   );
 }
+
+    
