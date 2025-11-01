@@ -152,10 +152,12 @@ export default function EditorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get('project');
-  const { getProject, updateProject } = useProjects();
+  const { getProject, updateProject, isLoaded } = useProjects();
   
   // This effect runs once on mount to initialize the paper state from project data.
   useEffect(() => {
+    if (!isLoaded) return; // Wait for projects to be loaded from localStorage
+
     if (!projectId) {
         toast({ title: "Error", description: "No project specified.", variant: "destructive" });
         router.push('/');
@@ -184,6 +186,7 @@ export default function EditorPage() {
                 examTitle: project.name,
                 subject: project.subject,
                 grade: project.class,
+                questions: [], // Start with empty questions on parse error
             };
         }
     } else {
@@ -199,7 +202,7 @@ export default function EditorPage() {
     const questionsWithUniqueIds = ensureUniqueIds(initialData.questions || []);
     setPaper({ ...initialData, questions: questionsWithUniqueIds });
 
-  }, [projectId, getProject, router, toast]);
+  }, [projectId, getProject, router, toast, isLoaded]);
 
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
   

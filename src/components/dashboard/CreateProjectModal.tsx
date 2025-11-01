@@ -78,6 +78,8 @@ export function CreateProjectModal({ isOpen, onClose, onCreate }: CreateProjectM
                   <SelectItem value="English">English</SelectItem>
                   <SelectItem value="Math">Math</SelectItem>
                   <SelectItem value="Science">Science</SelectItem>
+                  <SelectItem value="ICT">ICT</SelectItem>
+                  <SelectItem value="Religion">Religion</SelectItem>
                 </SelectContent>
               </Select>
           </div>
