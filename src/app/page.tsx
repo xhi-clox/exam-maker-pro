@@ -4,11 +4,12 @@ import { QuickActions } from '@/components/dashboard/QuickActions';
 import { RecentPapers } from '@/components/dashboard/RecentPapers';
 import { Statistics } from '@/components/dashboard/Statistics';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
-import { FileText, Clock, BarChart2, History } from 'lucide-react';
+import { Projects } from '@/components/dashboard/Projects';
+import { FileText, Clock, BarChart2, History, FolderKanban } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 p-4 md:p-6 lg:p-8">
       <WelcomeSection />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -19,6 +20,14 @@ export default function Home() {
                   <h3 className="text-lg font-semibold text-foreground">Quick Actions</h3>
               </div>
               <QuickActions />
+          </section>
+
+          <section>
+                <div className="flex items-center gap-3 mb-5">
+                    <FolderKanban className="text-primary size-5" />
+                    <h3 className="text-lg font-semibold text-foreground">Projects</h3>
+                </div>
+                <Projects />
           </section>
           
           <section>

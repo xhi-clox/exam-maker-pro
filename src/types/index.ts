@@ -16,3 +16,11 @@ export interface Stat {
     color: string;
     bgColor: string;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  class: string;
+  subject: string;
+  lastUpdated: string;
+}

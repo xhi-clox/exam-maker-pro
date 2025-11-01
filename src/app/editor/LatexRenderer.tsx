@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -9,37 +8,120 @@ interface LatexRendererProps {
 }
 
 const LatexRenderer: React.FC<LatexRendererProps> = ({ content }) => {
-  // Regex to find content between $...$ (inline) and $$...$$ (block)
+  if (!content) return null;
+
+  // Enhanced regex to handle various LaTeX delimiters
   const inlineRegex = /\$([^$]+)\$/g;
   const blockRegex = /\$\$([^$]+)\$\$/g;
+  
+  // Also handle \(...\) and \[...\] delimiters
+  const inlineParenRegex = /\\\(([^]+?)\\\)/g;
+  const blockBracketRegex = /\\\[([^]+?)\\\]/g;
 
   const processString = (text: string) => {
-    // First, handle block-level math so they are replaced first
-    const partsByBlock = text.split(blockRegex);
-    const elementsWithBlocks = partsByBlock.map((part, index) => {
-      if (index % 2 === 1) { // This is a LaTeX block
-        try {
-          return <BlockMath key={`block-${index}`} math={part} />;
-        } catch (e) {
-          return <span key={`block-err-${index}`} className="text-red-500">Invalid Block LaTeX</span>;
-        }
-      } else {
-        // This is a regular text part, process it for inline math
-        const partsByInline = part.split(inlineRegex);
-        return partsByInline.map((inlinePart, inlineIndex) => {
-          if (inlineIndex % 2 === 1) { // This is an inline LaTeX part
-            try {
-              return <InlineMath key={`inline-${index}-${inlineIndex}`} math={inlinePart} />;
-            } catch (e) {
-              return <span key={`inline-err-${index}-${inlineIndex}`} className="text-red-500">Invalid Inline LaTeX</span>;
-            }
-          }
-          return <span key={`text-${index}-${inlineIndex}`}>{inlinePart}</span>;
-        });
+    if (!text) return [<span key="empty"></span>];
+
+    // First, handle block-level math with different delimiters
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let currentText = text;
+
+    // Process all math blocks first
+    const blockMathIndices: Array<{start: number, end: number, content: string, type: 'block' | 'inline'}> = [];
+
+    // Find all $$...$$ blocks
+    let match;
+    while ((match = blockRegex.exec(text)) !== null) {
+      blockMathIndices.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[1],
+        type: 'block'
+      });
+    }
+
+    // Find all \[...\] blocks
+    while ((match = blockBracketRegex.exec(text)) !== null) {
+      blockMathIndices.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[1],
+        type: 'block'
+      });
+    }
+
+    // Find all $...$ inline math
+    while ((match = inlineRegex.exec(text)) !== null) {
+      blockMathIndices.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[1],
+        type: 'inline'
+      });
+    }
+
+    // Find all \(...\) inline math
+    while ((match = inlineParenRegex.exec(text)) !== null) {
+      blockMathIndices.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[1],
+        type: 'inline'
+      });
+    }
+
+    // Sort by start index
+    blockMathIndices.sort((a, b) => a.start - b.start);
+
+    // If no math found, return plain text
+    if (blockMathIndices.length === 0) {
+      return [<span key="text-only">{text}</span>];
+    }
+
+    // Build the parts array
+    lastIndex = 0;
+    blockMathIndices.forEach((math, index) => {
+      // Add text before math
+      if (math.start > lastIndex) {
+        parts.push(
+          <span key={`text-${index}`}>
+            {text.substring(lastIndex, math.start)}
+          </span>
+        );
       }
+
+      // Add math
+      try {
+        if (math.type === 'block') {
+          parts.push(
+            <BlockMath key={`math-${index}`} math={math.content.trim()} />
+          );
+        } else {
+          parts.push(
+            <InlineMath key={`math-${index}`} math={math.content.trim()} />
+          );
+        }
+      } catch (error) {
+        parts.push(
+          <span key={`math-error-${index}`} className="text-red-500" title={`Invalid LaTeX: ${math.content}`}>
+            [Math Error: {math.content}]
+          </span>
+        );
+      }
+
+      lastIndex = math.end;
     });
 
-    return <>{elementsWithBlocks}</>;
+    // Add remaining text after last math
+    if (lastIndex < text.length) {
+      parts.push(
+        <span key="text-final">
+          {text.substring(lastIndex)}
+        </span>
+      );
+    }
+
+    return parts;
   };
 
   return <>{processString(content)}</>;
