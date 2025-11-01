@@ -1,5 +1,7 @@
 
 import type { LucideIcon } from "lucide-react";
+import type { Paper as PaperData } from '@/app/editor/page';
+
 
 export interface Paper {
     id: string;
@@ -23,4 +25,7 @@ export interface Project {
   class: string;
   subject: string;
   lastUpdated: string;
+  paper?: PaperData;
 }
+
+    

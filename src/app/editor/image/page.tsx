@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BrainCircuit, Upload, ArrowRight, Image as ImageIcon, X } from 'lucide-react';
 import { imageToQuestionPaper, type ImageToQuestionPaperOutput } from '@/ai/flows/image-to-question-paper';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +18,15 @@ export default function ImageToQuestionPage() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('project');
+
+   useEffect(() => {
+    if (!projectId) {
+      // Handle case where project ID is missing, maybe redirect or show an error
+      router.push('/');
+    }
+  }, [projectId, router]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,11 +59,10 @@ export default function ImageToQuestionPage() {
   };
   
   const openEditorWithContent = () => {
-    if (!extractedJson) return;
+    if (!extractedJson || !projectId) return;
     try {
-      // Just pass the newly extracted data. The editor page is responsible for merging.
       localStorage.setItem('newImageData', JSON.stringify(extractedJson));
-      router.push('/editor?from=image');
+      router.push(`/editor?project=${projectId}&from=image`);
     } catch (e) {
       console.error("Invalid JSON format or localStorage error", e);
       setError("Failed to prepare data for the editor due to an invalid format.");

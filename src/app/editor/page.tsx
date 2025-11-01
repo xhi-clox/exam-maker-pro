@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
-import { Plus, Type, Pilcrow, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, LogOut } from 'lucide-react';
+import { Plus, Type, Pilcrow, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, ListOrdered, TableIcon, PlusCircle, MinusCircle, BookMarked, Minus, Sparkles, LogOut, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PaperPage } from './PaperPreview';
 import 'katex/dist/katex.min.css';
 import LatexRenderer from './LatexRenderer';
+import { useProjects } from '@/hooks/use-projects';
 
 
 const generateId = (prefix: string) => {
@@ -37,10 +38,9 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
         let newId = node.id;
         let isNew = false;
         
-        // Generate a new ID if it's missing, or if it has been seen before.
         if (!newId || seenIds.has(newId)) {
-            const prefix = parentIdPrefix ? `${parentIdPrefix}_` : 'q_';
-            newId = `${prefix}${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            const prefix = parentIdPrefix ? `${parentIdPrefix}_` : `q_${Date.now()}_`;
+            newId = `${prefix}${Math.random().toString(36).substring(2, 9)}`;
             isNew = true;
         }
 
@@ -63,8 +63,6 @@ const ensureUniqueIds = (questions: Question[]): Question[] => {
             let subIdSuffix = String.fromCharCode(97 + i); // e.g., a, b
             let subId = `${newParentIdPrefix}${subIdSuffix}`;
 
-            // If the original sub-id was different, it might have been intentional (e.g. q1c after q1a)
-            // This logic is simple and just re-sequences them: a, b, c...
             if(isNew || !sub.id || seenIds.has(sub.id) || !sub.id.startsWith(newParentIdPrefix)) {
               sub.id = subId;
             }
@@ -112,6 +110,7 @@ export interface Question {
 }
 
 export interface Paper {
+  id: string; // Project ID
   schoolName: string;
   examTitle: string;
   subject: string;
@@ -136,7 +135,7 @@ export type PageContent = {
     showMainContent: boolean;
 }
 
-const initialPaperData: Paper = {
+const initialPaperData: Omit<Paper, 'id'> = {
   schoolName: 'ABC GOVT. School and College',
   examTitle: 'Annual Examination-2025',
   subject: 'Bangla',
@@ -150,24 +149,58 @@ const initialPaperData: Paper = {
 export default function EditorPage() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const { toast } = useToast();
-
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('project');
+  const { getProject, updateProject } = useProjects();
+  
+  // This effect runs once on mount to initialize the paper state from project data.
   useEffect(() => {
-    // This effect runs once on mount to initialize the paper state.
-    const savedPaper = localStorage.getItem('currentPaper');
-    let initialData = initialPaperData;
+    if (!projectId) {
+        toast({ title: "Error", description: "No project specified.", variant: "destructive" });
+        router.push('/');
+        return;
+    }
+
+    const project = getProject(projectId);
+    if (!project) {
+        toast({ title: "Error", description: "Project not found.", variant: "destructive" });
+        router.push('/');
+        return;
+    }
+
+    const storageKey = `paper_${projectId}`;
+    const savedPaper = localStorage.getItem(storageKey);
+    let initialData: Paper;
+
     if (savedPaper) {
         try {
             initialData = JSON.parse(savedPaper);
         } catch (e) {
             console.error("Failed to parse saved paper from localStorage", e);
+            initialData = {
+                ...initialPaperData,
+                id: projectId,
+                examTitle: project.name,
+                subject: project.subject,
+                grade: project.class,
+            };
         }
+    } else {
+        initialData = {
+            ...initialPaperData,
+            id: projectId,
+            examTitle: project.name,
+            subject: project.subject,
+            grade: project.class,
+        };
     }
+    
     const questionsWithUniqueIds = ensureUniqueIds(initialData.questions || []);
     setPaper({ ...initialData, questions: questionsWithUniqueIds });
-  }, []);
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  }, [projectId, getProject, router, toast]);
+
   const [focusedInput, setFocusedInput] = useState<{ element: HTMLTextAreaElement | HTMLInputElement; id: string } | null>(null);
   
   const [pages, setPages] = useState<PageContent[][]>([]);
@@ -183,12 +216,15 @@ export default function EditorPage() {
   });
 
   const handleSave = () => {
-    if (paper) {
+    if (paper && projectId) {
       try {
-        localStorage.setItem('currentPaper', JSON.stringify(paper));
+        const storageKey = `paper_${projectId}`;
+        localStorage.setItem(storageKey, JSON.stringify(paper));
+        updateProject(projectId, { name: paper.examTitle, subject: paper.subject, class: paper.grade });
+
         toast({
           title: "Progress Saved",
-          description: "Your question paper has been saved locally.",
+          description: "Your question paper has been saved.",
         });
       } catch (e) {
         console.error("Failed to save paper to localStorage", e);
@@ -205,24 +241,19 @@ export default function EditorPage() {
     router.push('/');
   };
 
-  // Add this function inside the EditorPage component, before the import effect
   const mergeImportedQuestions = (existingPaper: Paper, importedData: any): Paper => {
     const newQuestions = importedData.questions || [];
     
-    // Create a new paper object by combining questions and updating metadata
     const combinedPaper: Paper = produce(existingPaper, draft => {
         if (importedData.title) draft.examTitle = importedData.title;
         if (importedData.subject) draft.subject = importedData.subject;
         if (importedData.grade) draft.grade = importedData.grade;
         
-        // Append new questions to existing ones
         draft.questions.push(...newQuestions);
       });
     
-    // Ensure all questions in the combined paper have unique IDs
-    combinedPaper.questions = ensureUniqueIds(combinedPaper.questions);
-
-    return combinedPaper;
+    const questionsWithUniqueIds = ensureUniqueIds(combinedPaper.questions);
+    return { ...combinedPaper, questions: questionsWithUniqueIds };
   };
 
 
@@ -1177,10 +1208,10 @@ export default function EditorPage() {
                 <Button variant="outline" onClick={() => addQuestion('fill-in-the-blanks')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Type className="mr-2 size-4" /> শূন্যস্থান পূরণ</Button>
                 <Button variant="outline" onClick={() => addQuestion('essay')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><Pilcrow className="mr-2 size-4" /> রচনামূলক প্রশ্ন</Button>
                 <Button variant="outline" onClick={() => addQuestion('table')} className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white"><TableIcon className="mr-2 size-4" /> সারণী</Button>
-                <Link href="/editor/image" passHref>
+                <Link href={`/editor/image?project=${projectId}`} passHref>
                     <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10"><ImageIcon className="mr-2 size-4" /> ছবি থেকে ইম্পোর্ট</Button>
                 </Link>
-                  <Link href="/ai/suggest" passHref>
+                  <Link href={`/ai/suggest?project=${projectId}`} passHref>
                   <Button variant="outline" className="w-full border-purple-500 text-purple-500 hover:bg-purple-500/10">
                     <Sparkles className="mr-2 size-4" />
                     AI দিয়ে তৈরি করুন
@@ -1201,4 +1232,4 @@ export default function EditorPage() {
   );
 }
 
-
+    

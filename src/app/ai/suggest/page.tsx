@@ -1,11 +1,11 @@
 
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { suggestQuestionPaper, type SuggestQuestionPaperOutput } from '@/ai/flows/ai-suggest-question-paper';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,14 @@ export default function AiSuggestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [suggestedJson, setSuggestedJson] = useState<SuggestQuestionPaperOutput | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('project');
+
+  useEffect(() => {
+    if (!projectId) {
+      router.push('/');
+    }
+  }, [projectId, router]);
 
   const handleGenerate = async () => {
     if (!topic || !gradeLevel) return;
@@ -39,7 +47,7 @@ export default function AiSuggestPage() {
   };
   
   const openEditorWithContent = () => {
-    if (!suggestedJson) return;
+    if (!suggestedJson || !projectId) return;
     try {
       // Convert the AI output into the format expected by the editor's import logic.
       const newQuestions: any[] = [];
@@ -69,7 +77,7 @@ export default function AiSuggestPage() {
       localStorage.setItem('newImageData', JSON.stringify(importData));
       
       // Navigate to the editor with a flag.
-      router.push('/editor?from=suggest');
+      router.push(`/editor?project=${projectId}&from=suggest`);
     } catch (e) {
       console.error("Invalid JSON format or localStorage error", e);
       // Show error toast
