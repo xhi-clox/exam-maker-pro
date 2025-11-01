@@ -993,7 +993,7 @@ export default function EditorPage() {
         const headerEl = renderedPaperPage.querySelector('.preview-header');
         const topInfoElements = renderedPaperPage.querySelectorAll('.flex.justify-between.text-sm, .text-center.text-sm.font-semibold');
         
-        if (isFirstPage && headerEl) {
+        if (headerEl) {
             const st = window.getComputedStyle(headerEl);
             headerHeight += headerEl.offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
         }
@@ -1234,3 +1234,5 @@ export default function EditorPage() {
     </>
   );
 }
+
+    
