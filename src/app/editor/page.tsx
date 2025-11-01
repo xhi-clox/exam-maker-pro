@@ -1002,9 +1002,7 @@ export default function EditorPage() {
             headerHeight += (el as HTMLElement).offsetHeight + parseFloat(st.marginTop) + parseFloat(st.marginBottom);
         });
 
-        if (isFirstPage) {
-            usedHeight += headerHeight;
-        }
+        usedHeight += headerHeight;
 
         for (const questionEl of allQuestionElements) {
             if (cancelled) break;
@@ -1184,9 +1182,11 @@ export default function EditorPage() {
                   </div>
 
                   {paper.questions.length === 0 ? (
-                  <div className="flex h-48 flex-col items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700">
-                      <p className="font-semibold text-foreground">Your paper is empty</p>
-                      <p className="text-sm">Add questions from the panel on the right.</p>
+                  <div className="flex flex-grow items-center justify-center text-center text-muted-foreground rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700">
+                      <div>
+                        <p className="font-semibold text-foreground">Your paper is empty</p>
+                        <p className="text-sm">Add questions from the panel on the right.</p>
+                      </div>
                   </div>
                   ) : (
                   <div className="space-y-4">
@@ -1234,5 +1234,3 @@ export default function EditorPage() {
     </>
   );
 }
-
-    
