@@ -1231,5 +1231,3 @@ export default function EditorPage() {
     </>
   );
 }
-
-    

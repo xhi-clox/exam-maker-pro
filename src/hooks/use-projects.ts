@@ -59,6 +59,12 @@ export function useProjects() {
   const deleteProject = (id: string) => {
     const updatedProjects = projects.filter(p => p.id !== id);
     saveProjects(updatedProjects);
+    // Also remove the associated paper data from localStorage
+    try {
+        localStorage.removeItem(`paper_${id}`);
+    } catch (error) {
+        console.error(`Failed to remove paper data for project ${id}`, error);
+    }
   };
 
   return {
@@ -70,5 +76,3 @@ export function useProjects() {
     deleteProject,
   };
 }
-
-    
