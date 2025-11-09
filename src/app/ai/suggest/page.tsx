@@ -1,5 +1,5 @@
-
 'use client';
+
 import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
