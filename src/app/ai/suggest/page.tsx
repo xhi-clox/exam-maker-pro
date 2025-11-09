@@ -1,4 +1,5 @@
 
+import { Suspense } from 'react';
 'use client';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-export default function AiSuggestPage() {
+function AiSuggest() {
   const [topic, setTopic] = useState('');
   const [gradeLevel, setGradeLevel] = useState('9');
   const [isLoading, setIsLoading] = useState(false);
@@ -147,5 +148,14 @@ export default function AiSuggestPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+
+export default function AiSuggestPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AiSuggest />
+    </Suspense>
   );
 }
