@@ -155,7 +155,7 @@ export default function ImageToQuestionPage() {
               ) : (
                 <>
                   <Textarea
-                    className="h-80 font-code bg-slate-50"
+                    className="h-80 font-code bg-slate-50 text-black"
                     value={extractedJson ? JSON.stringify(extractedJson, null, 2) : ''}
                     readOnly
                     placeholder="এখানে AI দ্বারা তৈরি JSON আউটপুট দেখা যাবে..."
@@ -172,5 +172,3 @@ export default function ImageToQuestionPage() {
     </div>
   );
 }
-
-    

@@ -135,7 +135,7 @@ export default function AiSuggestPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea
-              className="h-80 font-code"
+              className="h-80 font-code bg-slate-50 text-black"
               value={suggestedJson ? JSON.stringify(suggestedJson, null, 2) : ""}
               readOnly
               placeholder="এখানে AI দ্বারা তৈরি JSON আউটপুট দেখা যাবে..."
@@ -149,5 +149,3 @@ export default function AiSuggestPage() {
     </div>
   );
 }
-
-    
